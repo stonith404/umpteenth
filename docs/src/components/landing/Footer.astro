@@ -1,0 +1,33 @@
+---
+// A short footer for the landing page, the docs pages keep Starlight's own
+import Mark from "./Mark.astro";
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-hairline pt-8 pb-10 text-sm text-gray-3">
+  <div
+    class="mx-auto flex max-w-[72rem] flex-wrap items-center justify-between gap-x-8 gap-y-4 px-6"
+  >
+    <div class="flex items-center gap-3 text-gray-2">
+      <Mark size={24} class="shrink-0 text-fg" />
+      <span class="text-xs">© {year} Umpteenth</span>
+    </div>
+    <nav class="flex flex-wrap gap-5" aria-label="Footer">
+      <a
+        class="text-gray-2 no-underline hover:text-fg"
+        href="/getting-started/introduction/">Docs</a
+      >
+      <a
+        class="text-gray-2 no-underline hover:text-fg"
+        href="/getting-started/installation/">Install</a
+      >
+      <a class="text-gray-2 no-underline hover:text-fg" href="/reference/api/"
+        >API</a
+      >
+      <a
+        class="text-gray-2 no-underline hover:text-fg"
+        href="https://github.com/stonith404/umpteenth">GitHub</a
+      >
+    </nav>
+  </div>
+</footer>

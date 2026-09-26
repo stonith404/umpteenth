@@ -1,0 +1,221 @@
+---
+title: Models and costs
+seoTitle: "Models and costs: Anthropic, OpenAI and Ollama"
+description: Connect Anthropic, an OpenAI-compatible API or a Claude Code or Codex subscription, choose the models your jobs run on, and cap what they spend.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+import LocalhostGotcha from '../../../components/diagrams/LocalhostGotcha.astro';
+import Screenshot from '../../../components/Screenshot.astro';
+
+Connect the LLM APIs your jobs run on under **Settings → Providers & models**, and keep what they spend under limits you set.
+A new workspace has no providers, so you add one and pick an Agent model before its first job runs, as [Installation](../../getting-started/installation/#connect-a-model) walks through.
+
+## Add a provider
+
+**Add provider** offers two kinds.
+An **Anthropic** provider calls Anthropic's Messages API.
+An **OpenAI-compatible** provider calls the Chat Completions API of OpenAI itself, OpenRouter, or a local server such as Ollama, vLLM, LM Studio or llama.cpp.
+
+Leave **Base URL** empty for the provider's official API.
+For any other OpenAI-compatible server, the **Base URL** must end where the server serves `/models`, which is `/v1` for most of them, and the presets **OpenAI**, **OpenRouter**, **Ollama** and **LM Studio** fill it in.
+The OpenAI API needs an **API key**, while Ollama and LM Studio need none.
+Umpteenth stores the key encrypted and never shows it again.
+
+Umpteenth reads the provider's model list as soon as you save it, and if it can't reach the server, it keeps the provider and shows the reason in a warning.
+
+To check a provider, click **Test** on its row, pick a **Model** and click **Send test prompt**.
+A reply confirms the key, the base URL and the model name, and the test accepts disabled models, so you can try one before you enable it.
+
+### A model server on your Docker host
+
+The Ollama and LM Studio presets point at `localhost`, and inside the Umpteenth container `localhost` is the container itself.
+
+<LocalhostGotcha />
+
+To reach a server that runs on the Docker host:
+
+1. Make the server listen on every interface: start Ollama with `OLLAMA_HOST=0.0.0.0`, or let LM Studio serve on the local network.
+   The server then accepts connections from your network too, unless the host firewall blocks its port.
+2. On Linux, give the container the `host.docker.internal` name (Docker Desktop has it built in) and apply the change with `docker compose up -d`:
+
+   ```yaml title="docker-compose.yml"
+   services:
+     umpteenth:
+       extra_hosts:
+         - "host.docker.internal:host-gateway"
+   ```
+
+3. Set the **Base URL** to `http://host.docker.internal:11434/v1` for Ollama or `http://host.docker.internal:1234/v1` for LM Studio.
+
+Umpteenth refuses a Base URL on a private address while `network.allow_private_targets` is `false` ([Troubleshooting](../../deployment/troubleshooting/#points-to-a-private-or-local-network-address)).
+
+## Claude Code and Codex subscriptions
+
+To run jobs on your Claude or ChatGPT plan instead of paying per token, put [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) between Umpteenth and the provider.
+CLIProxyAPI signs in with the same OAuth login as Claude Code or the Codex CLI and serves your plan's models through the Anthropic and OpenAI APIs, so Umpteenth calls it like any other provider.
+
+:::caution
+Anthropic and OpenAI can limit or suspend an account that uses a subscription outside their own apps, so read your plan's terms before you set this up.
+:::
+
+<Steps>
+
+1. Generate a key that Umpteenth will send to CLIProxyAPI:
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. Next to your `docker-compose.yml`, create `cliproxy/config.yaml` with that key:
+
+   ```yaml title="cliproxy/config.yaml"
+   config-version: 8
+   server:
+     port: 8317
+   access:
+     api-keys:
+       - "the-generated-key"
+   ```
+
+3. Add CLIProxyAPI to `docker-compose.yml` and start it with `docker compose up -d`:
+
+   ```yaml title="docker-compose.yml" ins={4-9}
+   services:
+     umpteenth:
+       # ...
+     cli-proxy-api:
+       image: eceasy/cli-proxy-api:latest
+       restart: unless-stopped
+       volumes:
+         - ./cliproxy/config.yaml:/CLIProxyAPI/config.yaml
+         - ./cliproxy/auths:/root/.cli-proxy-api
+   ```
+
+   The service has no `ports`, so only containers in the same Compose project reach it.
+   Anyone who can reach the proxy spends your plan's usage, so keep it that way.
+
+4. Sign in with your Claude subscription:
+
+   ```bash
+   docker compose exec cli-proxy-api /CLIProxyAPI/CLIProxyAPI -no-browser --claude-login
+   ```
+
+   For a ChatGPT plan with Codex, run the same command with `--codex-login` instead.
+   Open the login URL the command prints and sign in.
+   Your browser then lands on a `localhost` address that doesn't load, because the callback server runs inside the container, so copy that address and paste it when the command asks for the callback URL.
+   CLIProxyAPI stores the tokens in `cliproxy/auths` and refreshes them.
+
+5. Under **Settings → Providers & models**, click **Add provider** and fill it in with the key from step 1:
+
+   | Plan | Kind | Base URL |
+   |---|---|---|
+   | Claude | **Anthropic** | `http://cli-proxy-api:8317` |
+   | ChatGPT (Codex) | **OpenAI-compatible** | `http://cli-proxy-api:8317/v1` |
+
+6. Click **Test** on the new provider's row to send a prompt through your plan.
+
+</Steps>
+
+The Claude provider lists its models with Anthropic's API prices, so each run's **Cost** shows what the run would cost on the API.
+**Max cost per run** ends runs at that amount even though your plan charges nothing per token, so raise the [limit](#cost-limit-per-run) or set it to `0`.
+The Codex provider reads CLIProxyAPI's model list, and its models cost $0 unless you enter prices.
+
+## Default models
+
+Under **Settings → General → Default models**, you give each of three roles a model:
+
+| Role | Purpose | Left empty |
+|---|---|---|
+| **Agent** | Runs the agent in every job that doesn't pick a model of its own | **Not set**, and runs of jobs without a model fail |
+| **Utility** | Compiles new jobs, judges the results of scripted runs, and answers `ump llm` calls from scripts by default | **Same as the agent model**: compiling uses the Agent model, and runs use their own model |
+| **Reflection** | Turns finished runs into playbook updates | **Not set**, and reflection uses the model the job runs with |
+
+<Screenshot
+	name="settings-general"
+	alt="Settings, General tab: the Default models, Spend and retention and Usage cards, each with its own Save button"
+/>
+
+A job can override the Agent model in the **Model** field of its **Settings** tab, as [Managing jobs](../jobs/#the-model) explains.
+
+## Model lists
+
+Anthropic providers and OpenAI-compatible providers on OpenAI's own API take their models, prices and capabilities from the [models.dev](https://models.dev) catalog.
+For any other OpenAI-compatible server, Umpteenth lists what its `/models` endpoint serves and fills in the capabilities the server leaves out from models.dev.
+A model that neither source describes gets tool calling and a context window of 32,768 tokens.
+Models from a server's list cost $0 until the server reports a price, as OpenRouter does, or you set one on the model.
+
+:::caution[Ollama's context window]
+Ollama runs a model with a smaller context window than the model supports, unless `OLLAMA_CONTEXT_LENGTH` or the model's `num_ctx` raises it.
+The catalog lists the full window, so lower the model's **Context window** to what your server runs with.
+:::
+
+## Keeping the list current
+
+Every 12 hours, Umpteenth downloads the models.dev catalog and syncs every provider, adding the models each source lists for the first time and updating the prices of models that follow the catalog.
+You change the interval with `models.catalog_refresh_interval` in `config.yml` ([Configuration](../../deployment/configuration/#models)).
+
+To sync a provider now, for example after you pull a new model into Ollama, choose **Sync models** in its menu.
+If Umpteenth can't read the server's model list, the provider's row shows a **Sync failed** badge with the reason on hover.
+
+A model its source stops listing stays in the list with a **Not listed** badge, so its settings survive if it comes back.
+Jobs that use it fall back to the workspace's Agent model.
+
+## Enabling and disabling models
+
+Every model has an **Enabled** switch, and the pickers for jobs and defaults offer only enabled models.
+Jobs that use a disabled model fall back to the Agent model.
+On OpenRouter, which lists hundreds of models, choose **Disable all models** in the provider's menu and switch on the few you use.
+You can't switch off a model that fills a default role until you pick another one under **Settings → General**.
+
+## Your own prices and capabilities
+
+A model from the catalog follows it, so every refresh updates its label, prices and capabilities.
+To set your own values, for example to record a negotiated discount, turn off **Follow the catalog** in the model's dialog and save your changes.
+Turn the switch back on to return to the catalog's values.
+
+**Add model** adds a model by hand, such as one the server serves but doesn't list, and **Prefill from catalog** copies a known model's values into the form.
+Two of the model's fields change how Umpteenth works with it:
+
+- **Context window** sets the point where Umpteenth compacts a long run (see [Long runs](#long-runs-and-the-context-window)).
+- **Reasoning** makes Umpteenth send a reasoning effort to OpenAI-compatible servers.
+  Untick it if a server rejects the request.
+
+## Run costs
+
+Umpteenth multiplies the tokens of each model call by the model's prices and adds them up per run.
+The run page shows the total under **Cost**, and the Dashboard's **Spend** adds the cost of learning, which covers reflection and the checks of scripted runs.
+Compiling a job and **Send test prompt** use tokens at your provider too, and Umpteenth leaves them out of every total.
+
+Umpteenth counts a model without prices as free: $0 on the Dashboard, and whatever your hardware draws on the power bill.
+Its runs add nothing toward **Max cost per run** or the daily spend limit, so enter prices on the model before you rely on those limits.
+
+For a workspace on local or flat-rate models, an admin can set **Show usage as** to **Tokens** in the **Usage** card under **Settings → General**.
+Runs, jobs and the Dashboard then count input and output tokens in place of costs, while spend limits and model prices stay in US dollars.
+
+## Cost limit per run
+
+**Max cost per run** defaults to $2.
+You change it for the workspace under **Settings → General → Sandbox defaults** or for one job in the **Sandbox** card of its **Settings** tab, and `0` turns the limit off.
+
+Umpteenth checks the run's spend before each model call.
+The call that crosses the limit completes, and the run then ends as **Failed** with "the run exceeded its cost limit of $2.00".
+`ump llm` calls from the job's scripts count toward the same limit and stop working once the budget is gone.
+
+## Daily spend limit
+
+**Settings → General → Spend and retention → Daily spend limit** caps what the whole workspace spends per day in US dollars, and `0` means no limit.
+Until an admin saves the card, the workspace follows `runs.daily_spend_limit_usd` from `config.yml`, which defaults to `0` ([Configuration](../../deployment/configuration/#workspace-defaults)).
+
+The day starts at 00:00 UTC, whatever time zone your jobs use, and the total counts runs, reflection and the checks of scripted runs.
+A run that starts over the limit ends as **Failed** with "The workspace reached its daily spend limit of $5.00".
+Reflection over the limit fails the same way, and the run's **Learned** tab shows **Reflection failed**.
+Umpteenth checks the limit as a run starts and lets runs under way finish, so several parallel runs can push the day's total past it.
+
+## Long runs and the context window
+
+Once the next prompt of a run would fill more than 70% of the model's **Context window**, Umpteenth has the same model summarize the conversation so far.
+The run continues from that summary, the timeline marks the spot with a **Conversation compacted** step, and the summary call counts toward the run's cost.
+
+Details the summary left out are gone for the rest of the run.
+Set the context window to what the server runs with: a lower value compacts runs early, and a higher one lets prompts overflow the server.

@@ -1,0 +1,105 @@
+---
+title: Managing jobs
+description: Edit a saved job, pick its model, set its run limits, stop its automatic runs, turn learning off, manage its state and delete it.
+---
+
+import Screenshot from '../../../components/Screenshot.astro';
+
+Open a job from the **Jobs** page to change its settings, stop its automatic runs or delete it.
+Each row's **⋯** menu also offers **Run now** and **Settings**.
+Starting runs, the sandbox and learning have guides of their own: [Triggers and schedules](../triggers/), [Sandboxes](../sandboxes/) and [How jobs learn](../self-improvement/).
+
+## The job page
+
+The job page has six tabs:
+
+- **Overview**: performance over 7, 30 or 90 days, the **Graduation** chart, the instruction and the spec.
+- **Runs**: this job's runs ([Reading a run](../runs/)).
+- **Playbook**: the learnings, toolkit scripts and main script the job built up, with every earlier version ([How jobs learn](../self-improvement/)).
+- **Environment**: the job's Dockerfile and its image builds ([Sandboxes](../sandboxes/)).
+- **State**: the values runs keep between runs ([Job state](#job-state)).
+- **Settings**: everything you can change, one card per topic.
+
+The **Graduation** chart on **Overview** shows each run's cost or tokens as a bar colored by its mode, its duration as a line, and each new playbook version as a marker.
+Click a bar to open that run.
+
+<Screenshot name="job-overview" alt="A job's Overview tab with the performance numbers and the Graduation chart: one Explore bar, four cheaper Assisted bars, then Scripted runs that cost nothing and take about a second" caption="The Graduation chart of a job that went from Explore to Assisted to Scripted." />
+
+## Editing a job
+
+On the **Settings** tab, a card's **Save** button saves that card's fields and nothing else.
+Leaving the page drops the edits you haven't saved, and a saved change applies to runs that start afterwards.
+
+In the **General** card you edit the name, the instruction and the model.
+Saving a changed instruction compiles the goal, success criteria, inputs, outputs, services and side effects again, so the save takes as long as a compile.
+The name, schedule, network and Dockerfile keep what you set.
+To keep a spec you edited by hand, turn off **Rebuild the spec**, which appears as soon as you change the instruction.
+
+In the **Spec** card you edit the goal, success criteria, inputs, outputs and side effects, and saving it costs no model call.
+You attach and detach MCP servers in the **MCP servers** card ([MCP servers](../mcp/#attach-servers-to-a-job)).
+
+A graduated job runs its main script, which doesn't read the instruction.
+After an edit that changes what the job does, update the main script in the **Run scripts** card on the **Playbook** tab, or turn off **Graduate to a script** until you have.
+A new or renamed output makes Scripted runs [fall back](../self-improvement/#fallback) to the agent until main reports it, and the **Spec** card warns you about that.
+
+[Job settings](../../reference/job-settings/) lists every field with its default and allowed values.
+
+## The model
+
+**Model** in the **General** card sets the model that drives the agent for this job, and its list holds only enabled models.
+**Workspace default** follows the **Agent** model under **Settings → General → Default models**, and a job whose own model you disable later falls back to it.
+Providers, prices and the other model roles have their own page, [Models and costs](../models/).
+
+## Limits per run
+
+Every run has a time, a turn and a cost limit, and its sandbox gets a fixed share of CPU and memory.
+You set them per job in the **Sandbox** card, where an empty field follows the workspace default under **Settings → General → Sandbox defaults**.
+
+| Setting | Default | A run that reaches it |
+|---|---|---|
+| **Timeout** | 900 seconds | ends as **Timed out**. Waiting for the job's image build counts, waiting in the queue doesn't |
+| **Max turns** | 60 | ends as **Failed**. A turn is one model call |
+| **Max cost per run** | 2 USD | ends as **Failed**. `0` turns the limit off |
+| **CPUs** | 1 | runs slower, since Docker throttles the sandbox to that many CPUs |
+| **Memory** | 1024 MB | loses the command that ran out, which the kernel kills. The sandbox has no swap |
+
+[Models and costs](../models/#cost-limit-per-run) explains what the cost limit counts and the workspace's daily spend limit.
+
+## Stopping automatic runs
+
+To keep a job from running by itself without deleting it, switch off **Run on a schedule** in the **Schedule** card.
+If another system calls the job's webhook, **Rotate token** in the **Webhook** card cuts it off, since the webhook answers `401` to the old token from then on.
+**Run now**, the API and **Retry** keep working, so you can still test the job by hand.
+
+## Mode and learning
+
+The **Learning** card holds two switches, both on for a new job.
+
+**Self-improve** lets reflection turn what worked into new playbook versions after runs ([How jobs learn](../self-improvement/#reflection)).
+Turn it off to stop reflection after runs, along with what it spends, and the job header shows **Learning off**.
+The playbook then changes only through your own edits and **Learn from this run** on a run page.
+
+**Graduate to a script** lets the job move from the agent to a main script once its runs repeat ([How jobs learn](../self-improvement/#graduation)).
+Turn it off for a job that needs the agent's judgment on every run, or whose side effects you don't want a script to handle.
+Its runs then never go past Assisted, and reflection leaves main alone.
+Turning the switch back on makes the next run Scripted again if the playbook has a main script.
+
+## Job state
+
+Job state is a set of key-value strings a job keeps between runs, such as the last item it reported.
+The agent reads and writes it with its own tools, and scripts use [`ump state`](../../reference/ump-cli/#ump-state).
+
+The **State** tab lists every entry.
+Add one with **Add entry**, and edit or delete one from its row's **⋯** menu.
+Runs can't delete keys, so this tab and the API are the only places to remove one.
+Deleting the key a watcher compares against, for example, makes its next run behave like its first.
+
+A job keeps up to 1,000 keys and 16 MiB of state, with values of up to 1 MiB.
+All runs of a job share one state, so runs in **Parallel** can overwrite each other's values.
+
+## Deleting a job
+
+**Delete job** at the bottom of the **Settings** tab removes the job and stops its schedule and its webhook, which answers `401` from then on.
+Umpteenth cancels the job's queued runs and lets active runs finish.
+Past runs stay under **Runs** with their outputs.
+There is no undo, so [stop the automatic runs](#stopping-automatic-runs) of a job you might want back.

@@ -1,0 +1,14 @@
+# Single node: SQLite, filesystem blobs, no database server (PLAN.md §15)
+# Settings come from config.yml, copied from config.example.yml
+services:
+  umpteenth:
+    image: ghcr.io/stonith404/umpteenth:latest
+    container_name: umpteenth
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - ./data:/app/data
+      # Or a rootless Podman socket / a socket proxy limited to containers, exec, images, networks and build
+      - /var/run/docker.sock:/var/run/docker.sock

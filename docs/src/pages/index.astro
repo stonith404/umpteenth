@@ -1,0 +1,95 @@
+---
+// The landing page lives outside Starlight, so it carries its own header and footer instead of the docs chrome
+import '../styles/landing.css';
+import Header from '../components/landing/Header.astro';
+import Hero from '../components/landing/Hero.astro';
+import Sections from '../components/landing/Sections.astro';
+import Footer from '../components/landing/Footer.astro';
+import { sharedHead } from '../sharedHead';
+
+// The title and description lead with the words people search for, since the headline is a pun on the name
+// The description doubles as the hero's tagline and stays under the 160 characters search results show
+const title = 'Umpteenth: self-hosted AI agent for recurring jobs';
+const description =
+	'Describe a recurring job in plain language. An AI agent runs it in a fresh sandbox and learns until a script does the work for next to nothing.';
+const site = Astro.site!;
+const canonical = new URL(Astro.url.pathname, site);
+
+// Structured data gives search results the site's name and describes the software behind it
+const structuredData = {
+	'@context': 'https://schema.org',
+	'@graph': [
+		{ '@type': 'WebSite', '@id': `${site.origin}/#website`, name: 'Umpteenth', url: canonical.href, description, inLanguage: 'en' },
+		{
+			'@type': 'SoftwareApplication',
+			'@id': `${site.origin}/#software`,
+			name: 'Umpteenth',
+			url: canonical.href,
+			description,
+			image: new URL('/og.png', site).href,
+			applicationCategory: 'DeveloperApplication',
+			operatingSystem: 'Linux',
+			softwareRequirements: 'Docker Engine or Podman',
+			installUrl: new URL('/getting-started/installation/', site).href,
+			license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+			isAccessibleForFree: true,
+			offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+			sameAs: ['https://github.com/stonith404/umpteenth']
+		}
+	]
+};
+---
+
+<!doctype html>
+<html lang="en" class="bg-page font-sans text-[16px] leading-normal text-fg scheme-dark [-webkit-font-smoothing:antialiased] light:scheme-light">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical} />
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="sitemap" href="/sitemap-index.xml" />
+		{sharedHead(site).map(({ tag: Tag, attrs }) => <Tag {...attrs} />)}
+		{/* The headline is the largest text on the page, so its font loads with the HTML too */}
+		<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Umpteenth" />
+		<meta property="og:locale" content="en" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<meta name="twitter:card" content="summary_large_image" />
+		<script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+		<meta name="theme-color" content="#0f0f10" media="(prefers-color-scheme: dark)" />
+		<meta name="theme-color" content="#fcfcfc" media="(prefers-color-scheme: light)" />
+		<script is:inline>
+			// Apply the stored theme before the first paint, using Starlight's key so the docs and the landing page agree
+			(() => {
+				const stored = localStorage.getItem('starlight-theme');
+				const theme =
+					stored === 'light' || stored === 'dark'
+						? stored
+						: matchMedia('(prefers-color-scheme: light)').matches
+							? 'light'
+							: 'dark';
+				document.documentElement.dataset.theme = theme;
+			})();
+		</script>
+	</head>
+	<body class="m-0">
+		<Header />
+		<main>
+			<Hero
+				title="The umpteenth time runs itself."
+				tagline={description}
+				actions={[
+					{ text: 'Install', href: '/getting-started/installation/', variant: 'primary' },
+					{ text: 'How it works', href: '/getting-started/introduction/', variant: 'secondary' }
+				]}
+			/>
+			<Sections />
+		</main>
+		<Footer />
+	</body>
+</html>

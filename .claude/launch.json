@@ -1,0 +1,73 @@
+{
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "frontend",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": [
+				"--filter",
+				"umpteenth-frontend",
+				"dev"
+			],
+			"port": 3000
+		},
+		{
+			"name": "docs",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": [
+				"--filter",
+				"umpteenth-docs",
+				"dev"
+			],
+			"port": 4321
+		},
+		{
+			"name": "docs-preview",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": [
+				"--filter",
+				"umpteenth-docs",
+				"exec",
+				"astro",
+				"preview",
+				"--port",
+				"4322"
+			],
+			"port": 4322
+		},
+		{
+			"name": "ui-sidebar",
+			"runtimeExecutable": "env",
+			"runtimeArgs": [
+				"DEVELOPMENT_BACKEND_URL=http://127.0.0.1:8110",
+				"pnpm",
+				"--filter",
+				"umpteenth-frontend",
+				"exec",
+				"vite",
+				"dev",
+				"--port",
+				"3010",
+				"--strictPort"
+			],
+			"port": 3010
+		},
+		{
+			"name": "ui-version-sheet",
+			"runtimeExecutable": "env",
+			"runtimeArgs": [
+				"DEVELOPMENT_BACKEND_URL=http://127.0.0.1:8094",
+				"pnpm",
+				"--filter",
+				"umpteenth-frontend",
+				"exec",
+				"vite",
+				"dev",
+				"--port",
+				"3005",
+				"--strictPort"
+			],
+			"port": 3005
+		}
+	]
+}
