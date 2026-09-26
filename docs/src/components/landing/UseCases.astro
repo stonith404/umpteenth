@@ -1,0 +1,805 @@
+---
+// Example jobs as a picker beside a run viewer that replays a made-up run of the picked job, step by step, the way the app's run timeline shows it
+
+type Step = {
+  // tool is an MCP tool, bash and file are the agent's own tools, ump is a call from a scripted run, verify is the check after a script
+  kind: "tool" | "bash" | "file" | "ump" | "verify";
+  name: string;
+  arg?: string;
+  result: string;
+  at: string;
+};
+type Result =
+  | { kind: "note"; label: string; title: string; body: string[] }
+  | {
+      kind: "pr";
+      label: string;
+      title: string;
+      meta: string;
+      file: string;
+      removed: string;
+      added: string;
+    }
+  | {
+      kind: "verdict";
+      label: string;
+      title: string;
+      meta: string;
+      verdict: string;
+      reasons: string[];
+    }
+  | {
+      kind: "commits";
+      label: string;
+      title: string;
+      meta: string;
+      commits: { sha: string; message: string }[];
+      check: string;
+    }
+  | {
+      kind: "digest";
+      label: string;
+      title: string;
+      groups: { heading: string; items: { source: string; text: string }[] }[];
+    };
+type UseCase = {
+  trigger: string;
+  when: string;
+  title: string;
+  text: string;
+  run: {
+    job: string;
+    input: { kind: string; value: string };
+    steps: Step[];
+    result: Result;
+  };
+};
+
+const useCases: UseCase[] = [
+  {
+    trigger: "Webhook",
+    when: "On alert",
+    title: "Alert triage",
+    text: "An alert fires at 3 a.m. By the time whoever is on call opens their laptop, the agent has pulled the service's logs from Loki, matched them against the last deploy and attached its analysis to the alert.",
+    run: {
+      job: "Checkout alert triage",
+      input: {
+        kind: "Webhook",
+        value: '{"alertname": "HighErrorRate", "service": "checkout"}',
+      },
+      steps: [
+        {
+          kind: "tool",
+          name: "loki__query_range",
+          arg: '{app="checkout"} |= "error"',
+          result: "1,284 lines",
+          at: "+3s",
+        },
+        {
+          kind: "bash",
+          name: "bash",
+          arg: 'git log --since="3 hours ago" --oneline',
+          result: "2 commits",
+          at: "+9s",
+        },
+        {
+          kind: "file",
+          name: "read_file",
+          arg: "runbooks/checkout.md",
+          result: "86 lines",
+          at: "+14s",
+        },
+        {
+          kind: "tool",
+          name: "loki__query_range",
+          arg: '{app="checkout"} |= "too many connections"',
+          result: "94% of errors",
+          at: "+26s",
+        },
+        {
+          kind: "tool",
+          name: "oncall__add_note",
+          arg: "HighErrorRate",
+          result: "added",
+          at: "+50s",
+        },
+      ],
+      result: {
+        kind: "note",
+        label: "Note on the alert",
+        title: "HighErrorRate · checkout",
+        body: [
+          "Errors started at 02:51, four minutes after the deploy of #1432, which lowered the database pool to 10.",
+          "94% of them are `pq: too many connections`. Rolling back #1432 or raising the pool size clears them.",
+        ],
+      },
+    },
+  },
+  {
+    trigger: "Webhook",
+    when: "On release",
+    title: "Docs that keep up",
+    text: "Keeping docs up to date is hard (looking at you AWS). The agent goes through every commit since the last release, finds the doc pages that no longer match the code and opens a pull request that fixes them.",
+    run: {
+      job: "Docs sync",
+      input: { kind: "Webhook", value: '{"tag": "v2.4.0"}' },
+      steps: [
+        {
+          kind: "bash",
+          name: "bash",
+          arg: "git log v2.3.0..v2.4.0 --oneline",
+          result: "41 commits",
+          at: "+2s",
+        },
+        {
+          kind: "bash",
+          name: "bash",
+          arg: 'grep -rln "SESSION_TTL" docs/',
+          result: "2 pages",
+          at: "+11s",
+        },
+        {
+          kind: "file",
+          name: "edit_file",
+          arg: "docs/configuration.md",
+          result: "+4 −3",
+          at: "+34s",
+        },
+        {
+          kind: "file",
+          name: "edit_file",
+          arg: "docs/upgrading.md",
+          result: "+12",
+          at: "+47s",
+        },
+        {
+          kind: "tool",
+          name: "github__create_pull_request",
+          arg: "acme/web",
+          result: "#1455",
+          at: "+1m 03s",
+        },
+      ],
+      result: {
+        kind: "pr",
+        label: "Pull request",
+        title: "Update the docs for v2.4.0",
+        meta: "acme/web #1455 · 2 files changed",
+        file: "docs/configuration.md",
+        removed: "Set `SESSION_TTL` to the session length in hours.",
+        added: "Set `session.ttl` to a duration, such as `12h`.",
+      },
+    },
+  },
+  {
+    trigger: "Schedule",
+    when: "Every hour",
+    title: "Fight AI slop in security reports",
+    text: "GitHub security advisories are probably the worst place on the internet in terms of AI slop. Let your agent try to reproduce and analyze the reports before you spend any time on them.",
+    run: {
+      job: "Security report check",
+      input: { kind: "Schedule", value: "0 * * * *" },
+      steps: [
+        {
+          kind: "tool",
+          name: "github__list_security_advisories",
+          arg: "state=triage",
+          result: "1 new report",
+          at: "+2s",
+        },
+        {
+          kind: "file",
+          name: "read_file",
+          arg: "report.md",
+          result: "2,113 words",
+          at: "+4s",
+        },
+        {
+          kind: "bash",
+          name: "bash",
+          arg: "git log -S parse_header_ex --oneline",
+          result: "no commits",
+          at: "+9s",
+        },
+        {
+          kind: "bash",
+          name: "bash",
+          arg: "gcc poc.c -lparse -o poc",
+          result: "undefined reference",
+          at: "+17s",
+        },
+        {
+          kind: "tool",
+          name: "slack__post_message",
+          arg: "#security",
+          result: "sent",
+          at: "+38s",
+        },
+      ],
+      result: {
+        kind: "verdict",
+        label: "Posted to #security",
+        title: "Heap overflow in parse_header_ex()",
+        meta: "Reported as critical · 2,113 words",
+        verdict: "Not reproduced",
+        reasons: [
+          "`parse_header_ex()` appears nowhere in the code or its history.",
+          "The proof of concept fails to build against any release.",
+        ],
+      },
+    },
+  },
+  {
+    trigger: "Schedule",
+    when: "Every night",
+    title: "Major upgrades, green at last",
+    text: "The major-version bump from Dependabot has been open since March because it breaks the build. Tonight the agent reads the migration guide, changes your code until the tests pass and pushes the fixes to the PR.",
+    run: {
+      job: "Major upgrades",
+      input: { kind: "Schedule", value: "0 2 * * *" },
+      steps: [
+        {
+          kind: "tool",
+          name: "github__list_pull_requests",
+          arg: "author:app/dependabot",
+          result: "vite 5 → 6",
+          at: "+2s",
+        },
+        {
+          kind: "bash",
+          name: "bash",
+          arg: "pnpm test",
+          result: "12 failed",
+          at: "+41s",
+        },
+        {
+          kind: "bash",
+          name: "bash",
+          arg: "curl -s https://vite.dev/guide/migration",
+          result: "48 KB",
+          at: "+44s",
+        },
+        {
+          kind: "file",
+          name: "edit_file",
+          arg: "vite.config.ts",
+          result: "+6 −2",
+          at: "+1m 18s",
+        },
+        {
+          kind: "bash",
+          name: "bash",
+          arg: "pnpm test",
+          result: "214 passed",
+          at: "+2m 07s",
+        },
+        {
+          kind: "bash",
+          name: "bash",
+          arg: "git push",
+          result: "2 commits",
+          at: "+2m 12s",
+        },
+      ],
+      result: {
+        kind: "commits",
+        label: "Pushed to the pull request",
+        title: "Bump vite from 5.4.11 to 6.0.3",
+        meta: "acme/web #412 · open since March",
+        commits: [
+          { sha: "a41c9e2", message: "Switch Sass to the modern compiler API" },
+          {
+            sha: "7be03fd",
+            message: "Set resolve.conditions for the Vite 6 defaults",
+          },
+        ],
+        check: "214 tests passed",
+      },
+    },
+  },
+  {
+    trigger: "Schedule",
+    when: "Mondays at 8:00",
+    title: "The Monday catch-up",
+    text: "Before you open anything on Monday, the agent goes through last week's Teams chats, Outlook threads and GitHub notifications and gets back to you with a digest of what's actually important.",
+    run: {
+      job: "Monday catch-up",
+      input: { kind: "Schedule", value: "0 8 * * 1" },
+      steps: [
+        {
+          kind: "ump",
+          name: "ump",
+          arg: "mcp call teams list_chats",
+          result: "38 threads",
+          at: "+1s",
+        },
+        {
+          kind: "ump",
+          name: "ump",
+          arg: "mcp call outlook list_messages",
+          result: "61 emails",
+          at: "+2s",
+        },
+        {
+          kind: "ump",
+          name: "ump",
+          arg: "mcp call github list_notifications",
+          result: "24 notifications",
+          at: "+3s",
+        },
+        {
+          kind: "ump",
+          name: "ump",
+          arg: "llm --model utility",
+          result: "digest",
+          at: "+9s",
+        },
+        {
+          kind: "ump",
+          name: "ump",
+          arg: "mcp call outlook send_mail",
+          result: "sent",
+          at: "+10s",
+        },
+        {
+          kind: "verify",
+          name: "Verification passed",
+          result: "3 of 3 checks",
+          at: "+12s",
+        },
+      ],
+      result: {
+        kind: "digest",
+        label: "Email to you",
+        title: "Your Monday catch-up",
+        groups: [
+          {
+            heading: "Waiting on you",
+            items: [
+              {
+                source: "Teams",
+                text: "Priya asked in #platform whether the Q3 migration can slip a week.",
+              },
+              {
+                source: "Outlook",
+                text: "The hosting contract needs your signature by Wednesday.",
+              },
+              {
+                source: "GitHub",
+                text: "Two review requests on acme/api, #881 and #884.",
+              },
+            ],
+          },
+          {
+            heading: "Decided while you were out",
+            items: [
+              {
+                source: "Teams",
+                text: "The web team moved Thursday's release to Friday.",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
+];
+
+// Lucide icon paths, drawn at 24 units like the app's icons
+const icons = {
+  tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  bash: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/>',
+  ump: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/>',
+  verify: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  note: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  pr: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" x2="6" y1="9" y2="21"/>',
+  verdict:
+    '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  commits:
+    '<circle cx="12" cy="12" r="3"/><line x1="3" x2="9" y1="12" y2="12"/><line x1="15" x2="21" y1="12" y2="12"/>',
+  digest:
+    '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  cross:
+    '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+};
+
+// Turns backticks in the mock copy into code spans, escaping the rest since it lands in set:html
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const md = (s: string) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+// Each step rises this long after the previous one, and the status flips to Succeeded once the result has risen
+const STEP_MS = 420;
+const settleMs = (steps: Step[]) => `${steps.length * STEP_MS + 580}ms`;
+
+// Lucide icons at the app's 14px, stroked in the current text color
+const icon =
+  "size-3.5 shrink-0 fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]";
+
+// The small rounded label that the mode, the status and the verdict share
+const badge =
+  "inline-flex h-5.5 items-center gap-1.5 rounded-md px-2 text-2xs font-medium";
+
+// The lists in a result: the verdict's reasons, the pushed commits and the digest's items
+const list = "m-0 mt-2.5 grid list-none gap-1.5 p-0 text-tile-soft";
+
+// The code spans that md() writes through set:html can't carry classes, so their parent styles them
+// They keep the text's size, unlike the input and the commit hashes, which are set a tenth smaller
+const codeChips =
+  "[&_code]:rounded-sm [&_code]:bg-[rgba(255,255,255,0.07)] [&_code]:px-1.25 [&_code]:py-0.25 [&_code]:font-mono [&_code]:text-paper";
+
+// Replay: steps rise one after the other while the run shows Running, then the status settles
+// Once the script runs, everything that rises stays hidden until the section first scrolls into view
+const replay = [
+  "motion-safe:group-[[data-js]:not(.seen)]/uc:opacity-0",
+  "motion-safe:group-[.seen]/uc:group-[.active]/panel:animate-[rise_380ms_ease-out_calc(var(--i)_*_var(--step)_+_200ms)_both]",
+];
+const showWhileReplaying =
+  "motion-safe:group-[.seen]/uc:group-[.active]/panel:animate-[show_var(--settle)_step-end]";
+const hideWhileReplaying =
+  "motion-safe:group-[.seen]/uc:group-[.active]/panel:animate-[hide_var(--settle)_step-end]";
+---
+
+{
+  /* Picker on the left, run viewer on the right, and on phones each run opens under its job */
+}
+{
+  /* On wide screens the last row absorbs the height the run viewer has beyond the picker, so the jobs stay packed at the top */
+}
+<div
+  class:list={[
+    "group/uc mt-10 grid grid-cols-[minmax(0,1fr)]",
+    "min-[60rem]:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] min-[60rem]:grid-rows-[repeat(4,auto)_1fr] min-[60rem]:gap-x-14",
+  ]}
+  data-uc
+>
+  {
+    useCases.map((u, i) => (
+      <>
+        {/* Picker */}
+        <div
+          class:list={[
+            "group/item relative py-3.5 pl-5",
+            "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-gray-5",
+            "min-[60rem]:col-1 min-[60rem]:row-(--row) min-[60rem]:self-start",
+            { active: i === 0 },
+          ]}
+          style={`--row: ${i + 1}`}
+          data-uc-item
+        >
+          {/* Auto-advance: on wide screens the active rail fills, pausing while the reader hovers, focuses or scrolls away */}
+          {/* The pause has to be important to hold against the animation shorthand, which resets the play state */}
+          <span
+            class:list={[
+              "absolute inset-y-0 left-0 w-0.5 origin-top bg-brand [transform:scaleY(0)] light:bg-fg",
+              "group-[.active]/item:transform-none",
+              "motion-safe:min-[60rem]:group-[[data-js]:not(.manual)]/uc:group-[.active]/item:animate-fill-down",
+              "group-[:is(:hover,:focus-within,:not(.in-view))]/uc:[animation-play-state:paused]!",
+            ]}
+            aria-hidden="true"
+            data-uc-rail
+          />
+          <p class="m-0 mb-1 font-mono text-2xs text-gray-3">
+            {u.trigger} · {u.when}
+          </p>
+          {/* The button drops every browser style, which Tailwind sorts after the other utilities, so it inherits its color and cursor from the heading */}
+          <h3
+            class:list={[
+              "m-0 font-display text-[1.3125rem] leading-tight font-semibold tracking-[-0.01em]",
+              "cursor-pointer text-gray-3 transition-[color] duration-150 ease-[ease]",
+              "group-[:hover]/item:text-fg group-[.active]/item:text-fg",
+            ]}
+          >
+            {/* The button's ::after stretches over the whole item, so the item is the click target, not only the title */}
+            <button
+              type="button"
+              class:list={[
+                "[all:unset] after:absolute after:inset-0",
+                "focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent",
+              ]}
+              id={`uc-tab-${i}`}
+              aria-expanded={i === 0 ? "true" : "false"}
+              aria-controls={`uc-run-${i}`}
+            >
+              {u.title}
+            </button>
+          </h3>
+
+          {/* The description opens by growing its row from 0fr to 1fr, and stays out of the accessibility tree while closed */}
+          <div class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-[ease] group-[.active]/item:grid-rows-[1fr]">
+            <div class="invisible min-h-0 overflow-hidden transition-[visibility] delay-300 duration-0 ease-[ease] group-[.active]/item:visible group-[.active]/item:delay-0">
+              <p class="m-0 pt-2 text-sm leading-[1.55] text-pretty text-gray-3">
+                {u.text}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* On wide screens all runs share one cell, so switching jobs never changes the section's height */}
+        <div
+          class:list={[
+            "group/panel",
+            "min-[60rem]:col-2 min-[60rem]:row-span-full min-[60rem]:not-[.active]:invisible",
+            "max-[60rem]:pt-1 max-[60rem]:pb-5 max-[60rem]:pl-5 max-[60rem]:not-[.active]:hidden",
+            { active: i === 0 },
+          ]}
+          id={`uc-run-${i}`}
+          role="region"
+          aria-labelledby={`uc-tab-${i}`}
+          inert={i !== 0}
+          style={`--settle: ${settleMs(u.run.steps)}; --step: ${STEP_MS}ms`}
+          data-uc-panel
+        >
+          {/* The run viewer is always dark like the hero's run list, since it stands for the app */}
+          <div
+            class:list={[
+              "flex flex-col overflow-hidden text-sm",
+              "rounded-xl border border-[rgba(255,255,255,0.08)] bg-tile text-paper",
+              "[box-shadow:0_1px_2px_rgba(0,0,0,0.3),0_24px_48px_-24px_rgba(0,0,0,0.5)]",
+            ]}
+          >
+            <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-[rgba(255,255,255,0.08)] px-4.5 py-3.5">
+              <span class="font-semibold">{u.run.job}</span>
+              <span class="inline-grid">
+                <span
+                  class:list={[
+                    badge,
+                    "col-start-1 row-start-1 justify-self-end whitespace-nowrap",
+                    "invisible bg-[rgba(59,130,246,0.2)] text-[#93c5fd]",
+                    showWhileReplaying,
+                  ]}
+                >
+                  <span
+                    class="size-1.5 animate-ping-blue rounded-full bg-[#3b82f6]"
+                    aria-hidden="true"
+                  />
+                  Running
+                </span>
+                <span
+                  class:list={[
+                    badge,
+                    "col-start-1 row-start-1 justify-self-end whitespace-nowrap",
+                    "bg-[rgba(16,185,129,0.15)] text-[#6ee7b7]",
+                    hideWhileReplaying,
+                  ]}
+                >
+                  <svg
+                    class={icon}
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    set:html={icons.verify}
+                  />
+                  Succeeded
+                </span>
+              </span>
+            </div>
+
+            <div class="flex items-baseline gap-3 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] px-4.5 py-2.5 text-xs">
+              <span class="text-tile-muted">{u.run.input.kind}</span>
+              <code class="min-w-0 truncate font-mono text-[0.9em] text-tile-soft">
+                {u.run.input.value}
+              </code>
+            </div>
+
+            {/* Steps, laid out like the app's timeline rows, which drop the time column on phones */}
+            <ol class="m-0 list-none px-0 py-2">
+              {u.run.steps.map((s, n) => (
+                <li
+                  class:list={[
+                    "grid grid-cols-[14px_minmax(0,1fr)_auto_3.75rem] items-center gap-3 px-4.5 py-1.5 text-xs",
+                    "[@media(max-width:30rem)]:grid-cols-[14px_minmax(0,1fr)_auto]",
+                    replay,
+                  ]}
+                  style={`--i: ${n}`}
+                >
+                  <svg
+                    class:list={[
+                      icon,
+                      s.kind === "verify"
+                        ? "text-[#34d399]"
+                        : "text-tile-muted",
+                    ]}
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    set:html={icons[s.kind]}
+                  />
+                  <span
+                    class:list={[
+                      "truncate",
+                      s.kind === "verify" ? "font-medium" : "font-mono",
+                    ]}
+                  >
+                    {s.name}
+                    {s.arg && <span class="ml-2 text-tile-muted">{s.arg}</span>}
+                  </span>
+                  <span class="whitespace-nowrap text-tile-subtle">
+                    {s.result}
+                  </span>
+                  <span class="text-right font-mono whitespace-nowrap text-tile-muted [@media(max-width:30rem)]:hidden">
+                    {s.at}
+                  </span>
+                </li>
+              ))}
+            </ol>
+
+            {/* The result is what lands where the reader looks: a note, a pull request, a message or an email */}
+            <div
+              class:list={[
+                "mx-4.5 mt-1 mb-4.5 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-3.5",
+                replay,
+              ]}
+              style={`--i: ${u.run.steps.length}`}
+            >
+              <p class="m-0 mb-2 flex items-center gap-2 text-2xs font-medium text-brand">
+                <svg
+                  class={icon}
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  set:html={icons[u.run.result.kind]}
+                />
+                {u.run.result.label}
+              </p>
+              <p class="m-0 font-semibold">{u.run.result.title}</p>
+              {"meta" in u.run.result && (
+                <p class="m-0 font-mono text-2xs text-tile-muted">
+                  {u.run.result.meta}
+                </p>
+              )}
+
+              {u.run.result.kind === "note" &&
+                u.run.result.body.map((line) => (
+                  <p
+                    class:list={[
+                      "m-0 mt-2 text-pretty text-tile-soft",
+                      codeChips,
+                    ]}
+                    set:html={md(line)}
+                  />
+                ))}
+
+              {u.run.result.kind === "pr" && (
+                <div class="mt-3 overflow-hidden rounded-md border border-[rgba(255,255,255,0.06)] font-mono text-2xs">
+                  <p class="m-0 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] px-3 py-1.25 text-tile-muted">
+                    {u.run.result.file}
+                  </p>
+                  <p class="m-0 bg-[rgba(239,68,68,0.12)] px-3 py-1.25 text-[#fca5a5] before:content-['−_']">
+                    {u.run.result.removed}
+                  </p>
+                  <p class="m-0 bg-[rgba(16,185,129,0.12)] px-3 py-1.25 text-[#6ee7b7] before:content-['+_']">
+                    {u.run.result.added}
+                  </p>
+                </div>
+              )}
+
+              {u.run.result.kind === "verdict" && (
+                <>
+                  <p
+                    class:list={[
+                      badge,
+                      "m-0 mt-3 bg-[rgba(255,255,255,0.08)] text-tile-soft",
+                    ]}
+                  >
+                    <svg
+                      class={icon}
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      set:html={icons.cross}
+                    />
+                    {u.run.result.verdict}
+                  </p>
+                  <ul class:list={[list, codeChips]}>
+                    {u.run.result.reasons.map((r) => (
+                      <li
+                        class="relative pl-4 before:absolute before:top-[0.55em] before:left-0 before:size-[5px] before:bg-tile-muted"
+                        set:html={md(r)}
+                      />
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {u.run.result.kind === "commits" && (
+                <>
+                  <ul class={list}>
+                    {u.run.result.commits.map((c) => (
+                      <li class="flex gap-2.5">
+                        <code class="font-mono text-[0.9em] text-tile-muted">
+                          {c.sha}
+                        </code>
+                        {c.message}
+                      </li>
+                    ))}
+                  </ul>
+                  <p class="m-0 mt-3 flex items-center gap-2 text-xs text-[#6ee7b7]">
+                    <svg
+                      class={icon}
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      set:html={icons.verify}
+                    />
+                    {u.run.result.check}
+                  </p>
+                </>
+              )}
+
+              {u.run.result.kind === "digest" &&
+                u.run.result.groups.map((g, gi) => (
+                  <div class:list={{ "mt-3.5": gi > 0 }}>
+                    <p class="m-0 mt-2.5 text-xs font-medium text-tile-muted">
+                      {g.heading}
+                    </p>
+                    <ul class={list}>
+                      {g.items.map((item) => (
+                        <li class="flex items-baseline gap-2.5">
+                          <span class="w-15 shrink-0 font-mono text-2xs text-tile-muted">
+                            {item.source}
+                          </span>
+                          {item.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      </>
+    ))
+  }
+</div>
+
+<script>
+  // Show one example run at a time, and on wide screens step through them until the reader picks one
+  const root = document.querySelector<HTMLElement>("[data-uc]");
+  if (root) {
+    const items = [...root.querySelectorAll<HTMLElement>("[data-uc-item]")];
+    const panels = [...root.querySelectorAll<HTMLElement>("[data-uc-panel]")];
+    let current = 0;
+
+    // Open one item and its run, and take the others out of the tab order
+    const select = (index: number) => {
+      items.forEach((item, n) => {
+        item.classList.toggle("active", n === index);
+        item
+          .querySelector("button")
+          ?.setAttribute("aria-expanded", String(n === index));
+      });
+      panels.forEach((panel, n) => {
+        panel.classList.toggle("active", n === index);
+        panel.inert = n !== index;
+      });
+      current = index;
+    };
+
+    // The markup keeps the steps hidden until the section scrolls into view, but only once this script runs
+    root.dataset.js = "";
+
+    // A click hands control to the reader, so the auto-advance stops for good
+    items.forEach((item, n) =>
+      item.querySelector("button")?.addEventListener("click", () => {
+        root.classList.add("manual");
+        select(n);
+      }),
+    );
+
+    // The active item's rail fills over a few seconds, and a full rail moves on to the next job
+    root.addEventListener("animationend", (event) => {
+      if (
+        !(event.target as HTMLElement).hasAttribute("data-uc-rail") ||
+        root.classList.contains("manual")
+      )
+        return;
+      select((current + 1) % items.length);
+    });
+
+    // Replay the first run once the section is on screen, and pause the rail while it is off screen
+    new IntersectionObserver(
+      ([entry]) => {
+        root.classList.toggle("in-view", entry.isIntersecting);
+        if (entry.isIntersecting) root.classList.add("seen");
+      },
+      { threshold: 0.3 },
+    ).observe(root);
+  }
+</script>

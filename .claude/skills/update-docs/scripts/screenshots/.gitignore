@@ -1,0 +1,6 @@
+state.json
+plan.json
+cookies.txt
+tmp/
+__pycache__/
+*.out

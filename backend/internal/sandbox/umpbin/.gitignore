@@ -1,0 +1,3 @@
+# Built by `make ump` and embedded at compile time
+/bin/*
+!/bin/.gitkeep

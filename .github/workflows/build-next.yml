@@ -1,0 +1,38 @@
+name: Build Next Images
+
+on:
+  push:
+    branches: [main]
+    # A release commit only touches .version and CHANGELOG.md, so it doesn't rebuild the images of the commit before it
+    paths-ignore: [docs/**, "**.md", .version]
+  workflow_dispatch:
+
+concurrency:
+  group: build-next-images
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        run: echo "version=next-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    uses: ./.github/workflows/build-images.yml
+    with:
+      ref: ${{ github.sha }}
+      version: ${{ needs.version.outputs.version }}
+      tags: type=raw,value=next

@@ -1,0 +1,62 @@
+---
+// The app's real run page in a frame, replaying two recorded runs of the Hacker News digest, see frontend/src/demo
+// The frame is built by `pnpm --filter umpteenth-frontend build:demo` into public/app-demo, which the docs build runs first
+// The two runs under it are picked like the use cases further down: a rail that turns lime and text that comes forward, and the demo tells them which run is on screen
+
+interface Props {
+	class?: string;
+}
+const { class: className } = Astro.props;
+
+const runs = [
+	{ key: 'explore', label: 'Run #1 · Explore', text: 'The agent works out the job with the model and writes the scripts it keeps.' },
+	{ key: 'scripted', label: 'Run #6 · Scripted', text: 'The job graduated, so its script runs alone, without the model.' }
+];
+
+// Cloudflare serves the directory from its index.html and redirects the file's own URL there, while the dev server only serves the file
+const src = import.meta.env.DEV ? '/app-demo/index.html' : '/app-demo/';
+---
+
+<div data-app-demo class={className}>
+	{/* The frame's background is the app's, so nothing flashes white while the demo loads */}
+	<div class="h-[34rem] overflow-hidden min-[48rem]:h-[42rem] rounded-xl border border-surface-border bg-[oklch(0.1_0_0)] [box-shadow:0_1px_2px_rgba(0,0,0,0.3),0_24px_48px_-24px_rgba(0,0,0,0.5)] light:bg-[oklch(0.9875_0_0)] light:[box-shadow:0_1px_2px_rgba(0,0,0,0.05),0_24px_48px_-24px_rgba(0,0,0,0.18)]">
+		<iframe src={src} title="Umpteenth showing a live run of a Hacker News digest job" class="block size-full rounded-[calc(0.75rem-1px)] border-0" data-app-demo-frame></iframe>
+	</div>
+	<div role="group" aria-label="Run shown in the demo" class="mt-5 grid grid-cols-2 gap-6 text-left">
+		{
+			runs.map((run, i) => (
+				<button
+					type="button"
+					data-app-demo-run={run.key}
+					aria-pressed={i === 0 ? 'true' : 'false'}
+					class="group m-0 flex cursor-pointer flex-col border-0 border-t-2 border-solid border-hairline bg-transparent p-0 pt-3 text-left font-sans text-gray-3 transition-[color,border-color] duration-150 ease-[ease] hover:text-fg aria-pressed:border-brand aria-pressed:text-fg light:aria-pressed:border-fg"
+				>
+					<span class="mb-1 block font-mono text-2xs text-gray-3">{run.label}</span>
+					<span class="block text-sm leading-normal text-pretty">{run.text}</span>
+				</button>
+			))
+		}
+	</div>
+</div>
+
+<script>
+	// Messages between this page and the demo in the frame, which is served from the same origin
+	const SOURCE = 'umpteenth-demo';
+	const root = document.querySelector<HTMLElement>('[data-app-demo]');
+	const frame = root?.querySelector<HTMLIFrameElement>('[data-app-demo-frame]');
+	const buttons = [...(root?.querySelectorAll<HTMLButtonElement>('[data-app-demo-run]') ?? [])];
+
+	// The demo reports the run on screen, and none after a retry started a new one
+	window.addEventListener('message', (event) => {
+		if (event.origin !== location.origin || event.source !== frame?.contentWindow) return;
+		if (event.data?.source !== SOURCE || event.data.type !== 'shown') return;
+		for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.appDemoRun === event.data.key));
+	});
+
+	// Picking a run replays it from the start and ends the demo's own tour
+	for (const button of buttons) {
+		button.addEventListener('click', () => {
+			frame?.contentWindow?.postMessage({ source: SOURCE, type: 'select', key: button.dataset.appDemoRun }, location.origin);
+		});
+	}
+</script>

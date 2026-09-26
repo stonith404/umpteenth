@@ -1,0 +1,56 @@
+# The Helm chart as the Playwright suite drives it on kind: the image built with the test-only endpoints, and the sign-in providers of docker-compose.yml
+# kind.sh prints the addresses the install command adds with --set: the registry for job images, which build pods need a network policy rule for, and the gateway webhook receivers listen on
+image:
+  repository: umpteenth
+  tag: test
+  pullPolicy: Never
+
+app:
+  url: http://localhost:8080
+
+# kind.sh maps this node port to localhost:8080, where the suite expects the app
+service:
+  type: NodePort
+  nodePort: 30080
+
+extraEnv:
+  - name: APP_ENV
+    value: test
+  - name: WORKSPACES_ENABLED
+    value: 'true'
+  - name: AUTH_PROVIDERS_POCKET_ID_TYPE
+    value: oidc
+  - name: AUTH_PROVIDERS_POCKET_ID_NAME
+    value: Pocket ID
+  - name: AUTH_PROVIDERS_POCKET_ID_ISSUER
+    value: https://id.example.com
+  - name: AUTH_PROVIDERS_POCKET_ID_CLIENT_ID
+    value: umpteenth
+  - name: AUTH_PROVIDERS_POCKET_ID_PRIMARY
+    value: 'true'
+  - name: AUTH_PROVIDERS_GITHUB_TYPE
+    value: github
+  - name: AUTH_PROVIDERS_GITHUB_NAME
+    value: GitHub
+  - name: AUTH_PROVIDERS_GITHUB_CLIENT_ID
+    value: umpteenth
+  - name: AUTH_PROVIDERS_GITHUB_CLIENT_SECRET
+    value: e2e-secret
+  - name: AUTH_PROVIDERS_GITHUB_ALLOWED_USERS
+    value: octocat
+  - name: AUTH_PROVIDERS_CORP_SSO_TYPE
+    value: oidc
+  - name: AUTH_PROVIDERS_CORP_SSO_NAME
+    value: Corp SSO
+  - name: AUTH_PROVIDERS_CORP_SSO_ISSUER
+    value: https://sso.corp.example
+  - name: AUTH_PROVIDERS_CORP_SSO_CLIENT_ID
+    value: umpteenth
+
+sandbox:
+  registry:
+    insecure: true
+
+postgresql:
+  persistence:
+    size: 1Gi

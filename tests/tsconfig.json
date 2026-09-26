@@ -1,0 +1,12 @@
+{
+	"compilerOptions": {
+		"lib": ["ES2022", "DOM"],
+		"esModuleInterop": true,
+		"module": "es2022",
+		"moduleResolution": "bundler",
+		"target": "es2022",
+		"strict": true,
+		"skipLibCheck": true,
+		"types": ["node"]
+	}
+}

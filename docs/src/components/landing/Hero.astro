@@ -1,0 +1,73 @@
+---
+// The brand headline above the app's real run page, which replays a job's first run and the script it graduated to
+import settleDark from "../../assets/settle-dark.svg?raw";
+import settleLight from "../../assets/settle-light.svg?raw";
+import AppDemo from "./AppDemo.astro";
+import { button } from "./button";
+
+// The animated marks carry a fixed size, which would fight the CSS size below, so it is stripped before inlining
+const unsized = (svg: string) =>
+  svg.replace(/ width="[^"]+" height="[^"]+"/, "");
+
+interface Props {
+  title: string;
+  tagline: string;
+  actions: { text: string; href: string; variant: "primary" | "secondary" }[];
+}
+const { title, tagline, actions } = Astro.props;
+
+---
+
+<section class="pt-[clamp(3rem,8vw,6rem)] pb-[clamp(3rem,7vw,5rem)]">
+  <div
+    class="max-w-[76rem] mx-auto px-6 flex flex-col items-center gap-12 min-[60rem]:gap-16"
+  >
+    {/* The demo is the whole app at desktop width, sidebar included, so the headline sits centered above it */}
+    <div class="flex max-w-[44rem] flex-col items-center text-center">
+      <span
+        class="block mb-6 [&_svg]:block [&_svg]:size-16 dark:hidden"
+        set:html={unsized(settleLight)}
+      />
+      <span
+        class="hidden mb-6 [&_svg]:block [&_svg]:size-16 dark:block"
+        set:html={unsized(settleDark)}
+      />
+      <h1
+        class="font-display font-semibold text-[clamp(2.5rem,6vw,4.25rem)] leading-[1.02] tracking-[-0.02em] text-fg m-0 mb-5 text-balance"
+      >
+        {title}
+      </h1>
+      <p
+        class="text-[clamp(1.0625rem,1.5vw,1.25rem)] leading-[1.55] text-gray-3 max-w-[34rem] m-0 mb-7 text-pretty"
+      >
+        {tagline}
+      </p>
+      <div class="flex flex-wrap justify-center gap-3">
+        {
+          actions.map((a) => (
+            <a class={button[a.variant]} href={a.href}>
+              {a.text}
+              {a.variant === "primary" && (
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              )}
+            </a>
+          ))
+        }
+      </div>
+    </div>
+
+    <AppDemo class="w-full" />
+  </div>
+</section>

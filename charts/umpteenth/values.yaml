@@ -1,0 +1,184 @@
+# Umpteenth on Kubernetes: every run's sandbox is a pod, and the server needs no Docker socket
+# The defaults run two replicas in high availability mode on a bundled Postgres, with files stored in the database
+
+image:
+  repository: ghcr.io/stonith404/umpteenth
+  # The chart's appVersion when empty
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# Replicas share the work through Postgres, which more than one needs
+replicaCount: 2
+
+app:
+  # The public URL, e.g. https://umpteenth.example.com (required)
+  url: ""
+  encryptionKey:
+    # A Secret with the key under encryption-key; empty generates one on install and keeps it on upgrades
+    # Stored secrets can't be decrypted anymore once it changes, so back it up
+    existingSecret: ""
+
+database:
+  # A postgres:// URL of your own database, instead of the bundled one
+  connectionString: ""
+  # Or a Secret that holds the URL
+  existingSecret: ""
+  existingSecretKey: connection-string
+
+# A single Postgres pod for small installations; point database at a managed one for anything that matters
+postgresql:
+  enabled: true
+  image: postgres:18-alpine
+  username: umpteenth
+  database: umpteenth
+  persistence:
+    size: 8Gi
+    storageClass: ""
+  resources: {}
+
+fileStorage:
+  # database keeps files in Postgres, which every replica reaches; s3 needs file_storage.s3 in config
+  # filesystem only works with a single replica
+  backend: database
+
+# The data directory; it only holds data with SQLite or filesystem storage, which need replicaCount 1
+persistence:
+  enabled: false
+  size: 5Gi
+  storageClass: ""
+  accessModes: [ReadWriteOnce]
+
+# Rendered into /app/config.yml, e.g. the sign-in providers; see config.example.yml for every option
+# Environment variables win over it, so options the chart sets through values can't be changed here
+config: {}
+  # auth:
+  #   providers:
+  #     pocket-id:
+  #       type: oidc
+  #       issuer: https://id.example.com
+  #       client_id: umpteenth
+
+# Extra environment variables, e.g. secrets from a Secret: AUTH_PROVIDERS_POCKET_ID_CLIENT_SECRET
+extraEnv: []
+envFrom: []
+
+server:
+  # Read client addresses from X-Forwarded-For, which the ingress sets
+  trustProxy: true
+
+sandbox:
+  # The default sandbox image; the app's default when empty
+  image: ""
+  # Where sandbox and build pods run; the release namespace when empty
+  namespace: ""
+  # Create the sandbox namespace, labeled with the Pod Security level below
+  createNamespace: false
+  # The Pod Security level enforced there; empty means baseline, which fits sandboxes, or privileged while the BuildKit daemon runs there
+  podSecurityLevel: ""
+  # A RuntimeClass such as gvisor or kata for stronger isolation
+  runtimeClass: ""
+  # Nodes sandbox and build pods run on
+  nodeSelector: {}
+  # Taints they tolerate, as key, operator, value and effect
+  tolerations: []
+  # The cluster's pod and Service networks, e.g. [10.244.0.0/16, 10.96.0.0/12], which sandboxes never reach through the egress proxy, not even with Allow private network
+  clusterRanges: []
+  # Offer jobs the unrestricted network, which skips the egress proxy and reaches public addresses directly
+  allowUnrestrictedNetwork: true
+  # Refuse to start sandboxes when the cluster doesn't enforce their NetworkPolicies
+  requireNetworkPolicy: true
+  # Job images are built in the cluster and pushed here, and nodes pull them from here; without it jobs can't use Dockerfiles
+  registry:
+    # e.g. ghcr.io/acme/umpteenth-jobs
+    repository: ""
+    username: ""
+    password: ""
+    # A Secret with the password under registry-password, instead of password
+    existingSecret: ""
+    # The registry speaks plain HTTP
+    insecure: false
+  # The rootless BuildKit image of image builds; the app's default when empty
+  buildImage: ""
+  # A BuildKit daemon that keeps the build cache, run while sandbox.registry.repository is set; without it every build starts from an empty cache in a pod of its own
+  # Rootless BuildKit needs unconfined seccomp and AppArmor profiles, which the Pod Security level baseline forbids
+  buildkit:
+    enabled: true
+    image: moby/buildkit:v0.33.0-rootless
+    # Keeps the cache across restarts; an emptyDir loses it
+    persistence:
+      enabled: false
+      size: 20Gi
+      storageClass: ""
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+networkPolicy:
+  # Install the policies that confine sandboxes, which need a network plugin that enforces them, such as Calico or Cilium
+  enabled: true
+  # Ranges the unrestricted network and image builds never reach directly, which covers the cluster's own networks
+  privateRanges:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 100.64.0.0/10
+    - 169.254.0.0/16
+  # Where the cluster DNS runs, which unrestricted sandboxes and builds resolve names with
+  dns:
+    namespace: kube-system
+    podLabels:
+      k8s-app: kube-dns
+  build:
+    # More egress rules for build pods, e.g. to a registry inside the cluster
+    extraEgress: []
+  # Also restrict who reaches the Umpteenth pods: the web port stays open, the broker only for sandboxes, actors only between replicas
+  server:
+    enabled: true
+
+service:
+  type: ClusterIP
+  port: 8080
+  # The node port of a NodePort or LoadBalancer Service, picked by Kubernetes when empty
+  nodePort: ""
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  # Live updates are server-sent events, so a proxy must not buffer them
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+  host: ""
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 1Gi
+
+# A stopping replica ends the runs it executes, so it gets time to record them
+terminationGracePeriodSeconds: 30
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Extra /etc/hosts entries of the Umpteenth pods, e.g. for an MCP server or webhook receiver without DNS
+hostAliases: []
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []

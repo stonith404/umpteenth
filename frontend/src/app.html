@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex" />
+		<title>Umpteenth</title>
+		<script>
+			// Apply the stored color mode before the first paint, so dark mode users never see a light flash
+			try {
+				const mode = localStorage.getItem('mode-watcher-mode') || 'system';
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				const isDark = mode === 'dark' || (mode === 'system' && prefersDark);
+
+				document.documentElement.classList.toggle('dark', isDark);
+				document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+			} catch {
+				// Failing to restore the mode only costs a flash, mode-watcher still applies it after hydration
+			}
+		</script>
+		<style>
+			/* A cold load waits for the session and the page's data before anything renders, so the mark shows meanwhile instead of a blank page */
+			/* It only appears after a moment, so fast loads never flash it, and it hides as soon as the app has put anything into its container */
+			#app-loading {
+				position: fixed;
+				inset: 0;
+				display: grid;
+				place-items: center;
+				color: oklch(0.205 0 0);
+				background: oklch(0.9875 0 0);
+				opacity: 0;
+				animation: app-loading-in 200ms ease-out 400ms forwards;
+			}
+			.dark #app-loading {
+				color: oklch(0.97 0 0);
+				background: oklch(0.1 0 0);
+			}
+			#app-loading .bar {
+				fill: #c6f135;
+				animation: app-loading-pulse 1.2s ease-in-out infinite;
+			}
+			body:has(> #app-root > :not(script)) > #app-loading {
+				display: none;
+			}
+			/* Browsers that can't tell when the app is there never get the overlay, so it can't cover a loaded page */
+			@supports not selector(:has(*)) {
+				#app-loading {
+					display: none;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#app-loading .bar {
+					animation: none;
+				}
+			}
+			@keyframes app-loading-in {
+				to {
+					opacity: 1;
+				}
+			}
+			@keyframes app-loading-pulse {
+				50% {
+					opacity: 0.35;
+				}
+			}
+		</style>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div id="app-loading" role="status" aria-label="Loading Umpteenth">
+			<svg viewBox="0 0 64 64" width="48" height="48" aria-hidden="true">
+				<path
+					d="M8 16h4v4h-4zM16 16h4v4h-4zM24 16h16v4h-16zM20 20h4v4h-4zM28 20h4v4h-4zM36 20h4v4h-4zM16 24h4v4h-4zM24 24h4v4h-4zM32 24h8v4h-8zM20 28h4v4h-4zM28 28h4v4h-4zM36 28h4v4h-4zM8 32h4v4h-4zM16 32h4v4h-4zM24 32h16v4h-16zM20 36h4v4h-4zM28 36h4v4h-4zM36 36h4v4h-4zM16 40h4v4h-4zM24 40h4v4h-4zM32 40h8v4h-8zM20 44h4v4h-4zM28 44h4v4h-4zM36 44h4v4h-4z"
+					fill="currentColor"
+				/>
+				<path
+					class="bar"
+					d="M40 16h16v4h-16zM40 20h16v4h-16zM40 24h16v4h-16zM40 28h16v4h-16zM40 32h16v4h-16zM40 36h16v4h-16zM40 40h16v4h-16zM40 44h16v4h-16z"
+				/>
+			</svg>
+		</div>
+		<div id="app-root" style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

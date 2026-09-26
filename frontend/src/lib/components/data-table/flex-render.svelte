@@ -1,0 +1,36 @@
+<script
+	lang="ts"
+	generics="TData, TValue, TContext extends HeaderContext<TData, TValue> | CellContext<TData, TValue>"
+>
+	import type { CellContext, ColumnDefTemplate, HeaderContext } from '@tanstack/table-core';
+	import { RenderComponentConfig, RenderSnippetConfig } from './render-helpers';
+
+	type Props = {
+		// The `cell` or `header` field of the column definition
+		content?: TContext extends HeaderContext<TData, TValue>
+			? ColumnDefTemplate<HeaderContext<TData, TValue>>
+			: TContext extends CellContext<TData, TValue>
+				? ColumnDefTemplate<CellContext<TData, TValue>>
+				: never;
+		// The result of `getContext()` of the header or cell
+		context: TContext;
+	};
+
+	let { content, context }: Props = $props();
+</script>
+
+{#if typeof content === 'string'}
+	{content}
+{:else if content instanceof Function}
+	<!-- The context type is narrowed by the generic, so the cast only bridges header and cell templates -->
+	{@const result = content(context as any)}
+	{#if result instanceof RenderComponentConfig}
+		{@const { component: Component, props } = result}
+		<Component {...props} />
+	{:else if result instanceof RenderSnippetConfig}
+		{@const { snippet, params } = result}
+		{@render snippet(params)}
+	{:else}
+		{result}
+	{/if}
+{/if}

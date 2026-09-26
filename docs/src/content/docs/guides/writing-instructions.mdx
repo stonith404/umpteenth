@@ -1,0 +1,124 @@
+---
+title: Writing instructions
+description: Describe a job in plain language so it compiles into a spec you can trust, and into runs that succeed and graduate to a script.
+---
+
+import Screenshot from '../../../components/Screenshot.astro';
+
+You describe a job once, in plain language.
+Umpteenth compiles that text into a spec you review before saving, and the agent reads the same text every time it works on a run.
+Write it for a new colleague who takes every word at face value and can't call you on a Sunday to ask what you meant.
+
+## From description to spec
+
+Click **Create job** on the **Jobs** page and write up to 20,000 characters into **Describe the job**, where Markdown works too.
+While the box is empty, the buttons next to **Examples:** fill it with a ready-made job, such as **Stale PR digest** or **Uptime check**.
+
+**Compile** sends the text to the utility model, or to the agent model if the workspace has no utility model.
+Its answer fills the review screen: a name and goal, a schedule, success criteria, inputs and outputs, the MCP servers, the network and the side effects.
+A schedule without a named time zone runs in UTC.
+Umpteenth matches each service to your MCP servers by name, ignoring case, and marks a service without a match as **Not configured**.
+**Custom environment** comes on with a Dockerfile only if the job needs tools beyond the default image.
+
+**Compile again** on the review screen replaces the whole spec, and if you edited it, you confirm with **Discard and compile** first.
+To write the spec yourself, click **Fill in manually** instead of **Compile**.
+
+### Questions before the review
+
+A description can leave out something the job can't run without, such as the repository to watch or the Slack channel to post to.
+Umpteenth then shows **A few questions first**, at most three, one at a time.
+Pick a suggested answer or type your own into **Something else…**.
+
+<Screenshot
+	name="new-job-questions"
+	alt="The New job page asking which Slack channel the report goes to, with #ci picked from the answers #ci, #eng and #dev-alerts, a Something else field and a Compile button"
+/>
+
+Your answers go to the end of the instruction under `Clarifications:`, so the agent reads them on every run.
+A description that names its repository, channel and schedule skips this step.
+
+## The agent's brief
+
+Each time the agent works on a run, it reads your instruction word for word, followed by the success criteria and the outputs it has to report.
+It also gets what earlier runs learned, the trigger, the current time and any input or [extra instructions](../triggers/#run-now) the run came with.
+A job without a schedule has no time zone of its own, so write the zone into the text when it matters, as in "yesterday, Berlin time".
+
+## A checklist
+
+- Spell out the details a colleague would ask for: the repository, the URL, the threshold.
+- Give the schedule a time zone, as in "every weekday at 8:00 Berlin time".
+- Name where the result goes and in what form: "post one message to #eng in Slack", "save it as `/ump/outputs/report.md`".
+  A result with no destination ends up in the run's summary and nowhere else.
+- Describe success in terms a run can prove: "the run fails if any certificate expires within 14 days".
+- Cover the empty case ("If there are none, don't post.") so the agent can finish a quiet day with success.
+- Refer to services by the names of your MCP servers, as in "post to #eng in Slack" for a server named `slack`.
+- Name the variable that holds a credential, as in "authenticate with `$GITHUB_TOKEN`".
+  The agent's brief doesn't name the secrets you mapped in the job's **Secrets** card ([Sandboxes](../sandboxes/#secrets)).
+- Ask for the outputs you want to track, with a type: "output `top_score` (integer)".
+- For a run that builds on the last one, ask for memory in words: "remember the last status in state".
+  Every job has its own state, with no storage to set up.
+
+## Before and after
+
+```txt
+Check our website.
+```
+
+From that line, the compile step has to guess the URL, the schedule, what counts as a problem and where to report one.
+
+```txt
+Every 15 minutes, check that https://acme.example.com responds with HTTP 200 within 2 seconds.
+Remember the last status in state.
+When the status changes, post one message to #ops in Slack with the old and the new status, otherwise post nothing.
+Output up (boolean) and response_ms (integer).
+```
+
+The second version gives the compile step material for every card.
+Expect a schedule of `*/15 * * * *`, success criteria about the response and the message, two outputs, the `slack` server and one side effect, the Slack post.
+
+## Helping a job graduate
+
+After three successful Assisted runs in a row that take the same steps, reflection writes a main script that does the work without the agent ([How jobs learn](../self-improvement/#graduation) has the exact rules).
+Instructions that lead to the same steps on every run get there sooner:
+
+- Keep one job to one outcome, and split unrelated chores into separate jobs.
+- Put values that change between runs in the input, and say what to use without one: "Use the `repo` field of the run input, or acme/api if it is missing."
+  A scheduled run's input is `{}`, so the script needs that default.
+- Prefer outputs that come out the same when you run the job twice in a row, such as counts, IDs and flags.
+  Before a new main script goes live, Umpteenth runs it once and compares these outputs with the run that reflection learned from.
+- Keep the **Side effects** list on the review screen complete.
+  Umpteenth skips that trial for a job with side effects, so a new script can't post your message a second time.
+- Steps that need judgment, such as a summary or a classification, don't block graduation.
+  The main script hands them to the utility model with [`ump llm`](../../reference/ump-cli/#ump-llm).
+
+## Example jobs
+
+Paste one into **Describe the job** and swap in your own repository, channel or URL before you compile.
+
+### Stale pull request digest
+
+```txt
+Every weekday at 8:00 Berlin time, look at open pull requests in acme/api that have had no activity for 3+ days. Post a short summary to the #eng Slack channel, grouped by author. If there are none, don't post.
+```
+
+This is the **Stale PR digest** example on the **New job** page.
+Add two servers named `github` and `slack` on the **MCP servers** page first ([MCP servers](../mcp/)), and Umpteenth attaches both to the job.
+Expect a schedule of `0 8 * * 1-5` in `Europe/Berlin`.
+
+### Weekly dependency report
+
+```txt
+Every Monday at 9:00 New York time, read https://raw.githubusercontent.com/acme/web/main/package.json and look up the latest version of each dependency and devDependency on https://registry.npmjs.org. Save a Markdown table of the outdated ones (package, version range, latest version) as /ump/outputs/outdated.md, and write "Nothing is outdated" into the file when that is the case. Output outdated_count (integer).
+```
+
+Each run saves the report as an artifact you can download from the run page.
+To keep the job to those two hosts, set **Network** to **Allowed domains only** in its **Sandbox** card and list `raw.githubusercontent.com` and `registry.npmjs.org` ([Sandboxes](../sandboxes/#allowed-domains-only)).
+
+### Order totals from a webhook
+
+```txt
+Sum the order amounts in the run input per currency. The input has an orders array, and each order has an id, an amount and a currency. Output totals (an object mapping each currency to the sum of its orders, rounded to 2 decimals) and order_count (integer).
+```
+
+Expect **No network** and an `orders` input on the review screen.
+After saving, click **Generate token** in the job's **Webhook** card and have your shop POST its orders to the job ([Triggers and schedules](../triggers/#webhooks)).
