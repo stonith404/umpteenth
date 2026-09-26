@@ -1,0 +1,24 @@
+<script lang="ts">
+	import { cn, type WithElementRef } from '$lib/utils/style.js';
+	import type { HTMLThAttributes } from 'svelte/elements';
+
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLThAttributes> = $props();
+</script>
+
+<th
+	bind:this={ref}
+	data-slot="table-head"
+	scope="col"
+	class={cn(
+		'text-foreground h-11 px-3 text-left align-middle font-semibold whitespace-nowrap [&:has([role=checkbox])]:pr-0',
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</th>

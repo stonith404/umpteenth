@@ -1,0 +1,85 @@
+# HA: Postgres, S3-compatible blobs (SeaweedFS) and two replicas behind a load balancer (PLAN.md §3.4)
+# Both replicas share one Docker daemon here; in production each host usually runs its own
+# config.yml, copied from config.example.yml, holds app.url, app.encryption_key and the OIDC client, and the environment variables below set the HA topology on top of it
+x-umpteenth: &umpteenth
+  image: ghcr.io/stonith404/umpteenth:latest
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    s3:
+      condition: service_started
+  volumes:
+    - ./config.yml:/app/config.yml:ro
+    - /var/run/docker.sock:/var/run/docker.sock
+  environment: &env
+    DATABASE_CONNECTION_STRING: postgres://umpteenth:umpteenth@postgres:5432/umpteenth?sslmode=disable
+    HA_ENABLED: "true"
+    # The load balancer sets X-Forwarded-For, so the login rate limit can see client addresses
+    SERVER_TRUST_PROXY: "true"
+    FILE_STORAGE_BACKEND: s3
+    FILE_STORAGE_S3_ENDPOINT: http://s3:8333
+    FILE_STORAGE_S3_BUCKET: umpteenth
+    FILE_STORAGE_S3_ACCESS_KEY_ID: umpteenth
+    FILE_STORAGE_S3_SECRET_ACCESS_KEY: umpteenth-secret
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: umpteenth
+      POSTGRES_PASSWORD: umpteenth
+      POSTGRES_DB: umpteenth
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "umpteenth"]
+      interval: 2s
+      retries: 30
+
+  # Any S3-compatible store works; SeaweedFS is used because MinIO no longer publishes images
+  s3:
+    image: chrislusf/seaweedfs:latest
+    # SeaweedFS rejects signed requests unless the keys Umpteenth signs with are configured as an identity
+    command: server -s3 -dir=/data -s3.config=/etc/seaweedfs/s3.json
+    configs:
+      - source: s3-identities
+        target: /etc/seaweedfs/s3.json
+    volumes:
+      - s3-data:/data
+
+  umpteenth-1:
+    <<: *umpteenth
+    hostname: umpteenth-1
+    container_name: umpteenth-1
+    environment:
+      <<: *env
+      HA_REPLICA_ID: umpteenth-1
+      # Other replicas reach this replica's actor host here
+      HA_ACTORS_HOST: umpteenth-1
+
+  umpteenth-2:
+    <<: *umpteenth
+    hostname: umpteenth-2
+    container_name: umpteenth-2
+    environment:
+      <<: *env
+      HA_REPLICA_ID: umpteenth-2
+      HA_ACTORS_HOST: umpteenth-2
+
+  # Any load balancer that keeps SSE connections open works; Caddy round-robins here
+  lb:
+    image: caddy:2-alpine
+    command: caddy reverse-proxy --from :8080 --to umpteenth-1:8080 --to umpteenth-2:8080
+    ports:
+      - "8080:8080"
+    depends_on: [umpteenth-1, umpteenth-2]
+
+volumes:
+  postgres-data:
+  s3-data:
+
+configs:
+  s3-identities:
+    content: |
+      {"identities": [{"name": "umpteenth", "credentials": [{"accessKey": "umpteenth", "secretKey": "umpteenth-secret"}], "actions": ["Admin", "Read", "Write", "List", "Tagging"]}]}

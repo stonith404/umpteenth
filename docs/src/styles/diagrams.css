@@ -1,0 +1,181 @@
+/*
+ * Diagrams and screenshots: hand-drawn inline SVG on a Kumo card, themed through tokens so one drawing works in both themes
+ * Every diagram component uses these classes instead of literal colors, see src/components/diagrams/
+ */
+:root {
+	--dg-ink: var(--sl-color-white);
+	--dg-muted: var(--sl-color-gray-3);
+	--dg-line: var(--sl-color-gray-3);
+	--dg-edge: var(--sl-color-hairline);
+	--dg-card: var(--surface);
+	--dg-zone: var(--sl-color-gray-7);
+	--dg-lime: var(--brand);
+	--dg-on-lime: #18181b;
+	--dg-lime-line: var(--brand);
+	--dg-danger: #ff6b6b;
+}
+:root[data-theme='light'] {
+	--dg-zone: #f4f4f5;
+	--dg-line: var(--sl-color-gray-4);
+	--dg-lime-line: #4f6b00;
+	--dg-danger: #d92d20;
+}
+
+/* The figure is a card, and wide drawings scroll inside it on phones instead of shrinking their text */
+.dg {
+	margin-block: 1.75rem;
+	border: 1px solid var(--surface-border);
+	border-radius: 0.75rem;
+	background: var(--dg-card);
+	box-shadow: var(--surface-shadow);
+	overflow: hidden;
+}
+.dg-scroll {
+	overflow-x: auto;
+	padding: 1.25rem;
+}
+.dg-scroll > svg {
+	display: block;
+	width: 100%;
+	max-width: 42.5rem;
+	min-width: var(--dg-min, 36rem);
+	height: auto;
+	margin-inline: auto;
+	font-family: var(--font-sans);
+}
+.dg figcaption {
+	border-top: 1px solid var(--dg-edge);
+	padding: 0.75rem 1.25rem;
+	color: var(--sl-color-gray-2);
+	font-size: var(--text-sm);
+	line-height: 1.5;
+}
+
+/* Regions such as "the host" or "a sandbox", with a dashed edge for things that are thrown away */
+.dg-zone {
+	fill: var(--dg-zone);
+	stroke: var(--dg-edge);
+	stroke-width: 1;
+}
+.dg-zone.is-dashed {
+	stroke: var(--dg-line);
+	stroke-dasharray: 5 4;
+}
+.dg-zone-label {
+	fill: var(--dg-muted);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+/* Boxes for components, with lime reserved for the one element a drawing is about */
+.dg-box {
+	fill: var(--dg-card);
+	stroke: var(--dg-edge);
+	stroke-width: 1;
+}
+.dg-box.is-lime {
+	fill: var(--dg-lime);
+	stroke: none;
+}
+.dg-box.is-muted {
+	fill: transparent;
+	stroke: var(--dg-line);
+	stroke-dasharray: 4 3;
+}
+.dg-box.is-danger {
+	stroke: var(--dg-danger);
+}
+.dg-title {
+	fill: var(--dg-ink);
+	font-size: 13px;
+	font-weight: 600;
+}
+.dg-sub {
+	fill: var(--dg-muted);
+	font-size: 11.5px;
+}
+.dg-code {
+	fill: var(--dg-ink);
+	font-family: var(--font-mono);
+	font-size: 11.5px;
+}
+.is-lime + .dg-title,
+.dg-on-lime {
+	fill: var(--dg-on-lime);
+}
+.dg-on-lime.dg-sub {
+	fill: var(--dg-on-lime);
+	opacity: 0.72;
+}
+
+/* Edges and their labels, which get a halo in the card color so they stay readable where they cross a line */
+.dg-edge-line {
+	fill: none;
+	stroke: var(--dg-line);
+	stroke-width: 1.5;
+}
+.dg-edge-line.is-dashed {
+	stroke-dasharray: 5 4;
+}
+.dg-edge-line.is-lime {
+	stroke: var(--dg-lime-line);
+	stroke-width: 2;
+}
+.dg-edge-line.is-danger {
+	stroke: var(--dg-danger);
+}
+.dg-arrowhead {
+	fill: var(--dg-line);
+}
+.dg-arrowhead.is-lime {
+	fill: var(--dg-lime-line);
+}
+.dg-arrowhead.is-danger {
+	fill: var(--dg-danger);
+}
+.dg-edge-label {
+	fill: var(--dg-muted);
+	font-size: 11px;
+	paint-order: stroke;
+	stroke: var(--dg-card);
+	stroke-width: 4px;
+	stroke-linejoin: round;
+}
+.dg-edge-label.is-lime {
+	fill: var(--dg-lime-line);
+	font-weight: 600;
+}
+.dg-edge-label.is-danger {
+	fill: var(--dg-danger);
+}
+
+/* The brand's dither: loose dots for exploring, a solid lime bar for a settled script */
+.dg-dot {
+	fill: var(--dg-ink);
+	opacity: 0.55;
+}
+.dg-bar {
+	fill: var(--dg-lime);
+}
+
+/* Screenshots: the app in the reader's theme, on the same card as the diagrams */
+.shot {
+	margin-block: 1.75rem;
+	border: 1px solid var(--surface-border);
+	border-radius: 0.75rem;
+	background: var(--dg-card);
+	box-shadow: var(--surface-shadow);
+	overflow: hidden;
+}
+.shot img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+.shot figcaption {
+	border-top: 1px solid var(--dg-edge);
+	padding: 0.75rem 1.25rem;
+	color: var(--sl-color-gray-2);
+	font-size: var(--text-sm);
+	line-height: 1.5;
+}

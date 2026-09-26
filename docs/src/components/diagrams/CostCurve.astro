@@ -1,0 +1,193 @@
+---
+// An example job's cost per run, falling while the playbook grows and settling at the main script once the job graduates
+import Figure from '../Figure.astro';
+import { field } from './dither';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'Cost per run for the first eight runs of an example job. Reflection adds to the playbook after each run, so the agent needs fewer turns, and from run 6 the main script does the job without the agent for $0.00.'
+} = Astro.props;
+
+// The same eight runs as the ledger on the landing page, so the docs and the hero tell one story
+// Density is how loose the dither of a run's bar is: sparse dots while the agent explores, the solid lime bar once a script runs
+const runs = [
+	{ n: 1, mode: 'Explore', time: '4m 12s', cost: 0.42, density: 0.15 },
+	{ n: 2, mode: 'Explore', time: '3m 40s', cost: 0.37, density: 0.3 },
+	{ n: 3, mode: 'Assisted', time: '1m 58s', cost: 0.19, density: 0.5 },
+	{ n: 4, mode: 'Assisted', time: '1m 05s', cost: 0.11, density: 0.7 },
+	{ n: 5, mode: 'Assisted', time: '52s', cost: 0.08, density: 0.9 },
+	{ n: 6, mode: 'Scripted', time: '3s', cost: 0, density: 1 },
+	{ n: 7, mode: 'Scripted', time: '3s', cost: 0, density: 1 },
+	{ n: 8, mode: 'Scripted', time: '2s', cost: 0, density: 1 }
+];
+
+// One 78 unit column per run right of the axis labels, with a bar of 4 unit dither cells centered in it
+const plot = { left: 56, top: 40, base: 220, pitch: 78 };
+const cell = 4;
+const barW = 10 * cell;
+const perDollar = 360;
+const column = (i: number) => plot.left + plot.pitch * i;
+const center = (i: number) => column(i) + plot.pitch / 2;
+
+// Heights snap to whole cells, and a run that cost nothing keeps one row so its lime bar stays visible
+const bars = runs.map((r, i) => {
+	const rows = Math.max(1, Math.round((r.cost * perDollar) / cell));
+	const x = center(i) - barW / 2;
+	const y = plot.base - rows * cell;
+	return { ...r, x, y, cells: field(barW / cell, rows, r.density) };
+});
+
+const grid = [0.1, 0.2, 0.3, 0.4].map((v) => ({ y: plot.base - v * perDollar, label: `$${v.toFixed(2)}` }));
+
+// Rows under the baseline: the run number, its duration, then a bracket per mode
+const rowRun = plot.base + 18;
+const rowTime = plot.base + 34;
+const rowBracket = plot.base + 50;
+const rowMode = plot.base + 68;
+const groups = [
+	{ mode: 'Explore', from: 0, to: 1 },
+	{ mode: 'Assisted', from: 2, to: 4 },
+	{ mode: 'Scripted', from: 5, to: 7, lime: true }
+].map((g) => ({ ...g, x1: column(g.from) + 8, x2: column(g.to + 1) - 8 }));
+
+// The job graduates between run 5 and run 6, where the first scripted run starts
+const graduation = column(5);
+---
+
+<Figure caption={caption}>
+	<svg viewBox="0 0 680 300" role="img" aria-label={caption}>
+		<text class="dg-zone-label" x="0" y="14">Example: weekly stale PR report</text>
+
+		{
+			grid.map((g) => (
+				<g>
+					<line class="cc-grid" x1={plot.left} y1={g.y} x2="680" y2={g.y} />
+					<text class="cc-axis" x={plot.left - 10} y={g.y + 4} text-anchor="end">
+						{g.label}
+					</text>
+				</g>
+			))
+		}
+
+		<line class="cc-marker" x1={graduation} y1="26" x2={graduation} y2={rowTime + 8} />
+		<text class="cc-mark" x={graduation + 8} y="36">
+			Graduated
+		</text>
+		<text class="cc-note" x={graduation + 8} y="51">
+			the main script runs, no agent
+		</text>
+
+		{
+			bars.map((b) => (
+				<g>
+					<g class:list={['cc-cells', { 'is-dots': b.density < 1 }]}>
+						{b.cells.map((c) => (
+							<rect class={c.bar ? 'dg-bar' : 'dg-dot'} x={b.x + c.x * cell} y={b.y + c.y * cell} width={cell + 0.1} height={cell + 0.1} />
+						))}
+					</g>
+					<text class="cc-value" x={b.x + barW / 2} y={b.y - 8} text-anchor="middle">
+						${b.cost.toFixed(2)}
+					</text>
+				</g>
+			))
+		}
+		<line class="cc-base" x1={plot.left} y1={plot.base} x2="680" y2={plot.base} />
+
+		<text class="cc-axis" x={plot.left - 10} y={rowRun + 4} text-anchor="end">run</text>
+		<text class="cc-axis" x={plot.left - 10} y={rowTime + 4} text-anchor="end">time</text>
+		{
+			bars.map((b, i) => (
+				<g>
+					<text class="cc-run" x={center(i)} y={rowRun + 4} text-anchor="middle">
+						#{b.n}
+					</text>
+					<text class="cc-time" x={center(i)} y={rowTime + 4} text-anchor="middle">
+						{b.time}
+					</text>
+				</g>
+			))
+		}
+
+		{
+			groups.map((g) => (
+				<g>
+					<path class:list={['cc-bracket', { 'is-lime': g.lime }]} d={`M${g.x1},${rowBracket - 5} V${rowBracket} H${g.x2} V${rowBracket - 5}`} />
+					<text class:list={['cc-mode', { 'is-lime': g.lime }]} x={(g.x1 + g.x2) / 2} y={rowMode} text-anchor="middle">
+						{g.mode}
+					</text>
+				</g>
+			))
+		}
+	</svg>
+</Figure>
+
+<style>
+	/* Chart parts the shared diagram classes don't cover, themed through the same tokens */
+	.cc-grid {
+		stroke: var(--dg-edge);
+		stroke-width: 1;
+		stroke-dasharray: 2 3;
+	}
+	.cc-base {
+		stroke: var(--dg-line);
+		stroke-width: 1;
+	}
+	.cc-axis {
+		fill: var(--dg-muted);
+		font-size: 11px;
+	}
+	.cc-value,
+	.cc-time {
+		fill: var(--dg-ink);
+		font-family: var(--font-mono);
+		font-size: 11px;
+	}
+	.cc-run {
+		fill: var(--dg-muted);
+		font-family: var(--font-mono);
+		font-size: 11px;
+	}
+	.cc-bracket {
+		fill: none;
+		stroke: var(--dg-line);
+		stroke-width: 1;
+	}
+	.cc-bracket.is-lime {
+		stroke: var(--dg-lime-line);
+		stroke-width: 1.5;
+	}
+	.cc-mode {
+		fill: var(--dg-ink);
+		font-size: 12px;
+		font-weight: 600;
+	}
+	.cc-mode.is-lime,
+	.cc-mark {
+		fill: var(--dg-lime-line);
+	}
+
+	/* A bar's cells overlap by a tenth of a unit to close hairline gaps, so the dots take their opacity as one group instead of doubling it where they meet */
+	.cc-cells .dg-dot {
+		opacity: 1;
+	}
+	.cc-cells.is-dots {
+		opacity: 0.55;
+	}
+
+	/* The graduation marker is dashed, since it marks the moment between two runs */
+	.cc-marker {
+		stroke: var(--dg-lime-line);
+		stroke-width: 1.5;
+		stroke-dasharray: 4 3;
+	}
+	.cc-mark {
+		font-size: 12px;
+		font-weight: 600;
+	}
+	.cc-note {
+		fill: var(--dg-muted);
+		font-size: 11px;
+	}
+</style>

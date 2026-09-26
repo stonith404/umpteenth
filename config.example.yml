@@ -1,0 +1,123 @@
+# Umpteenth configuration
+# Copy this file to config.yml next to docker-compose.yml, or to backend/config.yml for local development, and fill in the values
+# Options you leave out, or leave empty, keep the defaults shown here
+#
+# Every option can also be set through an environment variable named after its path, e.g. server.port as SERVER_PORT, which wins over this file
+# In environment variables lists are comma-separated, and a _FILE suffix reads the value from a file, e.g. APP_ENCRYPTION_KEY_FILE for Docker secrets
+
+app:
+  # Public URL Umpteenth is opened at, which must match the redirect URI registered with the identity provider
+  # An https:// URL also marks the session cookie as Secure
+  url: http://localhost:8080
+  # production, development or test
+  # Outside production a missing encryption key falls back to an insecure built-in one
+  env: production
+  # Holds the SQLite database and the stored files, unless database.connection_string or file_storage.path point elsewhere
+  data_dir: data
+  # Encrypts secrets and API keys at rest and signs sessions, at least 16 bytes
+  # Generate one with: openssl rand -base64 32
+  # Stored secrets can't be decrypted anymore once it changes, so keep it safe
+  encryption_key: ""
+
+# The OpenID Connect client, registered with the redirect URI <app.url>/api/auth/callback
+oidc:
+  issuer: https://id.example.com
+  client_id: umpteenth
+  client_secret: ""
+  # Only members of these groups may sign in, checked against the groups claim
+  # Empty lets in everyone the identity provider lets through
+  allowed_groups: []
+
+server:
+  # The interface the UI, API and broker listen on
+  host: 0.0.0.0
+  # The UI and API
+  port: 8080
+  # The broker sandboxes talk to
+  broker_port: 8081
+  # Takes client addresses for rate limits from X-Forwarded-For
+  # Only enable it behind a reverse proxy that sets the header
+  trust_proxy: false
+
+log:
+  # debug, info, warn or error
+  level: info
+  # Log JSON lines instead of text
+  json: false
+
+database:
+  # A SQLite file path or a postgres:// URL, <app.data_dir>/umpteenth.db when empty
+  connection_string: ""
+
+# Where artifacts, full tool outputs and build logs are stored
+file_storage:
+  # filesystem, s3 or database
+  backend: filesystem
+  # The directory of the filesystem backend, <app.data_dir>/blobs when empty
+  path: ""
+  # The bucket of the s3 backend
+  s3:
+    endpoint: ""
+    region: ""
+    bucket: ""
+    access_key_id: ""
+    secret_access_key: ""
+    # Whether to talk to the endpoint over TLS
+    use_ssl: true
+
+sandbox:
+  # docker, which also covers Podman, or none to run without sandboxes
+  # The Docker or Podman socket is taken from DOCKER_HOST
+  adapter: docker
+  # The default sandbox image
+  image: ghcr.io/stonith404/umpteenth-sandbox:latest
+  # Where the broker relay forwards to when Umpteenth runs outside a container, host.docker.internal when empty
+  broker_host: ""
+  # How internet sandboxes are kept off private networks: auto, required or off
+  egress_filter: auto
+  # A registry for job images, so replicas share builds
+  registry:
+    # e.g. ghcr.io/acme/umpteenth-jobs
+    repository: ""
+    username: ""
+    password: ""
+  docker:
+    # runsc runs sandboxes under gVisor
+    runtime: runc
+    # Resolvers of internet sandboxes instead of Docker's embedded DNS, 8.8.8.8 and 8.8.4.4 under gVisor when empty
+    dns: []
+
+runs:
+  # Runs executing at once on each replica
+  max_concurrent: 3
+  # The daily spend cap new workspaces start with, 0 for none
+  daily_spend_limit_usd: 0
+  # How long new workspaces keep run events and files
+  retention_days: 90
+
+network:
+  # Whether Umpteenth itself may call private addresses, e.g. a local Ollama, an MCP server on the LAN or a notification webhook
+  allow_private_targets: true
+
+models:
+  # How often the models.dev catalog is downloaded and every provider's model list synced, at least 5m
+  # 0 keeps the catalog Umpteenth was built with
+  catalog_refresh_interval: 12h
+
+# API keys for the Anthropic and OpenAI providers a fresh install creates on first start, ignored afterwards
+providers:
+  anthropic_api_key: ""
+  openai_api_key: ""
+
+# Several replicas sharing a Postgres database and an s3 or database file storage backend
+ha:
+  enabled: false
+  # A stable, unique name per replica, the hostname when empty
+  replica_id: ""
+  actors:
+    # The address other replicas reach this replica at
+    host: 127.0.0.1
+    # The port of the replicas' peer connections
+    port: 7571
+    # The interface the peer server listens on when set, otherwise all interfaces with HA and actors.host without
+    bind_address: ""

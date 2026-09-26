@@ -1,0 +1,86 @@
+---
+// The landing page lives outside Starlight, so it carries its own header and footer instead of the docs chrome
+import '../styles/theme.css';
+import Header from '../components/landing/Header.astro';
+import Hero from '../components/landing/Hero.astro';
+import Sections from '../components/landing/Sections.astro';
+import Footer from '../components/landing/Footer.astro';
+
+const title = 'Umpteenth: self-hosted jobs that learn';
+const description =
+	'Describe a recurring job in plain language. Umpteenth runs it in a fresh sandbox, learns from its runs, and turns it into a script that costs next to nothing.';
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical} />
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="sitemap" href="/sitemap-index.xml" />
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<meta name="theme-color" content="#0f0f10" media="(prefers-color-scheme: dark)" />
+		<meta name="theme-color" content="#fcfcfc" media="(prefers-color-scheme: light)" />
+		<script is:inline>
+			// Apply the stored theme before the first paint, using Starlight's key so the docs and the landing page agree
+			(() => {
+				const stored = localStorage.getItem('starlight-theme');
+				const theme =
+					stored === 'light' || stored === 'dark'
+						? stored
+						: matchMedia('(prefers-color-scheme: light)').matches
+							? 'light'
+							: 'dark';
+				document.documentElement.dataset.theme = theme;
+			})();
+		</script>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<Hero
+				title="The umpteenth time runs itself."
+				tagline="Describe a recurring job in plain language. Umpteenth runs it in a fresh sandbox, learns from its runs, and turns it into a script that costs next to nothing."
+				actions={[
+					{ text: 'Install', href: '/getting-started/installation/', variant: 'primary' },
+					{ text: 'How it works', href: '/getting-started/introduction/', variant: 'secondary' }
+				]}
+			/>
+			<Sections />
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style is:global>
+	html {
+		color-scheme: dark;
+		background: var(--sl-color-black);
+		color: var(--sl-color-white);
+		font-family: var(--font-sans);
+		font-size: 16px;
+		line-height: 1.5;
+		-webkit-font-smoothing: antialiased;
+	}
+	html[data-theme='light'] {
+		color-scheme: light;
+	}
+	body {
+		margin: 0;
+	}
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+	a {
+		color: var(--sl-color-accent);
+	}
+</style>

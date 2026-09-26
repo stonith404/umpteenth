@@ -1,0 +1,16 @@
+---
+// A card around a hand-drawn diagram, with the caption stating the one thing the drawing shows
+interface Props {
+	caption?: string;
+	// The narrowest the drawing may get before it scrolls sideways, so labels never shrink below reading size
+	minWidth?: string;
+}
+const { caption, minWidth } = Astro.props;
+---
+
+<figure class="dg not-content" style={minWidth ? `--dg-min: ${minWidth}` : undefined}>
+	<div class="dg-scroll">
+		<slot />
+	</div>
+	{caption && <figcaption>{caption}</figcaption>}
+</figure>

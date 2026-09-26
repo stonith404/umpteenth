@@ -1,0 +1,373 @@
+---
+// The brand headline beside a run history that shows a job graduating to a script
+import settleLight from '../../assets/settle-light.svg?raw';
+import settleDark from '../../assets/settle-dark.svg?raw';
+
+// The animated marks carry a fixed size, which would fight the CSS size below, so it is stripped before inlining
+const unsized = (svg: string) => svg.replace(/ width="[^"]+" height="[^"]+"/, '');
+
+interface Props {
+	title: string;
+	tagline: string;
+	actions: { text: string; href: string; variant: 'primary' | 'secondary' }[];
+}
+const { title, tagline, actions } = Astro.props;
+
+// A job's first eight runs: two exploratory runs, three with the playbook, then the script alone
+const runs = [
+	{ n: 1, mode: 'Explore', time: '4m 12s', cost: '$0.42', density: 0.15 },
+	{ n: 2, mode: 'Explore', time: '3m 40s', cost: '$0.37', density: 0.3 },
+	{ n: 3, mode: 'Assisted', time: '1m 58s', cost: '$0.19', density: 0.5 },
+	{ n: 4, mode: 'Assisted', time: '1m 05s', cost: '$0.11', density: 0.7 },
+	{ n: 5, mode: 'Assisted', time: '52s', cost: '$0.08', density: 0.9 },
+	{ n: 6, mode: 'Scripted', time: '3s', cost: '$0.00', density: 1 },
+	{ n: 7, mode: 'Scripted', time: '3s', cost: '$0.00', density: 1 },
+	{ n: 8, mode: 'Scripted', time: '2s', cost: '$0.00', density: 1 }
+];
+// One row of the Bayer matrix thresholds a strip of cells, so each run's strip is a slice of the mark's dither
+const bayer = [0, 8, 2, 10];
+const strip = (density: number) =>
+	Array.from({ length: 20 }, (_, x) => (density >= 1 ? 'bar' : bayer[x % 4] < density * 16 ? 'dot' : ''));
+---
+
+<section class="hero">
+	<div class="wrap grid">
+		<div class="copy">
+			<span class="mark light" set:html={unsized(settleLight)} />
+			<span class="mark dark" set:html={unsized(settleDark)} />
+			<h1>{title}</h1>
+			<p class="tagline">{tagline}</p>
+			<div class="actions">
+				{
+					actions.map((a) => (
+						<a class:list={['btn', a.variant]} href={a.href}>
+							{a.text}
+							{a.variant === 'primary' && (
+								<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<path d="M5 12h14M13 6l6 6-6 6" />
+								</svg>
+							)}
+						</a>
+					))
+				}
+			</div>			
+		</div>
+
+		<div class="ledger" aria-label="Example run history of a job that graduated to a script">
+			<div class="ledger-head">
+				<span class="job">
+					<span class="dotpulse"></span>
+					Weekly stale PR report
+				</span>
+				<span class="schedule">every Monday · 08:00</span>
+			</div>
+			<ol class="runs">
+				{
+					runs.map((r) => (
+						<li class="run" style={`--row: ${r.n}`}>
+							<span class="n">#{r.n}</span>
+							<span class:list={['mode', r.mode.toLowerCase()]}>{r.mode}</span>
+							<svg class="strip" viewBox="0 0 80 4" preserveAspectRatio="none" aria-hidden="true">
+								{strip(r.density).map((cls, x) => cls && <rect x={x * 4} y="0" width="4.2" height="4" class={cls} />)}
+							</svg>
+							<span class="time">{r.time}</span>
+							<span class="cost">{r.cost}</span>
+						</li>
+					))
+				}
+			</ol>
+			<div class="ledger-foot">
+				<div>
+					<span class="label">Cost per run</span>
+					<span class="value">$0.42 <span class="arrow">→</span> $0.00</span>
+				</div>
+				<div>
+					<span class="label">Time per run</span>
+					<span class="value">4m 12s <span class="arrow">→</span> 2s</span>
+				</div>
+				<div>
+					<span class="label">Graduated</span>
+					<span class="value lime">run 6</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.wrap {
+		max-width: 72rem;
+		margin-inline: auto;
+		padding-inline: 1.5rem;
+	}
+	.hero {
+		padding-block: clamp(3rem, 8vw, 6rem) clamp(3rem, 7vw, 5rem);
+		background:
+			radial-gradient(60rem 30rem at 85% -10%, color-mix(in oklch, var(--brand), transparent 88%), transparent 70%),
+			var(--sl-color-black);
+	}
+	.grid {
+		display: grid;
+		gap: 3rem;
+		align-items: center;
+	}
+	.grid > * {
+		min-width: 0;
+	}
+	@media (min-width: 60rem) {
+		.grid {
+			grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+			gap: 4rem;
+		}
+	}
+	.mark {
+		display: block;
+		margin-bottom: 1.5rem;
+	}
+	.mark :global(svg) {
+		display: block;
+		width: 64px;
+		height: 64px;
+	}
+	.mark.dark {
+		display: none;
+	}
+	:global([data-theme='dark']) .mark.light {
+		display: none;
+	}
+	:global([data-theme='dark']) .mark.dark {
+		display: block;
+	}
+	h1 {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: clamp(2.5rem, 6vw, 4.25rem);
+		line-height: 1.02;
+		letter-spacing: -0.02em;
+		color: var(--sl-color-white);
+		margin: 0 0 1.25rem;
+		text-wrap: balance;
+	}
+	.tagline {
+		font-size: clamp(1.0625rem, 1.5vw, 1.25rem);
+		line-height: 1.55;
+		color: var(--sl-color-gray-3);
+		max-width: 34rem;
+		margin: 0 0 1.75rem;
+		text-wrap: pretty;
+	}
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
+	.meta {
+		margin: 1.5rem 0 0;
+		font-size: var(--text-xs);
+		color: var(--sl-color-gray-3);
+	}
+
+	/* Kumo controls: 8px corners, a top-lit blue gradient for the primary and a hairline control for the secondary */
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		height: 2.5rem;
+		padding-inline: 1rem;
+		border-radius: 0.5rem;
+		border: 1px solid transparent;
+		background-clip: padding-box;
+		font-weight: 500;
+		font-size: var(--text-base);
+		line-height: 1;
+		text-decoration: none;
+		transition: background 120ms ease;
+	}
+	.btn.primary {
+		--e: var(--blue);
+		color: #fff;
+		background: linear-gradient(to bottom, color-mix(in oklch, var(--e), white 15%), var(--e));
+		border-color: color-mix(in oklch, var(--e), black 10%);
+		box-shadow:
+			inset 0 1px 0 0 color-mix(in oklch, var(--e), white 30%),
+			0 1px 2px rgba(0, 0, 0, 0.05);
+	}
+	.btn.primary:hover {
+		background: linear-gradient(to bottom, color-mix(in oklch, var(--e), white 30%), var(--e));
+	}
+	.btn.secondary {
+		color: var(--sl-color-white);
+		background: var(--surface);
+		border-color: var(--surface-border);
+		box-shadow: var(--surface-shadow);
+	}
+	.btn.secondary:hover {
+		background: var(--sl-color-gray-7);
+	}
+
+	/* The ledger is always dark: it is the app's run list, and the lime lives on ink */
+	.ledger {
+		background: var(--tile);
+		color: var(--paper);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		box-shadow:
+			0 1px 2px rgba(0, 0, 0, 0.3),
+			0 24px 48px -24px rgba(0, 0, 0, 0.5);
+		font-size: var(--text-sm);
+		overflow: hidden;
+	}
+	.ledger-head {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.25rem 1rem;
+		padding: 0.875rem 1.125rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	}
+	.job {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.625rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+	.dotpulse {
+		width: 8px;
+		height: 8px;
+		border-radius: 999px;
+		background: var(--brand);
+		animation: pulse 2.4s ease-out infinite;
+	}
+	@keyframes pulse {
+		0% {
+			box-shadow: 0 0 0 0 color-mix(in oklch, var(--brand), transparent 40%);
+		}
+		70% {
+			box-shadow: 0 0 0 8px transparent;
+		}
+		100% {
+			box-shadow: 0 0 0 0 transparent;
+		}
+	}
+	.schedule {
+		color: #8a8a93;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+	}
+	.runs {
+		list-style: none;
+		margin: 0;
+		padding: 0.375rem 0;
+	}
+	.run {
+		display: grid;
+		grid-template-columns: 2.25rem 5rem minmax(0, 1fr) 4rem 3.5rem;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.4375rem 1.125rem;
+	}
+	.run + .run {
+		border-top: 1px solid rgba(255, 255, 255, 0.05);
+	}
+	.n {
+		color: #8a8a93;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+	}
+	.mode {
+		display: inline-flex;
+		align-items: center;
+		height: 1.375rem;
+		padding-inline: 0.5rem;
+		border-radius: 0.375rem;
+		font-size: var(--text-2xs);
+		font-weight: 500;
+		width: fit-content;
+	}
+	.mode.explore {
+		background: rgba(255, 255, 255, 0.08);
+		color: #d4d4d8;
+	}
+	.mode.assisted {
+		background: rgba(77, 141, 255, 0.18);
+		color: #bfd7ff;
+	}
+	.mode.scripted {
+		background: color-mix(in oklch, var(--brand), transparent 82%);
+		color: var(--brand);
+	}
+	.strip {
+		display: block;
+		width: 100%;
+		height: 6px;
+	}
+	.strip .dot {
+		fill: #d4d4d8;
+	}
+	.strip .bar {
+		fill: var(--brand);
+	}
+	.time,
+	.cost {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		text-align: right;
+		color: #d4d4d8;
+	}
+	.cost {
+		color: var(--paper);
+	}
+	.ledger-foot {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1rem;
+		padding: 0.875rem 1.125rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.02);
+	}
+	.ledger-foot .label {
+		display: block;
+		color: #8a8a93;
+		font-size: var(--text-2xs);
+		margin-bottom: 0.25rem;
+	}
+	.ledger-foot .value {
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
+		white-space: nowrap;
+	}
+	.arrow {
+		color: #8a8a93;
+	}
+	.lime {
+		color: var(--brand);
+	}
+	/* Rows arrive one after the other, oldest first */
+	@media (prefers-reduced-motion: no-preference) {
+		.run {
+			opacity: 0;
+			animation: rise 420ms ease-out forwards;
+			animation-delay: calc(var(--row) * 90ms + 300ms);
+		}
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+	@media (max-width: 30rem) {
+		.run {
+			grid-template-columns: 2rem 4.5rem minmax(0, 1fr) 3.5rem;
+		}
+		.time {
+			display: none;
+		}
+	}
+</style>

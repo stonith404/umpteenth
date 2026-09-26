@@ -1,0 +1,973 @@
+---
+// Example jobs as a picker beside a run viewer that replays a made-up run of the picked job, step by step, the way the app's run timeline shows it
+
+type Step = {
+	// tool is an MCP tool, bash and file are the agent's own tools, ump is a call from a scripted run, verify is the check after a script
+	kind: 'tool' | 'bash' | 'file' | 'ump' | 'verify';
+	name: string;
+	arg?: string;
+	result: string;
+	at: string;
+};
+type Result =
+	| { kind: 'note'; label: string; title: string; body: string[] }
+	| { kind: 'pr'; label: string; title: string; meta: string; file: string; removed: string; added: string }
+	| { kind: 'verdict'; label: string; title: string; meta: string; verdict: string; reasons: string[] }
+	| { kind: 'commits'; label: string; title: string; meta: string; commits: { sha: string; message: string }[]; check: string }
+	| { kind: 'digest'; label: string; title: string; groups: { heading: string; items: { source: string; text: string }[] }[] };
+type UseCase = {
+	trigger: string;
+	when: string;
+	title: string;
+	text: string;
+	run: {
+		job: string;
+		number: number;
+		mode: 'Explore' | 'Assisted' | 'Scripted';
+		input: { kind: string; value: string };
+		duration: string;
+		cost: string;
+		steps: Step[];
+		result: Result;
+		// What reflection did with the playbook after the run
+		playbook: string;
+	};
+};
+
+const useCases: UseCase[] = [
+	{
+		trigger: 'Webhook',
+		when: 'On alert',
+		title: 'Alert triage',
+		text: "An alert fires at 3 a.m. By the time whoever is on call opens their laptop, the agent has pulled the service's logs from Loki, matched them against the last deploy and attached its analysis to the alert.",
+		run: {
+			job: 'Checkout alert triage',
+			number: 214,
+			mode: 'Assisted',
+			input: { kind: 'Webhook', value: '{"alertname": "HighErrorRate", "service": "checkout"}' },
+			duration: '50s',
+			cost: '$0.07',
+			playbook: 'Reflection saved playbook v9',
+			steps: [
+				{ kind: 'tool', name: 'loki__query_range', arg: '{app="checkout"} |= "error"', result: '1,284 lines', at: '+3s' },
+				{ kind: 'bash', name: 'bash', arg: 'git log --since="3 hours ago" --oneline', result: '2 commits', at: '+9s' },
+				{ kind: 'file', name: 'read_file', arg: 'runbooks/checkout.md', result: '86 lines', at: '+14s' },
+				{ kind: 'tool', name: 'loki__query_range', arg: '{app="checkout"} |= "too many connections"', result: '94% of errors', at: '+26s' },
+				{ kind: 'tool', name: 'oncall__add_note', arg: 'HighErrorRate', result: 'added', at: '+50s' }
+			],
+			result: {
+				kind: 'note',
+				label: 'Note on the alert',
+				title: 'HighErrorRate · checkout',
+				body: [
+					'Errors started at 02:51, four minutes after the deploy of #1432, which lowered the database pool to 10.',
+					'94% of them are `pq: too many connections`. Rolling back #1432 or raising the pool size clears them.'
+				]
+			}
+		}
+	},
+	{
+		trigger: 'Webhook',
+		when: 'On release',
+		title: 'Docs that keep up',
+		text: 'You publish a release. The agent goes through every commit since the last one, finds the doc pages that no longer match the code and opens a pull request that fixes them.',
+		run: {
+			job: 'Docs sync',
+			number: 37,
+			mode: 'Assisted',
+			input: { kind: 'Webhook', value: '{"tag": "v2.4.0"}' },
+			duration: '1m 03s',
+			cost: '$0.19',
+			playbook: 'Reflection saved playbook v4',
+			steps: [
+				{ kind: 'bash', name: 'bash', arg: 'git log v2.3.0..v2.4.0 --oneline', result: '41 commits', at: '+2s' },
+				{ kind: 'bash', name: 'bash', arg: 'grep -rln "SESSION_TTL" docs/', result: '2 pages', at: '+11s' },
+				{ kind: 'file', name: 'edit_file', arg: 'docs/configuration.md', result: '+4 −3', at: '+34s' },
+				{ kind: 'file', name: 'edit_file', arg: 'docs/upgrading.md', result: '+12', at: '+47s' },
+				{ kind: 'tool', name: 'github__create_pull_request', arg: 'acme/web', result: '#1455', at: '+1m 03s' }
+			],
+			result: {
+				kind: 'pr',
+				label: 'Pull request',
+				title: 'Update the docs for v2.4.0',
+				meta: 'acme/web #1455 · 2 files changed',
+				file: 'docs/configuration.md',
+				removed: 'Set `SESSION_TTL` to the session length in hours.',
+				added: 'Set `session.ttl` to a duration, such as `12h`.'
+			}
+		}
+	},
+	{
+		trigger: 'Schedule',
+		when: 'Every hour',
+		title: 'Security reports, slop-filtered',
+		text: 'A new vulnerability report arrives: critical severity, 2,000 words, a function your code never had and "I hope this helps!" at the end. The agent runs the proof of concept in a sandbox before you read a word. Real findings reach you with a working reproduction, and the rest don\'t cost you an afternoon.',
+		run: {
+			job: 'Security report check',
+			number: 326,
+			mode: 'Assisted',
+			input: { kind: 'Schedule', value: '0 * * * *' },
+			duration: '38s',
+			cost: '$0.05',
+			playbook: 'Playbook v6, unchanged',
+			steps: [
+				{ kind: 'tool', name: 'github__list_security_advisories', arg: 'state=triage', result: '1 new report', at: '+2s' },
+				{ kind: 'file', name: 'read_file', arg: 'report.md', result: '2,113 words', at: '+4s' },
+				{ kind: 'bash', name: 'bash', arg: 'git log -S parse_header_ex --oneline', result: 'no commits', at: '+9s' },
+				{ kind: 'bash', name: 'bash', arg: 'gcc poc.c -lparse -o poc', result: 'undefined reference', at: '+17s' },
+				{ kind: 'tool', name: 'slack__post_message', arg: '#security', result: 'sent', at: '+38s' }
+			],
+			result: {
+				kind: 'verdict',
+				label: 'Posted to #security',
+				title: 'Heap overflow in parse_header_ex()',
+				meta: 'Reported as critical · 2,113 words',
+				verdict: 'Not reproduced',
+				reasons: [
+					'`parse_header_ex()` appears nowhere in the code or its history.',
+					'The proof of concept fails to build against any release.'
+				]
+			}
+		}
+	},
+	{
+		trigger: 'Schedule',
+		when: 'Every night',
+		title: 'Major upgrades, merged at last',
+		text: 'The major-version bump from Dependabot has been open since March because it breaks the build. Tonight the agent reads the migration guide, changes your code until the tests pass and pushes the fixes to the PR.',
+		run: {
+			job: 'Major upgrades',
+			number: 12,
+			mode: 'Assisted',
+			input: { kind: 'Schedule', value: '0 2 * * *' },
+			duration: '2m 12s',
+			cost: '$0.31',
+			playbook: 'Reflection saved playbook v3',
+			steps: [
+				{ kind: 'tool', name: 'github__list_pull_requests', arg: 'author:app/dependabot', result: 'vite 5 → 6', at: '+2s' },
+				{ kind: 'bash', name: 'bash', arg: 'pnpm test', result: '12 failed', at: '+41s' },
+				{ kind: 'bash', name: 'bash', arg: 'curl -s https://vite.dev/guide/migration', result: '48 KB', at: '+44s' },
+				{ kind: 'file', name: 'edit_file', arg: 'vite.config.ts', result: '+6 −2', at: '+1m 18s' },
+				{ kind: 'bash', name: 'bash', arg: 'pnpm test', result: '214 passed', at: '+2m 07s' },
+				{ kind: 'bash', name: 'bash', arg: 'git push', result: '2 commits', at: '+2m 12s' }
+			],
+			result: {
+				kind: 'commits',
+				label: 'Pushed to the pull request',
+				title: 'Bump vite from 5.4.11 to 6.0.3',
+				meta: 'acme/web #412 · open since March',
+				commits: [
+					{ sha: 'a41c9e2', message: 'Switch Sass to the modern compiler API' },
+					{ sha: '7be03fd', message: 'Set resolve.conditions for the Vite 6 defaults' }
+				],
+				check: '214 tests passed'
+			}
+		}
+	},
+	{
+		trigger: 'Schedule',
+		when: 'Mondays at 8:00',
+		title: 'The Monday catch-up',
+		text: "Before you open anything on Monday, the agent goes through last week's Teams chats, Outlook threads and GitHub notifications. You get one digest of what's waiting on you: questions you haven't answered, reviews you owe and decisions made while you were out.",
+		run: {
+			job: 'Monday catch-up',
+			number: 31,
+			mode: 'Scripted',
+			input: { kind: 'Schedule', value: '0 8 * * 1' },
+			duration: '12s',
+			cost: '$0.004',
+			playbook: 'Playbook v14, unchanged',
+			steps: [
+				{ kind: 'ump', name: 'ump', arg: 'mcp call teams list_chats', result: '38 threads', at: '+1s' },
+				{ kind: 'ump', name: 'ump', arg: 'mcp call outlook list_messages', result: '61 emails', at: '+2s' },
+				{ kind: 'ump', name: 'ump', arg: 'mcp call github list_notifications', result: '24 notifications', at: '+3s' },
+				{ kind: 'ump', name: 'ump', arg: 'llm --model utility', result: 'digest', at: '+9s' },
+				{ kind: 'ump', name: 'ump', arg: 'mcp call outlook send_mail', result: 'sent', at: '+10s' },
+				{ kind: 'verify', name: 'Verification passed', result: '3 of 3 checks', at: '+12s' }
+			],
+			result: {
+				kind: 'digest',
+				label: 'Email to you',
+				title: 'Your Monday catch-up',
+				groups: [
+					{
+						heading: 'Waiting on you',
+						items: [
+							{ source: 'Teams', text: 'Priya asked in #platform whether the Q3 migration can slip a week.' },
+							{ source: 'Outlook', text: 'The hosting contract needs your signature by Wednesday.' },
+							{ source: 'GitHub', text: 'Two review requests on acme/api, #881 and #884.' }
+						]
+					},
+					{
+						heading: 'Decided while you were out',
+						items: [{ source: 'Teams', text: "The web team moved Thursday's release to Friday." }]
+					}
+				]
+			}
+		}
+	}
+];
+
+// Lucide icon paths, drawn at 24 units like the app's icons
+const icons = {
+	tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+	bash: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+	file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/>',
+	ump: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/>',
+	verify: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+	note: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+	pr: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" x2="6" y1="9" y2="21"/>',
+	verdict: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+	commits: '<circle cx="12" cy="12" r="3"/><line x1="3" x2="9" y1="12" y2="12"/><line x1="15" x2="21" y1="12" y2="12"/>',
+	digest: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+	box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+	cross: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>'
+};
+
+// Turns backticks in the mock copy into code spans, escaping the rest since it lands in set:html
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const md = (s: string) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+
+// Each step rises this long after the previous one, and the status flips to Succeeded once the result has risen
+const STEP_MS = 420;
+const settleMs = (steps: Step[]) => `${steps.length * STEP_MS + 580}ms`;
+---
+
+<div class="uc" data-uc>
+	{
+		useCases.map((u, i) => (
+			<>
+				<div class:list={['uc-item', { active: i === 0 }]} style={`--row: ${i + 1}`}>
+					<span class="uc-rail" aria-hidden="true" />
+					<p class="uc-trigger">
+						{u.trigger} · {u.when}
+					</p>
+					<h3 class="uc-name">
+						<button type="button" id={`uc-tab-${i}`} aria-expanded={i === 0 ? 'true' : 'false'} aria-controls={`uc-run-${i}`}>
+							{u.title}
+						</button>
+					</h3>
+					<div class="uc-body">
+						<div>
+							<p>{u.text}</p>
+						</div>
+					</div>
+				</div>
+
+				<div
+					class:list={['uc-panel', { active: i === 0 }]}
+					id={`uc-run-${i}`}
+					role="region"
+					aria-labelledby={`uc-tab-${i}`}
+					inert={i !== 0}
+					style={`--settle: ${settleMs(u.run.steps)}; --step: ${STEP_MS}ms`}
+				>
+					<div class="win">
+						<div class="win-head">
+							<span class="job">
+								{u.run.job}
+								<span class="num">#{u.run.number}</span>
+							</span>
+							<span class="badges">
+								<span class:list={['mode', u.run.mode.toLowerCase()]}>{u.run.mode}</span>
+								<span class="status">
+									<span class="badge live">
+										<span class="ping" aria-hidden="true" />
+										Running
+									</span>
+									<span class="badge done">
+										<svg viewBox="0 0 24 24" aria-hidden="true" set:html={icons.verify} />
+										Succeeded
+									</span>
+								</span>
+							</span>
+						</div>
+
+						<div class="win-input">
+							<span class="input-kind">{u.run.input.kind}</span>
+							<code class="input-value">{u.run.input.value}</code>
+							<span class="win-meta">
+								{u.run.duration} · {u.run.cost}
+							</span>
+						</div>
+
+						<ol class="steps">
+							{u.run.steps.map((s, n) => (
+								<li class:list={['step', 'anim', s.kind]} style={`--i: ${n}`}>
+									<svg viewBox="0 0 24 24" aria-hidden="true" set:html={icons[s.kind]} />
+									<span class="call">
+										<span class="name">{s.name}</span>
+										{s.arg && <span class="arg">{s.arg}</span>}
+									</span>
+									<span class="res">{s.result}</span>
+									<span class="at">{s.at}</span>
+								</li>
+							))}
+						</ol>
+
+						<div class="result anim" style={`--i: ${u.run.steps.length}`}>
+							<p class="result-label">
+								<svg viewBox="0 0 24 24" aria-hidden="true" set:html={icons[u.run.result.kind]} />
+								{u.run.result.label}
+							</p>
+							<p class="result-title">{u.run.result.title}</p>
+							{'meta' in u.run.result && <p class="result-meta">{u.run.result.meta}</p>}
+
+							{u.run.result.kind === 'note' &&
+								u.run.result.body.map((line) => <p class="result-text" set:html={md(line)} />)}
+
+							{u.run.result.kind === 'pr' && (
+								<div class="diff">
+									<p class="diff-file">{u.run.result.file}</p>
+									<p class="del">{u.run.result.removed}</p>
+									<p class="add">{u.run.result.added}</p>
+								</div>
+							)}
+
+							{u.run.result.kind === 'verdict' && (
+								<>
+									<p class="verdict">
+										<svg viewBox="0 0 24 24" aria-hidden="true" set:html={icons.cross} />
+										{u.run.result.verdict}
+									</p>
+									<ul class="reasons">
+										{u.run.result.reasons.map((r) => (
+											<li set:html={md(r)} />
+										))}
+									</ul>
+								</>
+							)}
+
+							{u.run.result.kind === 'commits' && (
+								<>
+									<ul class="commits">
+										{u.run.result.commits.map((c) => (
+											<li>
+												<code>{c.sha}</code>
+												{c.message}
+											</li>
+										))}
+									</ul>
+									<p class="check">
+										<svg viewBox="0 0 24 24" aria-hidden="true" set:html={icons.verify} />
+										{u.run.result.check}
+									</p>
+								</>
+							)}
+
+							{u.run.result.kind === 'digest' &&
+								u.run.result.groups.map((g) => (
+									<div class="group">
+										<p class="group-heading">{g.heading}</p>
+										<ul>
+											{g.items.map((item) => (
+												<li>
+													<span class="source">{item.source}</span>
+													{item.text}
+												</li>
+											))}
+										</ul>
+									</div>
+								))}
+						</div>
+
+						<div class="win-foot anim" style={`--i: ${u.run.steps.length + 1}`}>
+							<span class="foot-sandbox">
+								<svg viewBox="0 0 24 24" aria-hidden="true" set:html={icons.box} />
+								Sandbox destroyed
+							</span>
+							<span>{u.run.playbook}</span>
+						</div>
+					</div>
+				</div>
+			</>
+		))
+	}
+</div>
+
+<script>
+	// Show one example run at a time, and on wide screens step through them until the reader picks one
+	const root = document.querySelector<HTMLElement>('[data-uc]');
+	if (root) {
+		const items = [...root.querySelectorAll<HTMLElement>('.uc-item')];
+		const panels = [...root.querySelectorAll<HTMLElement>('.uc-panel')];
+		let current = 0;
+
+		// Open one item and its run, and take the others out of the tab order
+		const select = (index: number) => {
+			items.forEach((item, n) => {
+				item.classList.toggle('active', n === index);
+				item.querySelector('button')?.setAttribute('aria-expanded', String(n === index));
+			});
+			panels.forEach((panel, n) => {
+				panel.classList.toggle('active', n === index);
+				panel.inert = n !== index;
+			});
+			current = index;
+		};
+
+		// The stylesheet keeps the steps hidden until the section scrolls into view, but only once this script runs
+		root.dataset.js = '';
+
+		// A click hands control to the reader, so the auto-advance stops for good
+		items.forEach((item, n) =>
+			item.querySelector('button')?.addEventListener('click', () => {
+				root.classList.add('manual');
+				select(n);
+			})
+		);
+
+		// The active item's rail fills over a few seconds, and a full rail moves on to the next job
+		root.addEventListener('animationend', (event) => {
+			if (!(event.target as HTMLElement).classList.contains('uc-rail') || root.classList.contains('manual')) return;
+			select((current + 1) % items.length);
+		});
+
+		// Replay the first run once the section is on screen, and pause the rail while it is off screen
+		new IntersectionObserver(
+			([entry]) => {
+				root.classList.toggle('in-view', entry.isIntersecting);
+				if (entry.isIntersecting) root.classList.add('seen');
+			},
+			{ threshold: 0.3 }
+		).observe(root);
+	}
+</script>
+
+<style>
+	/* Picker on the left, run viewer on the right, and on phones each run opens under its job */
+	.uc {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		margin-top: 2.5rem;
+	}
+	@media (min-width: 60rem) {
+		.uc {
+			grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+			/* The last row absorbs the height the run viewer has beyond the picker, so the jobs stay packed at the top */
+			grid-template-rows: repeat(4, auto) 1fr;
+			column-gap: 3.5rem;
+		}
+		.uc-item {
+			grid-column: 1;
+			grid-row: var(--row);
+			align-self: start;
+		}
+		.uc-panel {
+			grid-column: 2;
+			grid-row: 1 / -1;
+		}
+		/* All runs share one cell, so switching jobs never changes the section's height */
+		.uc-panel:not(.active) {
+			visibility: hidden;
+		}
+	}
+	@media (max-width: 59.999rem) {
+		.uc-panel:not(.active) {
+			display: none;
+		}
+		.uc-panel {
+			padding: 0.25rem 0 1.25rem 1.25rem;
+		}
+	}
+
+	/* Picker */
+	.uc-item {
+		position: relative;
+		padding: 0.875rem 0 0.875rem 1.25rem;
+	}
+	.uc-item::before,
+	.uc-rail {
+		content: '';
+		position: absolute;
+		inset: 0 auto 0 0;
+		width: 2px;
+	}
+	.uc-item::before {
+		background: var(--sl-color-gray-5);
+	}
+	.uc-rail {
+		background: var(--brand);
+		transform-origin: top;
+		transform: scaleY(0);
+	}
+	.uc-item.active .uc-rail {
+		transform: none;
+	}
+	:global([data-theme='light']) .uc-rail {
+		background: var(--sl-color-white);
+	}
+	.uc-trigger {
+		margin: 0 0 0.25rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-2xs);
+		color: var(--sl-color-gray-3);
+	}
+	.uc-name {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.3125rem;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+		line-height: 1.25;
+	}
+	.uc-name button {
+		all: unset;
+		cursor: pointer;
+		color: var(--sl-color-gray-3);
+		transition: color 150ms ease;
+	}
+	/* The whole item is the click target, not only the title */
+	.uc-name button::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+	.uc-item:hover .uc-name button,
+	.uc-item.active .uc-name button {
+		color: var(--sl-color-white);
+	}
+	.uc-name button:focus-visible {
+		outline: 2px solid var(--sl-color-accent);
+		outline-offset: 4px;
+		border-radius: 0.25rem;
+	}
+	.uc-body {
+		display: grid;
+		grid-template-rows: 0fr;
+		transition: grid-template-rows 300ms ease;
+	}
+	.uc-body > div {
+		min-height: 0;
+		overflow: hidden;
+		visibility: hidden;
+		transition: visibility 0s 300ms;
+	}
+	.uc-item.active .uc-body {
+		grid-template-rows: 1fr;
+	}
+	.uc-item.active .uc-body > div {
+		visibility: visible;
+		transition-delay: 0s;
+	}
+	.uc-body p {
+		margin: 0;
+		padding-top: 0.5rem;
+		font-size: var(--text-sm);
+		line-height: 1.55;
+		color: var(--sl-color-gray-3);
+		text-wrap: pretty;
+	}
+
+	/* The run viewer is always dark like the hero's run list, since it stands for the app */
+	.win {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		background: var(--tile);
+		color: var(--paper);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		box-shadow:
+			0 1px 2px rgba(0, 0, 0, 0.3),
+			0 24px 48px -24px rgba(0, 0, 0, 0.5);
+		font-size: var(--text-sm);
+		overflow: hidden;
+	}
+	.win p {
+		margin: 0;
+		color: inherit;
+	}
+	.win svg {
+		width: 14px;
+		height: 14px;
+		flex-shrink: 0;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+	.win code {
+		font-family: var(--font-mono);
+		font-size: 0.9em;
+	}
+	.win-head {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem 1rem;
+		padding: 0.875rem 1.125rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	}
+	.job {
+		font-weight: 600;
+	}
+	.num {
+		margin-left: 0.375rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		font-weight: 400;
+		color: #8a8a93;
+	}
+	.badges {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.mode,
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		height: 1.375rem;
+		padding-inline: 0.5rem;
+		border-radius: 0.375rem;
+		font-size: var(--text-2xs);
+		font-weight: 500;
+		white-space: nowrap;
+	}
+	.mode.explore {
+		background: rgba(255, 255, 255, 0.08);
+		color: #d4d4d8;
+	}
+	.mode.assisted {
+		background: rgba(77, 141, 255, 0.18);
+		color: #bfd7ff;
+	}
+	.mode.scripted {
+		background: color-mix(in oklch, var(--brand), transparent 82%);
+		color: var(--brand);
+	}
+	/* Both badges share one cell, and only the settled one shows unless the run is replaying */
+	.status {
+		display: inline-grid;
+	}
+	.status > * {
+		grid-area: 1 / 1;
+		justify-self: end;
+	}
+	.badge.live {
+		visibility: hidden;
+		background: rgba(59, 130, 246, 0.2);
+		color: #93c5fd;
+	}
+	.badge.done {
+		background: rgba(16, 185, 129, 0.15);
+		color: #6ee7b7;
+	}
+	.ping {
+		width: 6px;
+		height: 6px;
+		border-radius: 999px;
+		background: #3b82f6;
+		animation: uc-ping 1.2s ease-out infinite;
+	}
+	.win-input {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.625rem 1.125rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		background: rgba(255, 255, 255, 0.02);
+		font-size: var(--text-xs);
+	}
+	.input-kind {
+		color: #8a8a93;
+	}
+	.input-value {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: #d4d4d8;
+	}
+	.win-meta {
+		margin-left: auto;
+		font-family: var(--font-mono);
+		color: #8a8a93;
+		white-space: nowrap;
+	}
+
+	/* Steps, laid out like the app's timeline rows */
+	.steps {
+		list-style: none;
+		margin: 0;
+		padding: 0.5rem 0;
+	}
+	.step {
+		display: grid;
+		grid-template-columns: 14px minmax(0, 1fr) auto 3.75rem;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.375rem 1.125rem;
+		font-size: var(--text-xs);
+	}
+	.step svg {
+		color: #8a8a93;
+	}
+	.step.verify svg {
+		color: #34d399;
+	}
+	.call {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-family: var(--font-mono);
+	}
+	.step.verify .call {
+		font-family: var(--font-sans);
+		font-weight: 500;
+	}
+	.arg {
+		margin-left: 0.5rem;
+		color: #8a8a93;
+	}
+	.res {
+		color: #b4b4bb;
+		white-space: nowrap;
+	}
+	.at {
+		font-family: var(--font-mono);
+		color: #8a8a93;
+		text-align: right;
+		white-space: nowrap;
+	}
+	@media (max-width: 30rem) {
+		.step {
+			grid-template-columns: 14px minmax(0, 1fr) auto;
+		}
+		.at {
+			display: none;
+		}
+	}
+
+	.win-foot {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 0.25rem 1rem;
+		margin-top: auto;
+		padding: 0.625rem 1.125rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
+		background: rgba(255, 255, 255, 0.02);
+		font-family: var(--font-mono);
+		font-size: var(--text-2xs);
+		color: #8a8a93;
+	}
+	.foot-sandbox {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	/* The result is what lands where the reader looks: a note, a pull request, a message or an email */
+	.result {
+		margin: 0.25rem 1.125rem 1.125rem;
+		padding: 0.875rem 1rem;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 0.5rem;
+		background: rgba(255, 255, 255, 0.03);
+	}
+	.win .result-label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+		font-size: var(--text-2xs);
+		font-weight: 500;
+		color: var(--brand);
+	}
+	.result-title {
+		font-weight: 600;
+	}
+	.win .result-meta {
+		font-family: var(--font-mono);
+		font-size: var(--text-2xs);
+		color: #8a8a93;
+	}
+	.win .result-text {
+		margin-top: 0.5rem;
+		color: #d4d4d8;
+		text-wrap: pretty;
+	}
+	.result :global(code) {
+		padding: 0.0625rem 0.3125rem;
+		border-radius: 0.25rem;
+		background: rgba(255, 255, 255, 0.07);
+		color: var(--paper);
+	}
+	.diff {
+		margin-top: 0.75rem;
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		border-radius: 0.375rem;
+		overflow: hidden;
+		font-family: var(--font-mono);
+		font-size: var(--text-2xs);
+	}
+	.diff p {
+		padding: 0.3125rem 0.75rem;
+	}
+	.win .diff-file {
+		background: rgba(255, 255, 255, 0.03);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		color: #8a8a93;
+	}
+	.win .del {
+		background: rgba(239, 68, 68, 0.12);
+		color: #fca5a5;
+	}
+	.win .add {
+		background: rgba(16, 185, 129, 0.12);
+		color: #6ee7b7;
+	}
+	.del::before {
+		content: '− ';
+	}
+	.add::before {
+		content: '+ ';
+	}
+	.win .verdict {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		margin-top: 0.75rem;
+		height: 1.375rem;
+		padding-inline: 0.5rem;
+		border-radius: 0.375rem;
+		background: rgba(255, 255, 255, 0.08);
+		color: #d4d4d8;
+		font-size: var(--text-2xs);
+		font-weight: 500;
+	}
+	.reasons,
+	.commits,
+	.group ul {
+		list-style: none;
+		margin: 0.625rem 0 0;
+		padding: 0;
+		display: grid;
+		gap: 0.375rem;
+		color: #d4d4d8;
+	}
+	.reasons li {
+		position: relative;
+		padding-left: 1rem;
+	}
+	.reasons li::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0.55em;
+		width: 5px;
+		height: 5px;
+		background: #8a8a93;
+	}
+	.commits li {
+		display: flex;
+		gap: 0.625rem;
+	}
+	.commits code {
+		color: #8a8a93;
+	}
+	.result .commits :global(code) {
+		background: none;
+		padding: 0;
+	}
+	.win .check {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+		color: #6ee7b7;
+		font-size: var(--text-xs);
+	}
+	.group + .group {
+		margin-top: 0.875rem;
+	}
+	.win .group-heading {
+		margin-top: 0.625rem;
+		font-size: var(--text-xs);
+		font-weight: 500;
+		color: #8a8a93;
+	}
+	.group li {
+		display: flex;
+		align-items: baseline;
+		gap: 0.625rem;
+	}
+	.source {
+		flex-shrink: 0;
+		width: 3.75rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-2xs);
+		color: #8a8a93;
+	}
+
+	/* Replay: steps rise one after the other while the run shows Running, then the status settles */
+	@media (prefers-reduced-motion: no-preference) {
+		.uc[data-js]:not(.seen) .anim {
+			opacity: 0;
+		}
+		.uc.seen .uc-panel.active .anim {
+			animation: uc-rise 380ms ease-out both;
+			animation-delay: calc(var(--i) * var(--step) + 200ms);
+		}
+		.uc.seen .uc-panel.active .badge.live {
+			animation: uc-show var(--settle) step-end;
+		}
+		.uc.seen .uc-panel.active :is(.badge.done, .win-meta) {
+			animation: uc-hide var(--settle) step-end;
+		}
+	}
+
+	/* Auto-advance: on wide screens the active rail fills, pausing while the reader hovers, focuses or scrolls away */
+	@media (min-width: 60rem) and (prefers-reduced-motion: no-preference) {
+		.uc[data-js]:not(.manual) .uc-item.active .uc-rail {
+			animation: uc-fill 10s linear forwards;
+		}
+		.uc:is(:hover, :focus-within, :not(.in-view)) .uc-rail {
+			animation-play-state: paused;
+		}
+	}
+
+	@keyframes uc-rise {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+	@keyframes uc-show {
+		from,
+		to {
+			visibility: visible;
+		}
+	}
+	@keyframes uc-hide {
+		from,
+		to {
+			visibility: hidden;
+		}
+	}
+	@keyframes uc-fill {
+		from {
+			transform: scaleY(0);
+		}
+		to {
+			transform: none;
+		}
+	}
+	@keyframes uc-ping {
+		from {
+			box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);
+		}
+		to {
+			box-shadow: 0 0 0 6px transparent;
+		}
+	}
+</style>

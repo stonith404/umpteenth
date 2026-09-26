@@ -1,0 +1,52 @@
+# Node
+node_modules
+.pnpm-store/
+
+# Frontend
+/frontend/.svelte-kit
+/frontend/build
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Built frontend, embedded by the backend
+# The .gitkeep keeps the embed compiling on a fresh checkout; the backend then serves no UI until `pnpm build` ran
+/backend/frontend/dist/*
+!/backend/frontend/dist/.gitkeep
+
+# Built ump CLI binaries, embedded by the backend
+/backend/internal/sandbox/umpbin/bin/*
+!/backend/internal/sandbox/umpbin/bin/.gitkeep
+
+# Docs
+/docs/dist
+/docs/.astro
+/docs/.wrangler
+
+# Backend
+/backend/bin
+/backend/data
+/backend/cmd/__debug_*
+
+# Tests
+/tests/.tmp
+/tests/.output
+/tests/.report
+
+# Application data
+/data
+
+# Env and config files, which hold secrets
+.env
+.env.*
+/config.yml
+/config.yaml
+/backend/config.yml
+/backend/config.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+/frontend/openapi.tmp.json

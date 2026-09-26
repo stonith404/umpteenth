@@ -1,0 +1,25 @@
+# The stack the Playwright suite drives: the production image built with the test-only endpoints
+# Runs use real sandboxes, so the Docker socket is mounted
+services:
+  umpteenth:
+    image: umpteenth:test
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        - BUILD_TAGS=e2etest
+    ports:
+      - '8080:8080'
+    # Specs run webhook receivers on the machine running Playwright, which Linux engines only resolve with this mapping
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      APP_ENV: test
+      APP_URL: http://localhost:8080
+      APP_ENCRYPTION_KEY: umpteenth-e2e-test-encryption-key
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - umpteenth-test-data:/app/data
+
+volumes:
+  umpteenth-test-data:

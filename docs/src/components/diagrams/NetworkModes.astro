@@ -1,0 +1,218 @@
+---
+// What a sandbox reaches under each network setting, drawn as a matrix of short paths that either arrive or stop at a bar
+import Figure from '../Figure.astro';
+import { field } from './dither';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'Every setting keeps the broker reachable. The blocks labeled firewall need the egress firewall, which Umpteenth installs on Docker only, while the proxy and the missing route block traffic on any engine.'
+} = Astro.props;
+
+// The row headers take the left column, and the four destinations share the rest in equal columns
+const head = { x: 0, w: 196 };
+const colX = 220;
+const colW = 115;
+const cx = (i: number) => colX + colW * i + colW / 2;
+
+// One 52px row per setting on a 60px pitch, below the column headers
+const top = 56;
+const rowH = 52;
+const pitch = 60;
+const rowY = (i: number) => top + pitch * i;
+const mid = (i: number) => rowY(i) + rowH / 2;
+
+const columns = [
+	{ title: 'Broker', sub: 'ump CLI calls' },
+	{ title: 'Internet', sub: 'public addresses' },
+	{ title: 'Private network', sub: 'LAN, Docker host' },
+	{ title: 'Cloud metadata', sub: '169.254.169.254' }
+];
+
+// Each cell is reach (a direct path), list (only allow-listed names, through the egress proxy) or a block with what blocks it
+type Cell = { kind: 'reach' } | { kind: 'list' } | { kind: 'block'; by: string };
+const reach: Cell = { kind: 'reach' };
+const list: Cell = { kind: 'list' };
+const block = (by: string): Cell => ({ kind: 'block', by });
+
+const rows: { title: string; sub: string; cells: Cell[] }[] = [
+	{ title: 'Internet access', sub: 'default for new jobs', cells: [reach, reach, block('firewall'), block('firewall')] },
+	{ title: 'Internet access', sub: '+ Allow private network', cells: [reach, reach, reach, block('firewall')] },
+	{ title: 'Allowed domains only', sub: 'through the egress proxy', cells: [reach, list, block('proxy'), block('proxy')] },
+	{ title: 'Allowed domains only', sub: '+ Allow private network', cells: [reach, list, list, block('proxy')] },
+	{ title: 'No network', sub: 'the broker, nothing else', cells: [reach, block('no route'), block('no route'), block('no route')] }
+];
+
+// Every cell draws the same pictogram: a path from the left that ends in the destination's pixel on the right
+const pathFrom = (c: number) => c - 46;
+const pixelX = (c: number) => c + 26;
+const pixel = 16;
+const barX = (c: number) => c + 8;
+
+// A half-filled pixel in the brand's ordered dither stands for "some names only"
+const dither = field(4, 4, 0.5);
+
+// The legend repeats the three pictograms at a smaller size, spaced across the width
+const legendY = top + pitch * rows.length + 14;
+const legend = [
+	{ kind: 'reach', x: 0, text: 'reaches it' },
+	{ kind: 'list', x: 150, text: 'only names on the job’s list' },
+	{ kind: 'block', x: 404, text: 'blocked, labeled with what blocks it' }
+];
+const height = legendY + 12;
+---
+
+<Figure caption={caption}>
+	<svg viewBox={`0 0 680 ${height}`} role="img" aria-label={caption}>
+		<defs>
+			<marker id="nm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead is-lime" />
+			</marker>
+		</defs>
+
+		{/* The row column gets a header too, so the left of the drawing names what the rows are */}
+		<g>
+			<text class="dg-title" x={head.x + 14} y="18">Network setting</text>
+			<text class="dg-sub" x={head.x + 14} y="36">in the job’s Sandbox card</text>
+		</g>
+
+		{
+			columns.map((c, i) => (
+				<g>
+					<text class="dg-title" x={cx(i)} y="18" text-anchor="middle">
+						{c.title}
+					</text>
+					<text class="dg-sub" x={cx(i)} y="36" text-anchor="middle">
+						{c.sub}
+					</text>
+				</g>
+			))
+		}
+
+		{
+			rows.map((r, ri) => (
+				<g>
+					<rect class="dg-box" x={head.x} y={rowY(ri)} width={head.w} height={rowH} rx="8" />
+					<text class="dg-title" x={head.x + 14} y={rowY(ri) + 21}>
+						{r.title}
+					</text>
+					<text class="dg-sub" x={head.x + 14} y={rowY(ri) + 38}>
+						{r.sub}
+					</text>
+				</g>
+			))
+		}
+
+		{
+			rows.map((r, ri) =>
+				r.cells.map((cell, ci) => {
+					const c = cx(ci);
+					const y = mid(ri);
+					if (cell.kind === 'block') {
+						return (
+							<g>
+								<line class="dg-edge-line is-danger" x1={pathFrom(c)} y1={y} x2={barX(c)} y2={y} />
+								<line class="nm-bar" x1={barX(c)} y1={y - 9} x2={barX(c)} y2={y + 9} />
+								<rect class="nm-pixel is-empty" x={pixelX(c)} y={y - pixel / 2} width={pixel} height={pixel} />
+								<text class="dg-edge-label is-danger" x={(pathFrom(c) + barX(c)) / 2} y={y - 9} text-anchor="middle">
+									{cell.by}
+								</text>
+							</g>
+						);
+					}
+					return (
+						<g>
+							<line
+								class:list={['dg-edge-line is-lime', { 'is-dashed': cell.kind === 'list' }]}
+								x1={pathFrom(c)}
+								y1={y}
+								x2={pixelX(c) - 3}
+								y2={y}
+								marker-end="url(#nm-arrow)"
+							/>
+							{cell.kind === 'reach' ? (
+								<rect class="nm-pixel" x={pixelX(c)} y={y - pixel / 2} width={pixel} height={pixel} />
+							) : (
+								<g>
+									<rect class="nm-pixel is-outline" x={pixelX(c)} y={y - pixel / 2} width={pixel} height={pixel} />
+									{dither.map((d) => (
+										<rect class="nm-dither" x={pixelX(c) + d.x * 4} y={y - pixel / 2 + d.y * 4} width="4" height="4" />
+									))}
+								</g>
+							)}
+							{cell.kind === 'list' && (
+								<text class="dg-edge-label is-lime" x={(pathFrom(c) + pixelX(c)) / 2} y={y - 9} text-anchor="middle">
+									listed only
+								</text>
+							)}
+						</g>
+					);
+				})
+			)
+		}
+
+		{
+			legend.map((l) => {
+				const y = legendY;
+				const x = l.x;
+				return (
+					<g>
+						{l.kind === 'block' ? (
+							<g>
+								<line class="dg-edge-line is-danger" x1={x} y1={y} x2={x + 22} y2={y} />
+								<line class="nm-bar" x1={x + 24} y1={y - 7} x2={x + 24} y2={y + 7} />
+								<rect class="nm-pixel is-empty" x={x + 34} y={y - 6} width="12" height="12" />
+							</g>
+						) : (
+							<g>
+								<line
+									class:list={['dg-edge-line is-lime', { 'is-dashed': l.kind === 'list' }]}
+									x1={x}
+									y1={y}
+									x2={x + 31}
+									y2={y}
+									marker-end="url(#nm-arrow)"
+								/>
+								<rect class:list={['nm-pixel', { 'is-outline': l.kind === 'list' }]} x={x + 34} y={y - 6} width="12" height="12" />
+								{l.kind === 'list' &&
+									dither.map((d) => <rect class="nm-dither" x={x + 34 + d.x * 3} y={y - 6 + d.y * 3} width="3" height="3" />)}
+							</g>
+						)}
+						<g>
+							<text class="dg-sub" x={x + 56} y={y + 4}>
+								{l.text}
+							</text>
+						</g>
+					</g>
+				);
+			})
+		}
+	</svg>
+</Figure>
+
+<style>
+	/* A destination is a pixel: solid lime when the sandbox reaches it, dithered when only listed names get through, and an empty outline when it's blocked */
+	.nm-pixel {
+		fill: var(--dg-lime);
+		stroke: var(--dg-lime-line);
+		stroke-width: 1;
+	}
+	.nm-pixel.is-outline {
+		fill: none;
+	}
+	.nm-pixel.is-empty {
+		fill: none;
+		stroke: var(--dg-line);
+		stroke-dasharray: 3 2;
+	}
+	.nm-dither {
+		fill: var(--dg-lime-line);
+	}
+	/* The bar where a blocked path stops */
+	.nm-bar {
+		stroke: var(--dg-danger);
+		stroke-width: 2.5;
+		stroke-linecap: round;
+	}
+</style>

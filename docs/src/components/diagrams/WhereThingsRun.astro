@@ -1,0 +1,81 @@
+---
+// Where a run's parts live: the agent loop and every credential on the host, the commands in a throwaway sandbox
+import Figure from '../Figure.astro';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'The agent loop runs on the host and sends commands into the sandbox. Model keys and MCP credentials stay on the host, and scripts reach them through the ump CLI.'
+} = Astro.props;
+
+// Three columns, one 60px row per component on a 84px pitch, drawn at the width of the content column so text stays at 1:1
+const rows = [52, 136, 220];
+const outside = { x: 0, w: 150 };
+const host = { x: 222, w: 188, box: 234, boxW: 164 };
+const sandbox = { x: 506, w: 174, box: 518, boxW: 150 };
+const mid = (y: number) => y + 30;
+
+// Edge labels sit centered in the gap between two columns, so they never cross a zone's edge
+const gapLeft = (outside.x + outside.w + host.x) / 2;
+const gapRight = (host.x + host.w + sandbox.x) / 2;
+
+const boxes = [
+	{ x: outside.x, y: rows[0], w: outside.w, title: 'Model providers', sub: 'Anthropic, OpenAI…' },
+	{ x: outside.x, y: rows[1], w: outside.w, title: 'HTTP MCP servers', sub: 'GitHub, Linear…' },
+	{ x: host.box, y: rows[0], w: host.boxW, title: 'Agent loop', sub: 'picks the next step' },
+	{ x: host.box, y: rows[1], w: host.boxW, title: 'Broker', sub: 'one token per run' },
+	{ x: host.box, y: rows[2], w: host.boxW, title: 'Keys and tokens', sub: 'never enter the sandbox', lime: true },
+	{ x: sandbox.box, y: rows[0], w: sandbox.boxW, title: 'Shell and files', sub: 'bash, files, secrets' },
+	{ x: sandbox.box, y: rows[1], w: sandbox.boxW, title: 'ump CLI', sub: 'for the job’s scripts' },
+	{ x: sandbox.box, y: rows[2], w: sandbox.boxW, title: 'stdio MCP servers', sub: 'a user of their own' }
+];
+
+// Each edge runs horizontally between two box edges on one row, with its label centered above it
+const edges = [
+	{ from: host.box, to: outside.x + outside.w, y: mid(rows[0]), label: 'prompts', at: gapLeft },
+	{ from: host.box + host.boxW, to: sandbox.box, y: mid(rows[0]), label: 'runs commands', at: gapRight },
+	{ from: sandbox.box, to: host.box + host.boxW, y: mid(rows[1]), label: 'MCP, models', at: gapRight },
+	{ from: host.box, to: outside.x + outside.w, y: mid(rows[1]), label: 'your tokens', at: gapLeft }
+];
+---
+
+<Figure caption={caption}>
+	<svg viewBox="0 0 680 300" role="img" aria-label={caption}>
+		<defs>
+			<marker id="wtr-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead" />
+			</marker>
+		</defs>
+
+		<rect class="dg-zone" x={host.x} y="4" width={host.w} height="292" rx="12" />
+		<text class="dg-zone-label" x={host.x + 12} y="30">Umpteenth, on your host</text>
+		<rect class="dg-zone is-dashed" x={sandbox.x} y="4" width={sandbox.w} height="292" rx="12" />
+		<text class="dg-zone-label" x={sandbox.x + 12} y="30">Sandbox, one per run</text>
+
+		{
+			boxes.map((b) => (
+				<g>
+					<rect class:list={['dg-box', { 'is-lime': b.lime }]} x={b.x} y={b.y} width={b.w} height="60" rx="8" />
+					<text class:list={['dg-title', { 'dg-on-lime': b.lime }]} x={b.x + 14} y={b.y + 26}>
+						{b.title}
+					</text>
+					<text class:list={['dg-sub', { 'dg-on-lime': b.lime }]} x={b.x + 14} y={b.y + 44}>
+						{b.sub}
+					</text>
+				</g>
+			))
+		}
+
+		{
+			edges.map((e) => (
+				<g>
+					<line class="dg-edge-line" x1={e.from} y1={e.y} x2={e.to + (e.to > e.from ? -2 : 2)} y2={e.y} marker-end="url(#wtr-arrow)" />
+					<text class="dg-edge-label" x={e.at} y={e.y - 8} text-anchor="middle">
+						{e.label}
+					</text>
+				</g>
+			))
+		}
+	</svg>
+</Figure>

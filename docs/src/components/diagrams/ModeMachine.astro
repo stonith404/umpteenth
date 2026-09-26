@@ -1,0 +1,146 @@
+---
+// A job's three modes and what moves it between them, with the fallback inside a scripted run that can demote the job again
+import Figure from '../Figure.astro';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'A job’s first learning or script moves it from Explore to Assisted, and three successful Assisted runs with the same tool calls graduate it to Scripted. If the main script falls back to the agent in two finished runs in a row, the job drops back to Assisted until it graduates again.'
+} = Astro.props;
+
+type Box = { x: number; y: number; w: number; h: number; title: string; sub?: string; lime?: boolean; muted?: boolean };
+type Label = { x: number; y: number; text: string; anchor?: 'start' | 'middle' | 'end' };
+type Edge = { points: [number, number][]; lime?: boolean; labels: Label[] };
+
+// The three modes on one row, 130 units wide with 145 unit gaps that hold the conditions
+const modeY = 28;
+const modeMid = modeY + 30;
+const explore = { x: 0, w: 130 };
+const assisted = { x: 275, w: 130 };
+const scripted = { x: 550, w: 130 };
+const gap = (a: { x: number; w: number }, b: { x: number }) => (a.x + a.w + b.x) / 2;
+
+// One scripted run below, on a full-width zone so its three steps get the same 95 unit gaps
+const zone = { y: 136, h: 200 };
+const stepY = 172;
+const stepMid = stepY + 30;
+const main = { x: 20, w: 150 };
+const checks = { x: 265, w: 150 };
+const agent = { x: 510, w: 150 };
+const doneY = 276;
+
+// Demotion leaves the fallback step and climbs back to Assisted between the two rows
+const demoteY = 112;
+
+const boxes: Box[] = [
+	{ ...explore, y: modeY, h: 60, title: 'Explore', sub: 'empty playbook' },
+	{ ...assisted, y: modeY, h: 60, title: 'Assisted', sub: 'agent + playbook' },
+	{ ...scripted, y: modeY, h: 60, title: 'Scripted', sub: 'main script first', lime: true },
+	{ ...main, y: stepY, h: 60, title: 'Main script', sub: 'does the whole job' },
+	{ ...checks, y: stepY, h: 60, title: 'Checks', sub: 'exit code, outputs' },
+	{ ...agent, y: stepY, h: 60, title: 'Agent takes over', sub: 'in the same sandbox' },
+	{ ...checks, y: doneY, h: 44, title: 'Succeeded' },
+	{ x: 0, y: 356, w: 680, h: 48, title: 'Pinned mode', sub: 'The Mode select in the Learning card overrides these rules, and a Scripted pin needs a main script', muted: true }
+];
+
+const edges: Edge[] = [
+	{
+		points: [[explore.x + explore.w, modeMid], [assisted.x, modeMid]],
+		labels: [
+			{ x: gap(explore, assisted), y: modeMid - 22, text: 'reflection saves a' },
+			{ x: gap(explore, assisted), y: modeMid - 8, text: 'learning or script' }
+		]
+	},
+	{
+		points: [[assisted.x + assisted.w, modeMid], [scripted.x, modeMid]],
+		lime: true,
+		labels: [
+			{ x: gap(assisted, scripted), y: modeMid - 22, text: '3 successful runs' },
+			{ x: gap(assisted, scripted), y: modeMid - 8, text: 'with the same tools' },
+			{ x: gap(assisted, scripted), y: modeMid + 16, text: 'reflection writes main' }
+		]
+	},
+	{
+		points: [[main.x + main.w, stepMid], [checks.x, stepMid]],
+		labels: [{ x: gap(main, checks), y: stepMid - 8, text: 'script exits' }]
+	},
+	{
+		points: [[checks.x + checks.w, stepMid], [agent.x, stepMid]],
+		labels: [{ x: gap(checks, agent), y: stepMid - 8, text: 'a check fails' }]
+	},
+	{
+		points: [[checks.x + checks.w / 2, stepY + 60], [checks.x + checks.w / 2, doneY]],
+		labels: [{ x: checks.x + checks.w / 2 + 12, y: (stepY + 60 + doneY) / 2 + 4, text: 'all pass', anchor: 'start' }]
+	},
+	{
+		points: [
+			[agent.x + agent.w / 2, stepY],
+			[agent.x + agent.w / 2, demoteY],
+			[assisted.x + assisted.w / 2, demoteY],
+			[assisted.x + assisted.w / 2, modeY + 60]
+		],
+		labels: [
+			{ x: gap(assisted, scripted), y: demoteY - 8, text: '2nd fallback in a row' },
+			{ x: gap(assisted, scripted), y: demoteY + 16, text: 'demotes the job' }
+		]
+	}
+];
+
+// A path through the points that stops 2 units short, so the arrowhead's tip meets the box edge
+const path = (pts: [number, number][]) => {
+	const [x1, y1] = pts[pts.length - 2];
+	const [x2, y2] = pts[pts.length - 1];
+	const len = Math.hypot(x2 - x1, y2 - y1);
+	const end: [number, number] = [x2 - ((x2 - x1) / len) * 2, y2 - ((y2 - y1) / len) * 2];
+	return 'M' + [...pts.slice(0, -1), end].map(([x, y]) => `${x},${y}`).join(' L');
+};
+
+// Titles sit above subtitles around the box's middle, or on it when a box has no subtitle
+const titleY = (b: Box) => (b.sub ? b.y + b.h / 2 - 4 : b.y + b.h / 2 + 4.5);
+---
+
+<Figure caption={caption}>
+	<svg viewBox="0 0 680 408" role="img" aria-label={caption}>
+		<defs>
+			<marker id="mm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead" />
+			</marker>
+			<marker id="mm-arrow-lime" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead is-lime" />
+			</marker>
+		</defs>
+
+		<rect class="dg-zone is-dashed" x="0" y={zone.y} width="680" height={zone.h} rx="12" />
+		<text class="dg-zone-label" x="12" y={zone.y + 22}>Inside a Scripted run</text>
+
+		{
+			boxes.map((b) => (
+				<g>
+					<rect class:list={['dg-box', { 'is-lime': b.lime, 'is-muted': b.muted }]} x={b.x} y={b.y} width={b.w} height={b.h} rx="8" />
+					<text class:list={['dg-title', { 'dg-on-lime': b.lime }]} x={b.x + 14} y={titleY(b)}>
+						{b.title}
+					</text>
+					{b.sub && (
+						<text class:list={['dg-sub', { 'dg-on-lime': b.lime }]} x={b.x + 14} y={titleY(b) + 18}>
+							{b.sub}
+						</text>
+					)}
+				</g>
+			))
+		}
+
+		{
+			edges.map((e) => (
+				<g>
+					<path class:list={['dg-edge-line', { 'is-lime': e.lime }]} d={path(e.points)} marker-end={e.lime ? 'url(#mm-arrow-lime)' : 'url(#mm-arrow)'} />
+					{e.labels.map((l) => (
+						<text class="dg-edge-label" x={l.x} y={l.y} text-anchor={l.anchor ?? 'middle'}>
+							{l.text}
+						</text>
+					))}
+				</g>
+			))
+		}
+	</svg>
+</Figure>

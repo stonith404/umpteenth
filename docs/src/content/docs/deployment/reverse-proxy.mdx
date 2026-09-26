@@ -1,0 +1,143 @@
+---
+title: Reverse proxy
+description: Put Umpteenth behind HTTPS with Caddy, nginx or Traefik, with sign-in, live updates and webhooks working.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Umpteenth serves plain HTTP on port 8080.
+Put a reverse proxy in front of it that terminates TLS and forwards every path on your domain to that port: the UI, the API under `/api/` and job webhooks under `/hooks/`.
+
+## Settings
+
+Set the public URL and tell Umpteenth to trust the proxy in `config.yml`:
+
+```yaml title="config.yml"
+app:
+  url: https://umpteenth.example.com
+
+server:
+  trust_proxy: true
+```
+
+Restart Umpteenth to apply them:
+
+```bash
+docker compose restart umpteenth
+```
+
+### The public URL
+
+`app.url` has to be the `https://` address you open Umpteenth at.
+Umpteenth builds the OIDC redirect URI from it, `https://umpteenth.example.com/api/auth/callback`, so register that URI with your identity provider and update it whenever the URL changes.
+
+With an `https://` URL, Umpteenth marks its cookies `Secure`, and browsers drop those cookies on plain HTTP.
+A sign-in that starts at `http://<server>:8080` fails for that reason, so sign in at the `app.url` address.
+
+### Trust the proxy
+
+`server.trust_proxy` affects one thing, the login rate limit of 20 requests per minute per client address.
+With the setting on, Umpteenth takes the client address from the last entry of `X-Forwarded-For`, which your proxy appends.
+Behind a proxy with the setting off, every visitor shares the proxy's address and its limit.
+
+Leave it off when no proxy sits in front of Umpteenth, because each client could then write any address into `X-Forwarded-For` and dodge the limit.
+With two proxies in a row, such as a CDN in front of nginx, the last entry is the CDN's address, so visitors who arrive through the same CDN node share a limit.
+
+## Live updates
+
+Run pages and run lists update through server-sent events, long HTTP responses on `/api/events` and `/api/runs/<id>/stream` that Umpteenth keeps writing to.
+The proxy has to pass each event on as it arrives, and keep a quiet connection open for longer than 20 seconds, the interval of Umpteenth's keepalive messages.
+Caddy and Traefik do both out of the box.
+nginx buffers responses by default, so the nginx configuration turns buffering off.
+
+## Ports
+
+The compose file publishes port 8080 on every interface of the host, so anyone who reaches the host can skip the proxy and its TLS.
+If the proxy runs on the host, publish the port on the loopback interface:
+
+```yaml title="docker-compose.yml"
+services:
+  umpteenth:
+    ports:
+      - "127.0.0.1:8080:8080"
+```
+
+If the proxy runs in a container on the same Docker network, remove the `ports:` block and let the proxy reach `umpteenth:8080`.
+Apply either change with `docker compose up -d`.
+
+Leave port 8081 unpublished in both setups.
+It serves the broker, the API that sandboxes call over their own Docker networks.
+
+## Proxy configuration
+
+<Tabs syncKey="proxy">
+<TabItem label="Caddy">
+
+Caddy fetches a certificate for the domain and streams server-sent events without further settings:
+
+```txt title="Caddyfile"
+umpteenth.example.com {
+	reverse_proxy umpteenth:8080
+}
+```
+
+`umpteenth:8080` works when Caddy runs in the same Compose project as Umpteenth.
+For Caddy on the host, use `localhost:8080`.
+
+</TabItem>
+<TabItem label="nginx">
+
+This server block assumes certificates from Certbot and Umpteenth's port published on `127.0.0.1`:
+
+```nginx title="/etc/nginx/conf.d/umpteenth.conf"
+server {
+    listen 443 ssl;
+    server_name umpteenth.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/umpteenth.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/umpteenth.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # Live updates are server-sent events, which must reach the browser as they arrive
+        proxy_buffering off;
+    }
+}
+```
+
+nginx's default read timeout of 60 seconds outlasts the 20-second keepalive.
+
+</TabItem>
+<TabItem label="Traefik">
+
+Labels on the Umpteenth service route the domain to port 8080.
+They assume a Traefik instance on a Docker network it shares with Umpteenth, with an entry point named `websecure` and a certificate resolver named `letsencrypt`:
+
+```yaml title="docker-compose.yml"
+services:
+  umpteenth:
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.umpteenth.rule: Host(`umpteenth.example.com`)
+      traefik.http.routers.umpteenth.entrypoints: websecure
+      traefik.http.routers.umpteenth.tls.certresolver: letsencrypt
+      traefik.http.services.umpteenth.loadbalancer.server.port: "8080"
+```
+
+The image exposes ports 8080 and 8081, so Traefik needs the port label to pick 8080.
+
+</TabItem>
+</Tabs>
+
+## Check it
+
+Open `https://umpteenth.example.com`, sign in, and start a job with **Run now**.
+Each step appears on the run page as it happens.
+If steps arrive in bursts or only after the run ends, the proxy buffers the event stream.
+
+Point a load balancer's health check at the health endpoint from [Upgrades and maintenance](../upgrading/#health-check).
+For the rest of hardening an instance, work through the [Security](../security/) checklist.

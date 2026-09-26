@@ -1,0 +1,535 @@
+---
+// The sections below the hero: how a job graduates, example jobs, the story behind the name, the feature grid, the install steps and a closing call to action
+import { Code } from '@astrojs/starlight/components';
+import lockupReveal from '../../assets/lockup-reveal.svg?raw';
+import UseCases from './UseCases.astro';
+
+// The animated lockup carries a fixed size, which would fight the CSS size below, so it is stripped before inlining
+const unsized = (svg: string) => svg.replace(/ width="[^"]+" height="[^"]+"/, '');
+
+// Small density fields drawn with the mark's dither, one per run mode
+const bayer = [
+	[0, 8, 2, 10],
+	[12, 4, 14, 6],
+	[3, 11, 1, 9],
+	[15, 7, 13, 5]
+];
+const field = (w: number, h: number, cell: (x: number, y: number) => number | 'bar') => {
+	const cells: { x: number; y: number; cls: string }[] = [];
+	for (let y = 0; y < h; y++) {
+		for (let x = 0; x < w; x++) {
+			const v = cell(x, y);
+			if (v === 'bar') cells.push({ x, y, cls: 'bar' });
+			else if (bayer[y % 4][x % 4] < v * 16) cells.push({ x, y, cls: 'dot' });
+		}
+	}
+	return cells;
+};
+const steps = [
+	{
+		mode: 'Explore',
+		title: 'Describe it',
+		text: 'Write the job like you would brief a colleague. A compile step turns it into a schedule, success criteria, outputs and the MCP servers it needs, and you confirm before saving.',
+		cells: field(12, 6, () => 0.25)
+	},
+	{
+		mode: 'Assisted',
+		title: 'Run it in a sandbox',
+		text: 'Every run gets a fresh container with resource limits, no capabilities by default and a network policy. The agent works with shell tools and your MCP servers, and every step is recorded with its cost.',
+		cells: field(12, 6, (x) => (x >= 9 ? 'bar' : (x + 1) / 9))
+	},
+	{
+		mode: 'Scripted',
+		title: 'Let it learn',
+		text: 'After a run, reflection writes down what the job learned: notes, tested scripts, installs moved into its Dockerfile. Three identical runs in a row and it graduates to a script that runs without the agent.',
+		cells: field(12, 6, () => 'bar')
+	}
+];
+const features = [
+	{
+		title: 'Plain-language jobs',
+		text: 'No workflow builder. The instruction is the job, and the compile step derives everything else for you to confirm.'
+	},
+	{
+		title: 'Any trigger',
+		text: 'Cron schedules with time zones, authenticated webhooks, the API, or a manual run with input.'
+	},
+	{
+		title: 'Isolated sandboxes',
+		text: 'A fresh Docker or Podman container per run, non-root with every capability dropped by default, and gVisor as a second kernel boundary if you want it.'
+	},
+	{
+		title: 'Egress control',
+		text: 'On Docker, internet sandboxes cannot reach private networks, the Docker host or cloud metadata. Limit a job to a list of domains, or give it no network at all.'
+	},
+	{
+		title: 'Per-job environments',
+		text: 'A job can carry its own Dockerfile. The image is built once and cached, so tools are not installed on every run.'
+	},
+	{
+		title: 'MCP servers',
+		text: 'HTTP and stdio servers with a per-job tool allow-list. HTTP server credentials stay on the host, and stdio servers run as a separate user from the agent.'
+	},
+	{
+		title: 'Any model',
+		text: 'The Anthropic API or any OpenAI-compatible endpoint: OpenAI, OpenRouter, Ollama, vLLM, LM Studio.'
+	},
+	{
+		title: 'Cost control',
+		text: 'Per-run cost, turn and time limits, a daily spend cap for the workspace, and per-model pricing on every run.'
+	},
+	{
+		title: 'Runs you can read',
+		text: 'A live timeline of model calls, tool calls and outputs for every run. Playbook changes are versions you can diff and roll back.'
+	}
+];
+const install = `git clone https://github.com/stonith404/umpteenth.git
+cd umpteenth
+docker build -f docker/Dockerfile -t ghcr.io/stonith404/umpteenth:latest .
+docker build -t ghcr.io/stonith404/umpteenth-sandbox:latest docker/sandbox
+cp config.example.yml config.yml
+docker compose up -d`;
+---
+
+<section class="section how">
+	<div class="wrap">
+		<p class="eyebrow">How it works</p>
+		<h2>Three matching runs to a script.</h2>
+		<p class="lede">
+			A job starts as an agent exploring. It ends as a script, with the agent on call. Every run in between
+			makes the next one cheaper.
+		</p>
+		<ol class="steps">
+			{
+				steps.map((s, i) => (
+					<li class="step">
+						<div class="step-head">
+							<svg class="field" viewBox="0 0 48 24" aria-hidden="true">
+								{s.cells.map((c) => (
+									<rect x={c.x * 4} y={c.y * 4} width="4.15" height="4.15" class={c.cls} />
+								))}
+							</svg>
+							<span class="mode">{s.mode}</span>
+						</div>
+						<h3>
+							<span class="num">{i + 1}</span>
+							{s.title}
+						</h3>
+						<p>{s.text}</p>
+					</li>
+				))
+			}
+		</ol>
+	</div>
+</section>
+
+<section class="section uses">
+	<div class="wrap">
+		<p class="eyebrow">Use cases</p>
+		<h2>The legwork, done before anyone looks.</h2>
+		<p class="lede">
+			An alert, a release or the clock starts the job. The agent gathers the context from your tools and puts its
+			findings where you look first.
+		</p>
+		<UseCases />
+	</div>
+</section>
+
+<section class="section band">
+	<div class="wrap band-grid">
+		<div class="lockup" data-reveal set:html={unsized(lockupReveal)} />
+		<div>
+			<p class="band-lead">
+				Named for the lazy developer's instinct. Do it by hand once and take notes. Script the boring parts
+				the second time. Keep trimming until the job runs itself, and only get up when something breaks.
+			</p>
+			<p class="band-sub">
+				Umpteenth does the same on a schedule, with a receipt for every run, and it never forgets what it
+				learned.
+			</p>
+		</div>
+	</div>
+</section>
+
+<section class="section features">
+	<div class="wrap">
+		<p class="eyebrow">What you get</p>
+		<h2>Everything a recurring job needs, none of the ceremony.</h2>
+		<ul class="cards">
+			{
+				features.map((f) => (
+					<li class="card">
+						<span class="cell" aria-hidden="true" />
+						<h3>{f.title}</h3>
+						<p>{f.text}</p>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</section>
+
+<section class="section install">
+	<div class="wrap install-grid">
+		<div>
+			<p class="eyebrow">Self-hosted</p>
+			<h2>One container to start.</h2>
+			<p class="lede">
+				SQLite and file storage on a volume by default, so there is no database to run. Switch to Postgres and
+				S3-compatible storage when you want several replicas.
+			</p>
+			<ul class="reqs">
+				<li><strong>Docker or Podman</strong> on the host, for the sandboxes</li>
+				<li><strong>An OpenID Connect provider</strong> for login, such as Pocket ID, Authentik, Keycloak or Zitadel</li>
+				<li><strong>A model</strong>: an Anthropic key, or any OpenAI-compatible endpoint, including a local Ollama</li>
+			</ul>
+			<a class="btn primary" href="/getting-started/installation/">
+				Installation guide
+				<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M5 12h14M13 6l6 6-6 6" />
+				</svg>
+			</a>
+		</div>
+		<div class="code">
+			<Code code={install} lang="bash" frame="terminal" title="Install" />
+		</div>
+	</div>
+</section>
+
+<script>
+	// Start the lockup reveal the first time the brand band scrolls into view
+	const reveal = document.querySelector('[data-reveal]');
+	if (reveal) {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) {
+					reveal.classList.add('in-view');
+					observer.disconnect();
+				}
+			},
+			{ threshold: 0.5 }
+		);
+		observer.observe(reveal);
+	}
+</script>
+
+<section class="section cta">
+	<div class="wrap cta-inner">
+		<h2>Give it the job you are tired of.</h2>
+		<p class="lede">Describe it once. By the umpteenth time, it runs itself.</p>
+		<div class="actions">
+			<a class="btn primary" href="/getting-started/installation/">
+				Install
+				<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M5 12h14M13 6l6 6-6 6" />
+				</svg>
+			</a>
+			<a class="btn secondary" href="https://github.com/stonith404/umpteenth">GitHub</a>
+		</div>
+	</div>
+</section>
+
+<style>
+	.wrap {
+		max-width: 72rem;
+		margin-inline: auto;
+		padding-inline: 1.5rem;
+	}
+	.section {
+		padding-block: clamp(3.5rem, 8vw, 6.5rem);
+	}
+	.eyebrow {
+		margin: 0 0 0.75rem;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--sl-color-gray-3);
+	}
+	h2 {
+		font-family: var(--font-display);
+		font-weight: 600;
+		font-size: clamp(1.75rem, 3.6vw, 2.5rem);
+		line-height: 1.1;
+		letter-spacing: -0.015em;
+		color: var(--sl-color-white);
+		margin: 0 0 1rem;
+		max-width: 36rem;
+		text-wrap: balance;
+	}
+	.lede {
+		font-size: var(--text-lg);
+		line-height: 1.55;
+		color: var(--sl-color-gray-3);
+		max-width: 38rem;
+		margin: 0;
+		text-wrap: pretty;
+	}
+	h3 {
+		font-size: var(--text-lg);
+		font-weight: 600;
+		color: var(--sl-color-white);
+		margin: 0 0 0.5rem;
+		line-height: 1.3;
+	}
+	p {
+		color: var(--sl-color-gray-3);
+		line-height: 1.55;
+		margin: 0;
+	}
+
+	/* How it works */
+	.how {
+		border-top: 1px solid var(--sl-color-hairline);
+	}
+	.steps {
+		list-style: none;
+		margin: 2.5rem 0 0;
+		padding: 0;
+		display: grid;
+		gap: 1px;
+		background: var(--surface-border);
+		border: 1px solid var(--surface-border);
+		border-radius: 0.5rem;
+		overflow: hidden;
+	}
+	@media (min-width: 48rem) {
+		.steps {
+			grid-template-columns: repeat(3, 1fr);
+		}
+	}
+	.step {
+		background: var(--surface);
+		padding: 1.5rem;
+	}
+	.step-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 1.25rem;
+	}
+	.field {
+		width: 96px;
+		height: 48px;
+		color: var(--sl-color-white);
+	}
+	.field .dot {
+		fill: currentColor;
+	}
+	.field .bar {
+		fill: var(--brand);
+	}
+	.mode {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--sl-color-gray-3);
+	}
+	.num {
+		display: inline-grid;
+		place-items: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		margin-right: 0.5rem;
+		border-radius: 0.375rem;
+		background: var(--sl-color-gray-7);
+		color: var(--sl-color-gray-2);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		vertical-align: 0.1em;
+	}
+
+	/* Use cases */
+	.uses {
+		border-top: 1px solid var(--sl-color-hairline);
+	}
+
+	/* The brand band stays ink in both themes, so the lime has a home */
+	.band {
+		background: var(--ink);
+		color: var(--paper);
+	}
+	.band-grid {
+		display: grid;
+		gap: 2.5rem;
+		align-items: center;
+	}
+	.band-grid > * {
+		min-width: 0;
+	}
+	@media (min-width: 60rem) {
+		.band-grid {
+			grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+			gap: 4rem;
+		}
+	}
+	.lockup :global(svg) {
+		height: clamp(3.5rem, 8vw, 6rem);
+		width: auto;
+		display: block;
+	}
+	/* The reveal waits until the band is on screen, otherwise it would have played before anyone scrolled to it */
+	.lockup:not(.in-view) :global([class^='lk']) {
+		animation-play-state: paused;
+	}
+	.band-lead {
+		font-family: var(--font-display);
+		font-weight: 500;
+		font-size: clamp(1.25rem, 2.4vw, 1.75rem);
+		line-height: 1.3;
+		letter-spacing: -0.01em;
+		color: var(--paper);
+		margin: 0 0 1rem;
+		text-wrap: pretty;
+	}
+	.band-sub {
+		color: #b4b4bb;
+		font-size: var(--text-base);
+	}
+
+	/* Features: one hairline grid, the way the dashboard lays out its panels */
+	.cards {
+		list-style: none;
+		margin: 2.5rem 0 0;
+		padding: 0;
+		display: grid;
+		gap: 1px;
+		background: var(--surface-border);
+		border: 1px solid var(--surface-border);
+		border-radius: 0.5rem;
+		overflow: hidden;
+	}
+	@media (min-width: 40rem) {
+		.cards {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+	@media (min-width: 60rem) {
+		.cards {
+			grid-template-columns: repeat(3, 1fr);
+		}
+	}
+	.card {
+		background: var(--surface);
+		padding: 1.5rem;
+	}
+	.card p {
+		font-size: var(--text-sm);
+	}
+	.cell {
+		display: block;
+		width: 10px;
+		height: 10px;
+		margin: 0 0 1.25rem 14px;
+		background: var(--brand);
+		box-shadow: -14px 0 0 -2px color-mix(in oklch, var(--sl-color-white), transparent 70%);
+	}
+
+	/* Install */
+	.install {
+		border-top: 1px solid var(--sl-color-hairline);
+	}
+	.install-grid {
+		display: grid;
+		gap: 2.5rem;
+		align-items: start;
+	}
+	/* Grid children default to their content width, which lets long shell lines push past the viewport on phones */
+	.install-grid > * {
+		min-width: 0;
+	}
+	@media (min-width: 60rem) {
+		.install-grid {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+			gap: 4rem;
+		}
+	}
+	.reqs {
+		margin: 1.5rem 0 1.75rem;
+		padding: 0;
+		list-style: none;
+		display: grid;
+		gap: 0.625rem;
+		color: var(--sl-color-gray-3);
+		font-size: var(--text-sm);
+	}
+	.reqs li {
+		padding-left: 1.125rem;
+		position: relative;
+	}
+	.reqs li::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0.5em;
+		width: 6px;
+		height: 6px;
+		background: var(--brand);
+	}
+	.reqs strong {
+		color: var(--sl-color-white);
+		font-weight: 600;
+	}
+	.code :global(.expressive-code) {
+		margin: 0;
+	}
+	.code :global(.expressive-code .frame) {
+		border-radius: 0.5rem;
+		box-shadow: var(--surface-shadow);
+	}
+
+	/* Closing call to action */
+	.cta {
+		border-top: 1px solid var(--sl-color-hairline);
+		text-align: center;
+	}
+	.cta-inner {
+		display: grid;
+		justify-items: center;
+	}
+	.cta h2,
+	.cta .lede {
+		max-width: none;
+	}
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 1.75rem;
+	}
+
+	/* Kumo controls, shared with the hero */
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		height: 2.5rem;
+		padding-inline: 1rem;
+		border-radius: 0.5rem;
+		border: 1px solid transparent;
+		background-clip: padding-box;
+		font-weight: 500;
+		font-size: var(--text-base);
+		line-height: 1;
+		text-decoration: none;
+		transition: background 120ms ease;
+	}
+	.btn.primary {
+		--e: var(--blue);
+		color: #fff;
+		background: linear-gradient(to bottom, color-mix(in oklch, var(--e), white 15%), var(--e));
+		border-color: color-mix(in oklch, var(--e), black 10%);
+		box-shadow:
+			inset 0 1px 0 0 color-mix(in oklch, var(--e), white 30%),
+			0 1px 2px rgba(0, 0, 0, 0.05);
+	}
+	.btn.primary:hover {
+		background: linear-gradient(to bottom, color-mix(in oklch, var(--e), white 30%), var(--e));
+	}
+	.btn.secondary {
+		color: var(--sl-color-white);
+		background: var(--surface);
+		border-color: var(--surface-border);
+		box-shadow: var(--surface-shadow);
+	}
+	.btn.secondary:hover {
+		background: var(--sl-color-gray-7);
+	}
+</style>

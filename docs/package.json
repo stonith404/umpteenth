@@ -1,0 +1,20 @@
+{
+	"name": "umpteenth-docs",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"check": "astro check",
+		"deploy": "wrangler deploy"
+	},
+	"dependencies": {
+		"@astrojs/starlight": "^0.42.4",
+		"astro": "^7.3.5",
+		"sharp": "^0.35.4"
+	},
+	"devDependencies": {
+		"wrangler": "^4.141.0"
+	}
+}

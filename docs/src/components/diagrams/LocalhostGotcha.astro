@@ -1,0 +1,79 @@
+---
+// Why a model server on the Docker host is out of reach at localhost from inside the Umpteenth container, and which name reaches it
+import Figure from '../Figure.astro';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'Inside the Umpteenth container, localhost is the container itself, so a request to localhost:11434 never leaves it. The name host.docker.internal leads to the Docker host, and Ollama answers there once it listens on 0.0.0.0.'
+} = Astro.props;
+
+// The host is the outer zone, and the container a card inside it on the left
+const host = { x: 0, y: 0, w: 680, h: 256 };
+const box = { h: 52 };
+const container = { x: 16, y: 40, w: 250, h: 200 };
+
+// Inside the container, Umpteenth sits above the container's own loopback, 44px apart for the labeled arrow
+const app = { x: container.x + 16, y: 84, w: container.w - 32 };
+const loopback = { x: app.x, y: app.y + box.h + 44, w: app.w };
+
+// Ollama sits on the host, level with Umpteenth, so the working path is one straight line
+const ollama = { x: 480, y: app.y, w: 184 };
+const pathY = app.y + box.h / 2;
+const gapMid = (container.x + container.w + ollama.x) / 2;
+const downX = app.x + 56;
+---
+
+<Figure caption={caption}>
+	<svg viewBox={`0 0 680 ${host.h + 2}`} role="img" aria-label={caption}>
+		<defs>
+			<marker id="lh-arrow-lime" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead is-lime" />
+			</marker>
+			<marker id="lh-arrow-danger" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead is-danger" />
+			</marker>
+		</defs>
+
+		<rect class="dg-zone" x={host.x} y={host.y} width={host.w} height={host.h} rx="12" />
+		<text class="dg-zone-label" x={host.x + 14} y={host.y + 26}>Docker host</text>
+
+		{/* The container is a card of its own, since it has its own network namespace and so its own localhost */}
+		<g>
+			<rect class="dg-box" x={container.x} y={container.y} width={container.w} height={container.h} rx="10" />
+			<text class="dg-zone-label" x={container.x + 16} y={container.y + 26}>umpteenth container</text>
+		</g>
+
+		<g>
+			<rect class="dg-box" x={app.x} y={app.y} width={app.w} height={box.h} rx="8" />
+			<text class="dg-title" x={app.x + 14} y={app.y + 21}>Umpteenth</text>
+			<text class="dg-sub" x={app.x + 14} y={app.y + 38}>calls the provider’s Base URL</text>
+		</g>
+
+		{/* The preset's localhost URL loops back into the container, where nothing listens on the port */}
+		<line class="dg-edge-line is-danger" x1={downX} y1={app.y + box.h} x2={downX} y2={loopback.y - 2} marker-end="url(#lh-arrow-danger)" />
+		<text class="dg-edge-label is-danger lh-mono" x={downX + 8} y={loopback.y - 16}>localhost:11434</text>
+		<g>
+			<rect class="dg-box is-danger" x={loopback.x} y={loopback.y} width={loopback.w} height={box.h} rx="8" />
+			<text class="dg-title" x={loopback.x + 14} y={loopback.y + 21}>localhost</text>
+			<text class="dg-sub" x={loopback.x + 14} y={loopback.y + 38}>the container, nothing on 11434</text>
+		</g>
+
+		{/* The host's name leaves the container and reaches Ollama on the host */}
+		<line class="dg-edge-line is-lime" x1={app.x + app.w} y1={pathY} x2={ollama.x - 2} y2={pathY} marker-end="url(#lh-arrow-lime)" />
+		<text class="dg-edge-label is-lime lh-mono" x={gapMid} y={pathY - 9} text-anchor="middle">host.docker.internal:11434</text>
+		<text class="dg-edge-label" x={gapMid} y={pathY + 19} text-anchor="middle">Linux: extra_hosts host-gateway</text>
+		<g>
+			<rect class="dg-box is-lime" x={ollama.x} y={ollama.y} width={ollama.w} height={box.h} rx="8" />
+			<text class="dg-title dg-on-lime" x={ollama.x + 14} y={ollama.y + 21}>Ollama</text>
+			<text class="dg-sub dg-on-lime" x={ollama.x + 14} y={ollama.y + 38}>listening on 0.0.0.0:11434</text>
+		</g>
+	</svg>
+</Figure>
+
+<style>
+	.lh-mono {
+		font-family: var(--font-mono);
+	}
+</style>

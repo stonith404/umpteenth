@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+      - name: Generated code is up to date
+        if: matrix.db == 'sqlite'
+        run: ./scripts/sqlc.sh && git diff --exit-code
+      - name: Vet
+        run: go vet -tags exclude_frontend,exclude_ump,unit ./...
+      - name: Unit tests
+        env:
+          TEST_DB: ${{ matrix.db }}
+          TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+        run: go test -tags exclude_frontend,exclude_ump,unit -race ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: backend
+          args: --build-tags exclude_frontend,exclude_ump,unit
+
+  sandbox:
+    name: Sandbox conformance (${{ matrix.engine }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [docker, podman, gvisor]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+      - name: Start rootless Podman
+        if: matrix.engine == 'podman'
+        run: |
+          systemctl --user start podman.socket
+          echo "DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock" >> "$GITHUB_ENV"
+      - name: Install gVisor
+        if: matrix.engine == 'gvisor'
+        run: |
+          url="https://storage.googleapis.com/gvisor/releases/release/20260921/$(uname -m)"
+          wget -q "$url/gvisor.tar.bz2" "$url/gvisor.tar.bz2.sha512"
+          sha512sum -c gvisor.tar.bz2.sha512
+          mkdir gvisor && tar -xjf gvisor.tar.bz2 -C gvisor
+          sudo cp -r gvisor/runsc gvisor/containerd-shim-runsc-v1 gvisor/gvisor-bin /usr/local/bin/
+          sudo /usr/local/bin/runsc install -- --overlay2=none --file-access=shared
+          sudo systemctl restart docker
+          echo "SANDBOXTEST_RUNTIME=runsc" >> "$GITHUB_ENV"
+      - name: Build the sandbox image
+        run: ${{ matrix.engine == 'podman' && 'podman' || 'docker' }} build -t ghcr.io/stonith404/umpteenth-sandbox:latest docker/sandbox
+      - name: Conformance suite
+        working-directory: backend
+        run: go test -tags exclude_frontend,exclude_ump,integration -count=1 ./internal/sandbox/...
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm docs:build
+
+  e2e:
+    name: E2E (${{ matrix.topology }})
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        topology: [single, ha]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter umpteenth-tests exec playwright install --with-deps chromium
+      - name: Build the sandbox image
+        run: docker build -t ghcr.io/stonith404/umpteenth-sandbox:latest docker/sandbox
+      - name: Start the stack
+        working-directory: tests/setup
+        run: |
+          file=docker-compose.yml
+          if [ "${{ matrix.topology }}" = "ha" ]; then file=docker-compose-ha.yml; fi
+          docker compose -f "$file" up -d --build --wait
+      - run: pnpm test
+        env:
+          APP_URL: http://localhost:8080
+          E2E_TOPOLOGY: ${{ matrix.topology }}
+      - name: Stack logs
+        if: failure()
+        working-directory: tests/setup
+        run: docker compose -f docker-compose.yml logs; docker compose -f docker-compose-ha.yml logs || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.topology }}
+          path: tests/.report

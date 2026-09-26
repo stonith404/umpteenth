@@ -1,0 +1,142 @@
+---
+// Reflection after a run: the model proposes changes, Umpteenth checks each one, and each ends applied, held for review or rejected
+import Figure from '../Figure.astro';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'Umpteenth checks each change the reflection model proposes before a run can use it. A risky change waits for you to apply it by hand, and if Umpteenth rejects a change, the model gets one retry with the reasons.'
+} = Astro.props;
+
+type Box = { x: number; y: number; w: number; h: number; title: string; sub?: string; lime?: boolean };
+type Label = { x: number; y: number; text: string; anchor?: 'start' | 'middle' | 'end' };
+type Edge = { points: [number, number][]; lime?: boolean; labels: Label[] };
+
+// Three columns: where changes come from and where risky ones wait, the checks in the middle, rejections on the right
+const left = { x: 0, w: 140 };
+const center = { x: 245, w: 190 };
+const right = { x: 530, w: 150 };
+const cx = center.x + center.w / 2;
+
+// Rows on an 84 unit pitch, with room above the checks for the zone's label and below them for the last arrow
+const rows = [4, 132, 216, 300, 416];
+const mid = (y: number) => y + 30;
+
+// The checks share one zone, whose edges sit inside the gaps so the labels beside it never cross them
+const zone = { x: 229, y: 100, w: 222, h: 276 };
+const gapLeft = (left.x + left.w + zone.x) / 2;
+const gapRight = (zone.x + zone.w + right.x) / 2;
+
+// A rejection sends everything back to the model once, so the loop climbs from the rejected box to the model's row
+const retryX = right.x + right.w / 2;
+
+const boxes: Box[] = [
+	{ ...left, y: rows[0], h: 60, title: 'Finished run', sub: 'Self-improve is on' },
+	{ ...center, y: rows[0], h: 60, title: 'Reflection model', sub: 'proposes changes' },
+	{ ...center, y: rows[1], h: 60, title: 'Validate', sub: 'rules and size budget' },
+	{ ...center, y: rows[2], h: 60, title: 'Build the image', sub: 'if the Dockerfile changed' },
+	{ ...center, y: rows[3], h: 60, title: 'Shadow run', sub: 'main changed, no side effects' },
+	{ ...center, y: rows[4], h: 60, title: 'Applied', sub: 'new playbook version', lime: true },
+	{ ...left, y: rows[1], h: 60, title: 'Held for review', sub: 'you apply it by hand' },
+	{ ...right, y: rows[1], h: rows[3] + 60 - rows[1], title: 'Rejected', sub: 'with the reason' }
+];
+
+const edges: Edge[] = [
+	{
+		points: [[left.x + left.w, mid(rows[0])], [center.x, mid(rows[0])]],
+		labels: [
+			{ x: (left.x + left.w + center.x) / 2, y: mid(rows[0]) - 8, text: 'transcript' },
+			{ x: (left.x + left.w + center.x) / 2, y: mid(rows[0]) + 16, text: 'secrets redacted' }
+		]
+	},
+	{
+		points: [[cx, rows[0] + 60], [cx, rows[1]]],
+		labels: [{ x: cx + 12, y: (rows[0] + 60 + zone.y) / 2 + 4, text: 'each change', anchor: 'start' }]
+	},
+	{
+		points: [[center.x, mid(rows[1])], [left.x + left.w, mid(rows[1])]],
+		labels: [{ x: gapLeft, y: mid(rows[1]) - 8, text: 'risky' }]
+	},
+	{
+		points: [[center.x + center.w, mid(rows[1])], [right.x, mid(rows[1])]],
+		labels: [{ x: gapRight, y: mid(rows[1]) - 8, text: 'invalid' }]
+	},
+	{ points: [[cx, rows[1] + 60], [cx, rows[2]]], labels: [] },
+	{
+		points: [[center.x + center.w, mid(rows[2])], [right.x, mid(rows[2])]],
+		labels: [{ x: gapRight, y: mid(rows[2]) - 8, text: 'build fails' }]
+	},
+	{ points: [[cx, rows[2] + 60], [cx, rows[3]]], labels: [] },
+	{
+		points: [[center.x + center.w, mid(rows[3])], [right.x, mid(rows[3])]],
+		labels: [{ x: gapRight, y: mid(rows[3]) - 8, text: 'main fails' }]
+	},
+	{
+		points: [[cx, rows[3] + 60], [cx, rows[4]]],
+		lime: true,
+		labels: [{ x: cx + 12, y: (zone.y + zone.h + rows[4]) / 2 + 4, text: 'passes', anchor: 'start' }]
+	},
+	{
+		points: [[retryX, rows[1]], [retryX, mid(rows[0])], [center.x + center.w, mid(rows[0])]],
+		labels: [{ x: (center.x + center.w + retryX) / 2 + 8, y: mid(rows[0]) - 8, text: 'one retry with the reasons' }]
+	}
+];
+
+// A path through the points that stops 2 units short, so the arrowhead's tip meets the box edge
+const path = (pts: [number, number][]) => {
+	const [x1, y1] = pts[pts.length - 2];
+	const [x2, y2] = pts[pts.length - 1];
+	const len = Math.hypot(x2 - x1, y2 - y1);
+	const end: [number, number] = [x2 - ((x2 - x1) / len) * 2, y2 - ((y2 - y1) / len) * 2];
+	return 'M' + [...pts.slice(0, -1), end].map(([x, y]) => `${x},${y}`).join(' L');
+};
+
+// The tall rejected box keeps its text at the top, where the first arrow arrives, while the others center it
+const titleY = (b: Box) => (b.h > 60 ? b.y + 26 : b.y + b.h / 2 - 4);
+---
+
+<Figure caption={caption}>
+	<svg viewBox="0 0 680 480" role="img" aria-label={caption}>
+		<defs>
+			<marker id="rf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead" />
+			</marker>
+			<marker id="rf-arrow-lime" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead is-lime" />
+			</marker>
+		</defs>
+
+		<rect class="dg-zone" x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx="12" />
+		<text class="dg-zone-label" x={zone.x + 12} y={zone.y + 22}>Checks</text>
+
+		{
+			boxes.map((b) => (
+				<g>
+					<rect class:list={['dg-box', { 'is-lime': b.lime }]} x={b.x} y={b.y} width={b.w} height={b.h} rx="8" />
+					<text class:list={['dg-title', { 'dg-on-lime': b.lime }]} x={b.x + 14} y={titleY(b)}>
+						{b.title}
+					</text>
+					{b.sub && (
+						<text class:list={['dg-sub', { 'dg-on-lime': b.lime }]} x={b.x + 14} y={titleY(b) + 18}>
+							{b.sub}
+						</text>
+					)}
+				</g>
+			))
+		}
+
+		{
+			edges.map((e) => (
+				<g>
+					<path class:list={['dg-edge-line', { 'is-lime': e.lime }]} d={path(e.points)} marker-end={e.lime ? 'url(#rf-arrow-lime)' : 'url(#rf-arrow)'} />
+					{e.labels.map((l) => (
+						<text class="dg-edge-label" x={l.x} y={l.y} text-anchor={l.anchor ?? 'middle'}>
+							{l.text}
+						</text>
+					))}
+				</g>
+			))
+		}
+	</svg>
+</Figure>

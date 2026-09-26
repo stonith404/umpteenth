@@ -1,0 +1,78 @@
+---
+// The Signal mark drawn cell by cell, so the dither can settle into the bar when the page loads
+interface Props {
+	size?: number;
+	class?: string;
+	animate?: boolean;
+}
+const { size = 64, class: className, animate = false } = Astro.props;
+// The same 12 by 8 bitmap as branding/mark/mark.svg, on a 16 cell grid with 4 unit cells
+const rows = [
+	'#.#.####oooo',
+	'...#.#.#oooo',
+	'..#.#.##oooo',
+	'...#.#.#oooo',
+	'#.#.####oooo',
+	'...#.#.#oooo',
+	'..#.#.##oooo',
+	'...#.#.#oooo'
+];
+const cells: { x: number; y: number; bar: boolean }[] = [];
+rows.forEach((row, y) => {
+	[...row].forEach((ch, x) => {
+		if (ch !== '.') cells.push({ x, y, bar: ch === 'o' });
+	});
+});
+---
+
+<svg
+	viewBox="0 0 64 64"
+	width={size}
+	height={size}
+	class:list={['mark', className, { animate }]}
+	aria-hidden="true"
+>
+	{
+		cells.map((c) => (
+			<rect
+				x={(2 + c.x) * 4}
+				y={(4 + c.y) * 4}
+				width="4.1"
+				height="4.1"
+				class={c.bar ? 'bar' : 'dot'}
+				style={`--i: ${c.x}`}
+			/>
+		))
+	}
+</svg>
+
+<style>
+	.mark {
+		display: block;
+		overflow: visible;
+	}
+	.dot {
+		fill: currentColor;
+	}
+	.bar {
+		fill: var(--brand);
+	}
+	/* The cells resolve from left to right, the way a job settles into a script */
+	@media (prefers-reduced-motion: no-preference) {
+		.animate rect {
+			opacity: 0;
+			animation: settle 480ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+			animation-delay: calc(var(--i) * 60ms + 150ms);
+		}
+	}
+	@keyframes settle {
+		from {
+			opacity: 0;
+			transform: translateX(-6px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+</style>

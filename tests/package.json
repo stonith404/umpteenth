@@ -1,0 +1,16 @@
+{
+	"name": "umpteenth-tests",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"preinstall": "npx only-allow pnpm",
+		"test": "playwright test",
+		"eval": "node eval/eval.mjs",
+		"format": "prettier --write ."
+	},
+	"devDependencies": {
+		"@playwright/test": "1.63.0",
+		"@types/node": "^25.9.0",
+		"prettier": "^3.8.3"
+	}
+}

@@ -1,0 +1,192 @@
+---
+title: Models and costs
+description: Connect Anthropic or an OpenAI-compatible API, choose the models your jobs run on, and cap what they spend.
+---
+
+import LocalhostGotcha from '../../../components/diagrams/LocalhostGotcha.astro';
+
+Connect the LLM APIs your jobs run on and keep what they spend under limits you set.
+A provider is an LLM API that Umpteenth calls, such as Anthropic's API or a local Ollama, and Umpteenth keeps a list of its models with their prices and capabilities.
+You manage both under **Settings → Providers & models**.
+
+On its first start, Umpteenth creates a provider named "Anthropic" with the Claude models and their prices.
+It picks Claude Opus 5.5 (`claude-opus-5-5`) as the Agent model and Claude Haiku 4.5 (`claude-haiku-4-5`) as the Utility model.
+You add the API key during [Installation](../../getting-started/installation/), or set `providers.anthropic_api_key` in `config.yml` before that first start.
+
+## Default models
+
+Under **Settings → General → Default models**, you give each of three roles a model:
+
+| Role | Purpose | Left empty |
+|---|---|---|
+| **Agent** | Runs the agent in every job that doesn't pick a model of its own | **Not set**, and runs of jobs without a model fail |
+| **Utility** | Compiles new jobs, judges the results of scripted runs, and answers `ump llm` calls from scripts by default | **Same as the agent model**: compiling uses the Agent model, and runs use their own model |
+| **Reflection** | Turns finished runs into playbook updates | **Not set**, and reflection uses the model the job runs with |
+
+A job can pick its own model in the **Model** field of its **Settings** tab, where the first option names the Agent model, such as **Workspace default (Claude Opus 5.5)**.
+With no job model and an empty Agent role, a run fails with "No model is configured. Pick a model for the job or set a default agent model in Settings."
+Compiling needs a Utility or an Agent model and fails with "Set a utility model in Settings to compile jobs" while both are empty.
+
+## Add a provider
+
+**Add provider** offers two kinds.
+An **Anthropic** provider calls Anthropic's Messages API.
+An **OpenAI-compatible** provider calls the Chat Completions API of OpenAI itself, OpenRouter, or a local server such as Ollama, vLLM, LM Studio or llama.cpp.
+Leave **Base URL** empty for the provider's official API.
+
+For any other OpenAI-compatible server, the **Base URL** must end where the server serves `/models`, which is `/v1` for most of them.
+The presets **OpenAI**, **OpenRouter**, **Ollama** and **LM Studio** fill it in.
+With a wrong base URL, reading the model list fails with the server's error, such as `openai API error (status 404)`, or with "the server's model list is not JSON, check that the base URL ends where /models is served, such as /v1" if the address answers with a web page.
+The OpenAI API needs an **API key**, while Ollama and LM Studio need none.
+Umpteenth stores the key encrypted and never shows it again.
+
+Umpteenth reads the model list as soon as you save the provider.
+If it can't reach the server, it saves the provider and shows a warning with the reason.
+
+### A model server on your Docker host
+
+The Ollama and LM Studio presets point at `localhost`, and inside the Umpteenth container `localhost` is the container itself.
+
+<LocalhostGotcha />
+
+To reach a server that runs on the Docker host:
+
+1. Make the server listen on every interface: start Ollama with `OLLAMA_HOST=0.0.0.0`, or let LM Studio serve on the local network.
+   The server then accepts connections from your network too, unless the host firewall blocks its port.
+2. On Linux, give the container the `host.docker.internal` name (Docker Desktop has it built in) and apply the change with `docker compose up -d`:
+
+   ```yaml title="docker-compose.yml"
+   services:
+     umpteenth:
+       extra_hosts:
+         - "host.docker.internal:host-gateway"
+   ```
+
+3. Set the **Base URL** to `http://host.docker.internal:11434/v1` for Ollama or `http://host.docker.internal:1234/v1` for LM Studio.
+
+Umpteenth calls models on private addresses as long as `network.allow_private_targets` keeps its default, `true`.
+[Security](../../deployment/security/#umpteenths-own-outbound-calls) explains the option.
+
+## Test a provider
+
+Click **Test** on a provider's row, pick the **Model** and click **Send test prompt**.
+Umpteenth sends a short prompt through that model, so a reply confirms the key, the base URL and the model name.
+The dialog shows "Replied in" with the model's reply, or "Failed after" with the provider's error.
+The test accepts disabled models, so you can try one before you enable it.
+
+## Model lists
+
+Umpteenth fills a provider's model list from one of two sources:
+
+| Provider | Model list | Prices and capabilities |
+|---|---|---|
+| Anthropic, and OpenAI without a base URL or with `https://api.openai.com/v1` | The [models.dev](https://models.dev) catalog | From the catalog, updated with every refresh |
+| Any other OpenAI-compatible API, such as Ollama, vLLM, LM Studio, llama.cpp or OpenRouter | The server's `GET /models` list | Read once, when the model first shows up |
+
+The **Models** column of the providers table names the source as **Catalog** or **Server list**.
+
+From the catalog, Umpteenth takes only the models an agent can run on, which need tool calling, text output, a known context window and a price.
+It leaves out deprecated models and the OpenAI models that only the Responses API serves, such as the `-pro` and Codex ones.
+
+From a self-hosted server, Umpteenth takes what the server reports about each model:
+
+- the context window, which vLLM, SGLang, OpenRouter, Together, Groq, Mistral, LM Studio and llama.cpp report
+- prices and capabilities where the server lists them, as OpenRouter does
+
+Umpteenth skips embedding, reranking and speech models.
+It fills the gaps from models.dev and matches open models across their many names, so `qwen3:32b`, `Qwen/Qwen3-32B` and `qwen3-32b-instruct-fp8` all count as the same model.
+If neither source describes a model, Umpteenth gives it tool calling and a context window of 32,768 tokens.
+A self-hosted model costs $0 until the server reports a price or you set one on the model.
+
+:::caution[Ollama's context window]
+Ollama runs a model with a smaller context window than the model supports, unless `OLLAMA_CONTEXT_LENGTH` or the model's `num_ctx` raises it.
+The catalog lists the full window, so lower the model's **Context window** to what your server runs with.
+:::
+
+## Keeping the list current
+
+Every 12 hours by default, Umpteenth downloads models.dev and syncs every provider:
+
+- **Catalog providers** get new models, and their models that follow the catalog take its current label, prices and capabilities.
+- **Self-hosted providers** get the models their server added, and the models they had keep their metadata.
+
+You change the interval with `models.catalog_refresh_interval` in `config.yml`, for example to `24h`, and any value other than `0` must be at least `5m` ([Configuration](../../deployment/configuration/#models)).
+`0` turns the refresh off, and Umpteenth then keeps the catalog it has, starting with the snapshot bundled in the build, so an instance without internet access works too.
+With [several replicas](../../deployment/high-availability/), one replica refreshes and the others pick up the result.
+
+To sync a provider now, for example after you pull a new model into Ollama, choose **Sync models** in its menu.
+Umpteenth syncs a provider on its own when you add it or change its base URL or API key.
+If Umpteenth can't read the server's model list, the sync changes nothing and the provider's row shows a **Sync failed** badge, with the reason on hover.
+
+A model its source stops listing stays in the list with a **Not listed** badge, so its settings survive if it comes back.
+You can't pick it for jobs or defaults, and jobs that use it fall back to the workspace's Agent model.
+
+## Enabling and disabling models
+
+Every model has an **Enabled** switch.
+A disabled model stays in the list and behaves like an unlisted one: the pickers leave it out, and jobs that use it fall back to the Agent model.
+**Enable all models** and **Disable all models** in the provider's menu switch a whole provider at once.
+On OpenRouter, which lists hundreds of models, disable them all and switch on the few you use.
+
+A model its source lists has no **Delete** in its menu, because the next sync would add it back, so switch it off instead.
+You can't switch off a model that fills a default role until you pick another one under **Settings → General**.
+Deleting a whole provider removes its models, and a default role that used one of them goes back to empty.
+
+## Your own prices and capabilities
+
+A model from the catalog follows it: every refresh updates its label, prices and capabilities, and you can't edit those fields in its dialog.
+To set your own values, for example to record a negotiated discount, turn off **Follow the catalog** in the model's dialog and save your changes.
+Turn the switch back on to return to the catalog's values.
+
+You can add a model by hand with **Add model**, for example one the server serves but doesn't list, and **Prefill from catalog** copies a known model's values into the form.
+Syncs never change the prices or capabilities of a model you added by hand, even once its source lists it.
+
+You enter prices in dollars per 1M tokens, split into **Input**, **Output**, **Cache read** and **Cache write**.
+Among the other fields, these three change how Umpteenth works with the model:
+
+- **Context window** sets the point where Umpteenth compacts a long run (see [Long runs](#long-runs-and-the-context-window)).
+- **Reasoning** makes Umpteenth send a reasoning effort to OpenAI-compatible servers.
+  Untick it if a server rejects the request.
+- **Structured output** makes Umpteenth request JSON output from the model for compiling, reflection and the checks of scripted runs.
+  Without it, Umpteenth gets the same answer through a tool call.
+
+## Run costs
+
+Umpteenth multiplies the tokens of each model call by the model's prices and adds them up per run.
+The run page shows the total under **Cost**, and the Dashboard's **Spend** adds the cost of learning, which covers reflection and the checks of scripted runs.
+Compiling a job and **Send test prompt** use tokens at your provider, and Umpteenth leaves them out of every total.
+
+Umpteenth counts a model without prices as free: $0 on the Dashboard, and whatever your hardware draws on the power bill.
+Its runs add nothing toward **Max cost per run** or the daily spend limit, so enter prices on the model before you rely on those limits.
+
+## Cost limit per run
+
+**Max cost per run** defaults to $2.
+You change it for the workspace under **Settings → General → Sandbox defaults** or for one job in the **Sandbox** card of its **Settings** tab, and `0` turns the limit off.
+
+Umpteenth checks the run's spend before each model call.
+The call that crosses the limit completes, and the run then ends as **Failed** with "the run exceeded its cost limit of $2.00".
+The spend includes `ump llm` calls from the job's scripts, and once the budget is gone, `ump llm` refuses with "the run reached its cost limit, so ump llm is no longer available".
+The time and turn limits sit next to it, and [Managing jobs](../jobs/#limits-per-run) covers them.
+
+## Daily spend limit
+
+**Settings → General → Spend and retention → Daily spend limit** caps what the whole workspace spends per day, in USD.
+The field starts at the value of `runs.daily_spend_limit_usd` in `config.yml`, which defaults to `0`, meaning no limit ([Configuration](../../deployment/configuration/#workspace-defaults) explains how the two interact).
+
+The day starts at 00:00 UTC, whatever time zone your jobs use.
+The total adds up the run, reflection and verification costs of every run queued since then.
+Umpteenth compares the total with the limit when a run leaves the queue (before it creates a sandbox) and before each reflection.
+
+A run that starts over the limit ends as **Failed** with "The workspace reached its daily spend limit of $5.00", and it counts as a failed run for [notifications](../notifications/).
+A reflection over the limit fails the same way, and the run's **Learned** tab shows **Reflection failed**.
+Runs already under way keep going and count as $0 until they finish, so several parallel runs can push the day's total past the limit.
+
+## Long runs and the context window
+
+Once the next prompt of a run would fill more than 70% of the model's **Context window**, Umpteenth has the same model summarize the conversation so far.
+The run continues from its first message, that summary and, if they fit, the latest tool results, and the timeline marks the spot with a **Conversation compacted** step.
+The summary call counts toward the run's cost.
+
+Details the summary left out are gone for the rest of the run.
+Set the context window to what the server runs with: a lower value compacts runs early, and a higher one lets prompts overflow the server.

@@ -1,0 +1,174 @@
+---
+title: Security
+description: Harden an instance, and learn what a sandbox can reach, what the Docker socket gives Umpteenth and who can sign in.
+---
+
+import NetworkModes from '../../../components/diagrams/NetworkModes.astro';
+import WhereThingsRun from '../../../components/diagrams/WhereThingsRun.astro';
+
+Jobs run code that a model writes after reading web pages and tool output, so Umpteenth treats every sandbox as untrusted and keeps credentials on the host wherever it can.
+Work through the checklist first, and read the section behind any item you can't tick.
+
+## Hardening checklist
+
+- Umpteenth sits behind HTTPS, and `app.url` is the `https://` address, see [Reverse proxy](../reverse-proxy/).
+- Port 8081 is unpublished, and port 8080 is reachable only through the proxy.
+- Your identity provider admits only the people who should run jobs, or `oidc.allowed_groups` narrows it.
+- `config.yml`, which holds the encryption key and the OIDC client secret, is readable by its owner only (`chmod 600 config.yml`), and a copy of the key sits next to your [backups](../backups/).
+- **Settings → General → Sandbox backend** shows **Private networks blocked** under **Egress firewall**.
+- Jobs that don't need the whole internet use **Allowed domains only** or **No network**.
+- `network.allow_private_targets` is `false` unless a model server, MCP server or webhook receiver lives on your network.
+- Sandboxes run under [gVisor](../gvisor/) if the instance runs jobs you didn't write.
+
+## Sign-in and sessions
+
+Umpteenth has one workspace and no roles.
+Everyone who signs in can change every job, secret, provider and setting, and Umpteenth creates the user at the first sign-in.
+You control who gets that far in your identity provider.
+
+To narrow it down in Umpteenth, list groups in `oidc.allowed_groups`.
+Umpteenth then admits members of at least one listed group, and the login page tells everyone else "Your account is not allowed to use Umpteenth".
+It needs an exact match with the `groups` claim of the ID token, case included, so `Admins` doesn't match `admins`.
+
+A session lasts 7 days, in a signed `umpteenth_session` cookie that is `HttpOnly`, `SameSite=Lax`, and `Secure` when `app.url` starts with `https://`.
+Umpteenth keeps no list of sessions, so it can't end one before it expires.
+Signing out clears the cookie in that browser only, and a user you remove from an allowed group keeps access until the session expires.
+Changing the encryption key signs everyone out, at the cost of every stored secret, provider key and MCP login, which Umpteenth can't decrypt anymore.
+
+[API tokens](../../reference/api/) carry the same full access as a signed-in user, until they expire or you delete them under **Settings → API tokens**.
+
+## The Docker socket
+
+Umpteenth creates sandboxes, networks and images through the Docker Engine API, so the compose file mounts the Docker socket into its container.
+Access to that socket amounts to root on the host: whoever takes over the Umpteenth container owns the host too.
+
+You can narrow it in two ways:
+
+- Run rootless Podman, where the engine runs as an ordinary user and the socket grants only that user's rights.
+  Point `DOCKER_HOST` at the Podman socket.
+  The egress firewall doesn't work on Podman, so give untrusted jobs **Allowed domains only**, see [the egress firewall](#the-egress-firewall).
+- Put a socket proxy between Umpteenth and the engine, and allow the parts of the API Umpteenth calls, with write requests: ping, version, info, containers, exec, images, build and networks.
+  The proxy shrinks what a compromised Umpteenth can call.
+  Umpteenth itself starts a privileged container for the egress firewall, so the proxy has to allow privileged containers unless `sandbox.egress_filter` is `off`, and creating containers stays as powerful as root.
+
+[gVisor](../gvisor/) protects the host from code that escapes a sandbox.
+It changes nothing about the socket, and Umpteenth's helper containers and image builds run outside gVisor.
+
+On OrbStack, sandboxes with internet access can reach each other, and Umpteenth logs a warning saying so.
+Use a Linux engine for jobs you don't trust.
+
+## Sandbox defaults
+
+Umpteenth creates each sandbox with these settings:
+
+| Setting | Default |
+|---|---|
+| User | `agent` (uid 1000), or root when the job turns on **Run as root** |
+| Capabilities | All dropped for `agent`, Docker's default set for root |
+| `no-new-privileges` | On, for root as well |
+| Limits | 1 CPU, 1024 MB of memory without swap, 256 processes and 15 minutes per run, see [Managing jobs](../../guides/jobs/) |
+| Disk | No limit, so a runaway job can fill the Docker host's disk |
+| Filesystem | Writable, and removed with the sandbox |
+| Lifetime | The run's timeout plus 5 minutes, after which the sandbox's init process exits and ends everything in it |
+| IPv6 | Off on every sandbox network, since the firewall rules cover only IPv4 |
+
+## Sandbox networks
+
+Each run gets its own internal Docker network, where its sandbox reaches Umpteenth's broker, the API that the `ump` CLI calls for the job's MCP servers, models and state.
+The broker accepts the run's token only while the run executes, and only for that job's own servers, tools, models and state.
+Umpteenth closes connections to its UI and API port that arrive from a sandbox network, so a sandbox can't reach the rest of Umpteenth there.
+
+The job's **Network** setting and its **Allow private network** switch set what a sandbox reaches beyond the broker:
+
+<NetworkModes caption="Every setting keeps the broker reachable. The blocks marked firewall need the egress firewall, which Umpteenth installs on Docker only." />
+
+| Network | Internet | Private networks and the Docker host | Cloud metadata |
+|---|---|---|---|
+| **Internet access** | Yes | Blocked by the egress firewall | Blocked by the egress firewall |
+| **Internet access** with **Allow private network** | Yes | Yes | Blocked |
+| **Allowed domains only** | The listed domains, through the egress proxy | Refused by the proxy | Refused |
+| **Allowed domains only** with **Allow private network** | The listed domains | Listed domains that resolve to private addresses | Refused |
+| **No network** | No | No | No |
+
+**Private networks** are the private, shared, loopback, link-local, benchmarking, multicast and reserved IPv4 ranges, such as `10.0.0.0/8`, `192.168.0.0/16` and `100.64.0.0/10`.
+**Cloud metadata** is `169.254.0.0/16` and `100.100.100.200`.
+A sandbox that may reach the Docker host can reach Umpteenth's published port too, where it needs a session or an API token like any other client.
+
+Runs can't reach each other: each run has its own network, and the shared bridge that gives sandboxes internet access blocks traffic between containers.
+[Sandboxes](../../guides/sandboxes/#network) explains the settings from a job's point of view.
+
+## The egress firewall
+
+**Internet access** sandboxes reach the internet through a shared Docker bridge, `ump-egress`, or `ump-egress-private` for jobs with **Allow private network**.
+Rules in the host's firewall keep them off private networks, the Docker host and cloud metadata.
+
+Umpteenth installs the rules itself when it starts and again every 10 minutes, since a restart of Docker or the host firewall drops them.
+A short-lived helper container does the work, privileged and in the host's namespaces, with the host's own `iptables`.
+The helper needs a rootful Docker engine that may start privileged containers, plus `iptables` and `sh` on the host.
+A container labeled `umpteenth.role=firewall` shows up in `docker ps -a` for a moment each time.
+
+Umpteenth puts the rules in three chains, `UMPTEENTH-PRIVATE`, `UMPTEENTH-METADATA` and `UMPTEENTH-HOST`, and jumps to them from `DOCKER-USER` and `INPUT` for the bridges' interfaces.
+List the jumps with:
+
+```bash
+sudo iptables -S DOCKER-USER
+```
+
+Each bridge's interface is `br-` followed by the first 12 characters of its network ID, which `docker network inspect ump-egress` shows.
+The chains stay in place after you uninstall Umpteenth.
+
+**Settings → General → Sandbox backend** shows the state under **Egress firewall**: **Private networks blocked**, **Not enforced** or **Turned off**.
+**Not enforced** comes with a red alert, **Internet sandboxes can reach private networks**, and the reason the install failed.
+`sandbox.egress_filter` sets how Umpteenth handles the rules:
+
+| Value | Behavior |
+|---|---|
+| `auto` (default) | Install the rules, and run internet jobs without them when that fails |
+| `required` | Install the rules, and fail runs of **Internet access** jobs with `the egress firewall is required but not installed` while the rules are missing. Other network settings keep working. |
+| `off` | Leave the host firewall alone, so **Internet access** sandboxes reach private networks, the host and cloud metadata |
+
+With `required`, once you fix the cause, internet runs work again after the next 10-minute reinstall or a restart of Umpteenth.
+
+:::caution[Podman]
+Umpteenth can't install the rules on any Podman engine, rootful or rootless, and reports `the egress firewall supports Docker only`.
+On Podman, **Internet access** sandboxes reach your LAN, the host and cloud metadata, and **Allow private network** makes no difference.
+Give untrusted jobs **Allowed domains only**, set `sandbox.egress_filter` to `required` to refuse internet runs, or write host rules that match the per-run networks named `ump-egress-<run id>`.
+:::
+
+**Allowed domains only** needs no host firewall.
+Its sandboxes have no route out of their run network, and the egress proxy inside Umpteenth, which forwards their traffic to the listed domains, checks every address it connects to.
+The mode works the same on Podman and with the firewall off.
+
+Umpteenth builds job Dockerfiles as root under Docker's default runtime.
+On Docker, build steps use the `ump-egress` bridge, even for jobs with **Allow private network**.
+On Podman, Buildah builds on its default network without these limits.
+
+## Credentials
+
+<WhereThingsRun caption="Model API keys and HTTP MCP credentials stay with Umpteenth on the host, and job secrets enter the sandbox as environment variables." />
+
+Model API keys stay on the host, and code in the sandbox reaches models only through `ump llm` and the broker.
+Umpteenth connects to HTTP MCP servers from the host too, so their headers and OAuth tokens never enter the sandbox.
+A stdio MCP server runs inside the sandbox as a separate user, whose environment the agent can't read.
+In a job with **Run as root**, Umpteenth skips stdio servers that have environment variables, since root could read them.
+
+Secrets you map to a job enter its sandbox as environment variables, and every process there can read them, the agent included.
+Umpteenth doesn't mask them in command output, so a command that prints one puts it in the run's timeline and in the model's context.
+With **Internet access**, code in the sandbox can send a secret anywhere, and **Allowed domains only** limits where it can go.
+
+Reflection reads a finished run's transcript and proposes changes to the job's playbook, the notes and scripts later runs start from.
+In that transcript, Umpteenth replaces each job secret of six or more characters with a marker such as `[secret $GITHUB_TOKEN]`.
+It holds back playbook changes that contain a secret or credential-shaped text, such as a `ghp_` token or an `AKIA` key, for your review.
+
+Umpteenth encrypts secrets, provider API keys and MCP logins in the database with keys derived from `app.encryption_key`, and its API never returns a secret's value.
+[Sandboxes](../../guides/sandboxes/#secrets) shows how to map secrets to a job.
+
+## Umpteenth's own outbound calls
+
+Umpteenth calls model providers, HTTP MCP servers with their OAuth endpoints, and notification webhooks from the host.
+By default it may reach private addresses, since self-hosted models and MCP servers often live on the LAN.
+
+Set `network.allow_private_targets` to `false` to refuse them.
+Saving such a URL then fails with `points to a private or local network address`, and Umpteenth checks the address again on every connection, so a redirect or a changed DNS answer can't lead it to a private address either.
+Sign-in calls to your identity provider and the download of the models.dev catalog go out without this check.
+Sandboxes ignore the setting and follow their job's network setting.

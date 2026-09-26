@@ -1,0 +1,77 @@
+---
+title: Introduction
+description: Umpteenth runs recurring chores with an AI agent in a fresh sandbox, and a job moves from the agent working it out to a script that runs without one.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import CostCurve from '../../../components/diagrams/CostCurve.astro';
+import WhereThingsRun from '../../../components/diagrams/WhereThingsRun.astro';
+
+Umpteenth runs the recurring chores you would otherwise brief a colleague on, such as a weekday digest or the report you assemble by hand every Monday for the umpteenth time.
+You describe the chore once in plain language, and an LLM agent does it in a throwaway container, on a schedule or whenever you trigger it.
+You host it on your own server with your own model provider, and it records what each run did and what it cost.
+
+## From chore to script
+
+A new job has nothing but your instruction, so its first run is an **Explore** run, where the agent works out the steps from scratch.
+Umpteenth then hands the run's transcript to a model in a step called **reflection**.
+Reflection writes down what worked as short learnings, plus **toolkit** scripts for the steps a run repeats.
+Once reflection has saved learnings or toolkit scripts, runs are **Assisted**: the agent starts from those notes and calls the toolkit scripts as tools instead of working the steps out again.
+
+After three successful Assisted runs in a row that called the same toolkit scripts and MCP tools in the same order, the job can graduate.
+Reflection then writes a main script that does the whole job, and from then on runs are **Scripted**, with Umpteenth executing the script and no agent involved.
+A scripted run costs nothing in model tokens unless the script or its checks ask a model for a judgment call, such as writing a summary.
+
+<CostCurve />
+
+Umpteenth checks the result of every scripted run.
+If a check fails, the agent takes over in the same sandbox and finishes the job.
+After two such fallbacks in a row, Umpteenth switches the job back to Assisted runs until it graduates again.
+The exact rules are on [How jobs learn](../../guides/self-improvement/).
+
+## Concepts
+
+A **job** is your instruction plus its settings: when it runs, which model it uses, what it can reach and how much a run may cost.
+Each execution of a job is a **run**.
+Every run gets its own **sandbox**, a fresh container that Umpteenth creates for the run and destroys when the run ends.
+The **playbook** holds what the job has learned so far, in numbered versions: learnings, toolkit scripts, an optional Dockerfile for its environment and, after graduation, the main script.
+Each run has a **mode** (Explore, Assisted or Scripted), and the job page shows the mode of the next run.
+
+## A run, start to finish
+
+1. A trigger starts the run: the job's schedule, a webhook call, the API, **Run now** on the job page or **Retry** on an earlier run.
+2. Umpteenth creates a sandbox from the job's image and puts the run's input and the job's secrets inside.
+3. The agent works in the sandbox, and the run's timeline shows each model turn and each command with its output as it happens.
+4. The agent reports success or failure with a summary and the job's outputs, and Umpteenth keeps the files the run saved in `/ump/outputs` as artifacts.
+   A run that reaches its time, turn or cost limit ends there.
+5. Umpteenth destroys the sandbox.
+   Reflection follows if the job has **Self-improve** on, as new jobs do, and saves what the run taught the job as a new playbook version.
+
+In a scripted run, the main script and a round of checks take the place of step 3.
+If every check passes, Umpteenth skips reflection for that run.
+
+## Credentials and the sandbox
+
+Umpteenth makes the agent's model calls from its own container, and it calls HTTP MCP servers (the tool servers that connect the agent to services such as GitHub or Slack) from there too, so their keys and logins stay out of the sandbox.
+Two kinds of credentials do enter a sandbox.
+Umpteenth passes in the secrets you map to the job as environment variables, and MCP servers that you run as a command (stdio servers) start inside the sandbox under a user of their own, bringing any secret in their configuration along.
+
+<WhereThingsRun />
+
+Umpteenth creates sandboxes through the host's Docker socket, which amounts to root access on the host.
+[Security](../../deployment/security/) covers that trade-off and how to harden an instance.
+
+## Get started
+
+<CardGrid>
+	<LinkCard
+		title="Installation"
+		href="../installation/"
+		description="Get from a fresh clone to a signed-in instance with a working model, on one host with Docker Compose."
+	/>
+	<LinkCard
+		title="Your first job"
+		href="../first-job/"
+		description="Create a job that needs no integrations and watch it learn from its first run."
+	/>
+</CardGrid>

@@ -1,0 +1,158 @@
+---
+// Several replicas behind one load balancer: each drives its own Docker engine, and all of them share Postgres, file storage and an optional registry
+import Figure from '../Figure.astro';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'Replicas share Postgres and file storage and connect to each other over UDP port 7571. Each replica starts the sandboxes of its runs on the Docker engine it drives, and without a registry it builds a job’s image again on first use.'
+} = Astro.props;
+
+// The load balancer sits centered on top, with 52px boxes like the rest of the drawing
+const boxH = 52;
+const lb = { x: 240, y: 0, w: 200 };
+const lbMid = lb.y + boxH / 2;
+
+// Two replicas below it, far enough apart that the peer link and its label fit between them
+const replicaY = 96;
+const replicas = [
+	{ x: 50, w: 200, title: 'Replica 1' },
+	{ x: 430, w: 200, title: 'Replica 2' }
+];
+const peerY = replicaY + boxH / 2;
+
+// The bottom row has an engine under each replica and the shared services between them, all on a 60px pitch of boxes
+const zoneY = 196;
+const itemY = (i: number) => zoneY + 40 + 60 * i;
+const zoneH = itemY(2) + boxH + 12 - zoneY;
+const engines = [
+	{ x: 0, w: 180, runs: ['run #41', 'run #43', 'run #46'] },
+	{ x: 500, w: 180, runs: ['run #42', 'run #44', 'run #45'] }
+];
+const shared = { x: 204, w: 272 };
+const services = [
+	{ title: 'Postgres', sub: 'jobs, runs and the run queue', lime: true },
+	{ title: 'File storage', sub: 'an S3 bucket, or the database' },
+	{ title: 'Registry', sub: 'optional, shares job images', muted: true }
+];
+
+// Each replica has one arrow into its engine and one into the shared zone, both straight down
+const down = [
+	{ x: 90, label: 'sandboxes', side: 'right' },
+	{ x: 230, label: 'state, files', side: 'right' },
+	{ x: 450, label: 'state, files', side: 'left' },
+	{ x: 590, label: 'sandboxes', side: 'left' }
+];
+const height = zoneY + zoneH + 2;
+---
+
+<Figure caption={caption}>
+	<svg viewBox={`0 0 680 ${height}`} role="img" aria-label={caption}>
+		<defs>
+			<marker id="ha-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead" />
+			</marker>
+		</defs>
+
+		{/* Requests reach any replica, since sessions live in signed cookies */}
+		<g>
+			<rect class="dg-box" x={lb.x} y={lb.y} width={lb.w} height={boxH} rx="8" />
+			<text class="dg-title" x={lb.x + 14} y={lb.y + 21}>Load balancer</text>
+			<text class="dg-sub" x={lb.x + 14} y={lb.y + 38}>keeps SSE streams open</text>
+		</g>
+		{
+			replicas.map((r) => {
+				const mid = r.x + r.w / 2;
+				const from = mid < lb.x ? lb.x : lb.x + lb.w;
+				return (
+					<g>
+						<path class="dg-edge-line" d={`M${from},${lbMid} H${mid} V${replicaY - 2}`} marker-end="url(#ha-arrow)" />
+						<text class="dg-edge-label" x={(from + mid) / 2} y={lbMid - 8} text-anchor="middle">
+							requests
+						</text>
+					</g>
+				);
+			})
+		}
+
+		{
+			replicas.map((r) => (
+				<g>
+					<rect class="dg-box" x={r.x} y={replicaY} width={r.w} height={boxH} rx="8" />
+					<text class="dg-title" x={r.x + 14} y={replicaY + 21}>
+						{r.title}
+					</text>
+					<text class="dg-sub" x={r.x + 14} y={replicaY + 38}>
+						UI, API, broker and runs
+					</text>
+				</g>
+			))
+		}
+
+		{/* Replicas reach job schedules, the run queue and cancellations held by another replica over these peer connections */}
+		<line
+			class="dg-edge-line"
+			x1={replicas[0].x + replicas[0].w + 2}
+			y1={peerY}
+			x2={replicas[1].x - 2}
+			y2={peerY}
+			marker-start="url(#ha-arrow)"
+			marker-end="url(#ha-arrow)"
+		/>
+		<text class="dg-edge-label" x={(replicas[0].x + replicas[0].w + replicas[1].x) / 2} y={peerY - 8} text-anchor="middle">
+			peers, UDP 7571
+		</text>
+
+		{
+			down.map((d) => (
+				<g>
+					<line class="dg-edge-line" x1={d.x} y1={replicaY + boxH} x2={d.x} y2={zoneY - 2} marker-end="url(#ha-arrow)" />
+					<text class="dg-edge-label" x={d.side === 'right' ? d.x + 8 : d.x - 8} y={zoneY - 16} text-anchor={d.side === 'right' ? 'start' : 'end'}>
+						{d.label}
+					</text>
+				</g>
+			))
+		}
+
+		{/* Each engine holds the sandboxes of the runs its replica executes */}
+		{
+			engines.map((e) => (
+				<g>
+					<rect class="dg-zone" x={e.x} y={zoneY} width={e.w} height={zoneH} rx="12" />
+					<text class="dg-zone-label" x={e.x + 12} y={zoneY + 24}>
+						Docker engine
+					</text>
+					{e.runs.map((run, i) => (
+						<g>
+							<rect class="dg-box is-muted" x={e.x + 12} y={itemY(i)} width={e.w - 24} height={boxH} rx="8" />
+							<text class="dg-title" x={e.x + 26} y={itemY(i) + 21}>
+								Sandbox
+							</text>
+							<text class="dg-sub" x={e.x + 26} y={itemY(i) + 38}>
+								{run}
+							</text>
+						</g>
+					))}
+				</g>
+			))
+		}
+
+		{/* Postgres is the one shared service a cluster can't start without, so it carries the lime */}
+		<rect class="dg-zone" x={shared.x} y={zoneY} width={shared.w} height={zoneH} rx="12" />
+		<text class="dg-zone-label" x={shared.x + 12} y={zoneY + 24}>Shared by every replica</text>
+		{
+			services.map((s, i) => (
+				<g>
+					<rect class:list={['dg-box', { 'is-lime': s.lime, 'is-muted': s.muted }]} x={shared.x + 12} y={itemY(i)} width={shared.w - 24} height={boxH} rx="8" />
+					<text class:list={['dg-title', { 'dg-on-lime': s.lime }]} x={shared.x + 26} y={itemY(i) + 21}>
+						{s.title}
+					</text>
+					<text class:list={['dg-sub', { 'dg-on-lime': s.lime }]} x={shared.x + 26} y={itemY(i) + 38}>
+						{s.sub}
+					</text>
+				</g>
+			))
+		}
+	</svg>
+</Figure>

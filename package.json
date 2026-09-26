@@ -1,0 +1,19 @@
+{
+	"name": "umpteenth-repo",
+	"private": true,
+	"license": "AGPL-3.0-only",
+	"scripts": {
+		"preinstall": "npx only-allow pnpm",
+		"dev": "pnpm --filter umpteenth-frontend dev",
+		"build": "pnpm --filter umpteenth-frontend build",
+		"check": "pnpm --filter umpteenth-frontend check",
+		"format": "pnpm --filter umpteenth-frontend format && pnpm --filter umpteenth-tests format",
+		"lint": "pnpm --filter umpteenth-frontend lint",
+		"gen:api": "pnpm --filter umpteenth-frontend gen:api",
+		"test": "pnpm --filter umpteenth-tests test",
+		"docs": "pnpm --filter umpteenth-docs dev",
+		"docs:build": "pnpm --filter umpteenth-docs build",
+		"docs:deploy": "pnpm --filter umpteenth-docs run deploy"
+	},
+	"packageManager": "pnpm@10.27.0"
+}

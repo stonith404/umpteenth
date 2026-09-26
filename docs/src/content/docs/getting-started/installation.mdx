@@ -1,0 +1,216 @@
+---
+title: Installation
+description: Run Umpteenth on one host with Docker Compose, sign in through your identity provider and connect a model.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+Set up Umpteenth on one host with Docker Compose, from a fresh clone to a signed-in instance with a working model.
+The single-node setup keeps its SQLite database and its files in `./data` next to the compose file, so you need no database server.
+For several replicas behind a load balancer, see [High availability](../../deployment/high-availability/).
+
+## Requirements
+
+- A host with Docker Engine on amd64 (x86-64) or arm64.
+  Podman works with three changes, listed under [Podman](#podman).
+- An OpenID Connect identity provider, such as [Pocket ID](https://github.com/pocket-id/pocket-id), Authentik, Keycloak or Zitadel.
+- An Anthropic API key, or an OpenAI-compatible API such as OpenAI, OpenRouter, Ollama or LM Studio.
+- Room for the sandboxes: by default a run's sandbox may use 1 CPU and 1024 MB of memory, and up to three runs execute at once.
+
+## Set up
+
+<Steps>
+
+1. Clone the repository and build the two images.
+
+   The project doesn't publish images yet, so you build the app image and the default sandbox image yourself.
+
+   ```bash
+   git clone https://github.com/stonith404/umpteenth.git
+   ```
+
+   ```bash
+   cd umpteenth
+   ```
+
+   ```bash
+   docker build -f docker/Dockerfile -t ghcr.io/stonith404/umpteenth:latest .
+   ```
+
+   ```bash
+   docker build -t ghcr.io/stonith404/umpteenth-sandbox:latest docker/sandbox
+   ```
+
+   Keep both tags as they are: `docker-compose.yml` starts the app image by its tag, and Umpteenth creates sandboxes from the sandbox image's tag.
+   Without the sandbox image in your engine, Umpteenth tries to pull it from the registry, the pull fails, and so does every run.
+
+2. Register an OIDC client in your identity provider.
+
+   | Setting | Value |
+   |---|---|
+   | Redirect URI | `<app.url>/api/auth/callback`, for example `https://umpteenth.example.com/api/auth/callback` |
+   | Scopes | `openid profile email groups`, which Umpteenth requests on every sign-in |
+   | Client type | Confidential or public, since Umpteenth uses PKCE either way and sends the client secret when you set one |
+
+   Note the issuer URL, the client ID and, for a confidential client, the client secret.
+   Umpteenth fetches the issuer's configuration from inside its container, so the issuer URL has to work there as well as in your browser.
+   An issuer at `http://localhost:1411` works in the browser and fails in the container, where `localhost` is the container itself.
+
+   Everyone your identity provider admits to this client gets full access to Umpteenth's one workspace, with every job and secret in it.
+   Limit access in the identity provider, or list the groups that may sign in under `oidc.allowed_groups` in the next step.
+
+   :::tip[No identity provider yet?]
+   [Pocket ID](https://github.com/pocket-id/pocket-id) is a small OIDC provider you can run with Docker next to Umpteenth.
+   Create an OIDC client there with the redirect URI above, and copy its issuer URL, client ID and client secret.
+   :::
+
+3. Create `config.yml` next to `docker-compose.yml` and fill in the `app` and `oidc` sections.
+
+   ```bash
+   cp config.example.yml config.yml
+   ```
+
+   ```yaml title="config.yml"
+   app:
+     url: https://umpteenth.example.com
+     encryption_key: "<output of openssl rand -base64 32>"
+
+   oidc:
+     issuer: https://id.example.com
+     client_id: umpteenth
+     client_secret: "<client secret>"
+     allowed_groups: []
+   ```
+
+   `app.url` is the URL you open Umpteenth at, the same one as in the redirect URI.
+   Leave `client_secret` empty for a public client, and `allowed_groups` empty to admit everyone your identity provider lets through.
+
+   The encryption key needs at least 16 bytes.
+   Umpteenth signs sessions with it and encrypts your secrets, model API keys and MCP logins in the database.
+   Keep a copy with your backups: under a different key, Umpteenth can't decrypt what it stored, and everyone has to sign in again.
+
+   `docker-compose.yml` mounts the file into the container at `/app/config.yml`, where Umpteenth reads it on start.
+   An environment variable named after an option's path, such as `APP_URL` for `app.url`, sets the same option and wins over the file.
+   [Configuration](../../deployment/configuration/) lists every option.
+
+4. Start Umpteenth.
+
+   ```bash
+   docker compose up -d
+   ```
+
+   `docker compose ps` lists the container as `healthy` once the server answers its health check.
+   The container's log shows `Umpteenth is starting` and then `Server listening`:
+
+   ```bash
+   docker compose logs umpteenth
+   ```
+
+   `Error: app.encryption_key (APP_ENCRYPTION_KEY) is required` in the log means Umpteenth found no key in `config.yml`.
+   A `Failed to prepare the sandbox backend` line that mentions the default sandbox image means your engine lacks the image from step 1.
+
+5. Open `app.url` in your browser and click **Sign in with OIDC**.
+
+   The **Dashboard** you land on shows **Nothing to show yet** until your first job runs.
+   Umpteenth has no password reset flow because it has no passwords, so you sort out accounts in your identity provider.
+   If sign-in fails, the login page shows the reason, and [Troubleshooting](../../deployment/troubleshooting/) has a fix for each one.
+
+</Steps>
+
+:::caution[Before you open it up]
+The compose file mounts the Docker socket into the container, which gives Umpteenth root access to the host.
+Read [Security](../../deployment/security/) before you run jobs you didn't write, and put Umpteenth behind HTTPS with a [reverse proxy](../../deployment/reverse-proxy/) before anyone else signs in.
+:::
+
+## Connect a model
+
+On first start, Umpteenth creates a provider named **Anthropic** with the current Claude models and their prices.
+It sets Claude Opus 5.5 as the default agent model and Claude Haiku 4.5 as the utility model, which compiles jobs and verifies results.
+The provider starts without an API key.
+
+<Steps>
+
+1. Open **Settings → Providers & models**.
+   The **Anthropic** row shows **None** in the **API key** column.
+
+2. Open the row's **⋯** menu, choose **Edit**, paste your key into **API key** and click **Save**.
+
+3. Click **Test** on the same row, pick a model and click **Send test prompt**.
+   **Replied in** with the model's answer means the key works, and **Failed after** shows the provider's error.
+
+</Steps>
+
+<Screenshot
+	name="settings-providers"
+	alt="Settings, Providers & models tab, with the Anthropic provider and its Claude models"
+/>
+
+To skip the paste, set `providers.anthropic_api_key` in `config.yml` before the first start.
+Umpteenth reads it only while it creates the Anthropic provider, so later changes to it have no effect.
+
+For another provider, click **Add provider**, choose **OpenAI-compatible** and a preset, then pick your models for **Agent** and **Utility** under **Settings → General → Default models**.
+[Models and costs](../../guides/models/) explains the model roles and how to connect a local server such as Ollama.
+
+## Check the sandbox backend
+
+Open **Settings → General** and find the **Sandbox backend** card, which shows how this instance runs sandboxes:
+
+| Field | Shows |
+|---|---|
+| **Adapter** | `docker` with the engine version, or `docker podman` with the Podman version |
+| **Isolation** | `container`, or `gvisor` when sandboxes run under [gVisor](../../deployment/gvisor/) |
+| **Architecture** | `amd64` or `arm64` |
+| **Egress firewall** | **Private networks blocked** when internet sandboxes can't reach your LAN, the host or cloud metadata, **Not enforced** when they can, **Turned off** when `sandbox.egress_filter` is `off` |
+
+<Screenshot
+	name="settings-general"
+	alt="Settings, General tab, with the Default models card and the Sandbox backend card"
+/>
+
+**Not enforced** comes with the alert **Internet sandboxes can reach private networks**.
+Read [Security](../../deployment/security/) before you give jobs internet access on such an instance.
+
+## Podman
+
+Umpteenth talks to Podman through Podman's Docker-compatible API.
+Switching the setup above to Podman takes three changes.
+
+<Steps>
+
+1. Start the Podman API socket for your user.
+
+   ```bash
+   systemctl --user enable --now podman.socket
+   ```
+
+2. Build both images from step 1 of the setup with `podman build` in place of `docker build`, so they land in the image store that the socket serves.
+
+3. Mount the Podman socket in place of the Docker socket.
+
+   ```yaml title="docker-compose.yml" ins={6}
+   services:
+     umpteenth:
+       volumes:
+         - ./config.yml:/app/config.yml:ro
+         - ./data:/app/data
+         - /run/user/1000/podman/podman.sock:/var/run/docker.sock
+   ```
+
+   Replace `1000` with your user ID, which `id -u` prints.
+   To mount the socket at a different path, add an `environment:` block to the service that sets `DOCKER_HOST` to `unix://` followed by that path.
+
+</Steps>
+
+Then start the stack with `podman compose up -d`.
+
+:::caution[No egress firewall on Podman]
+The egress firewall supports Docker only.
+On Podman, the **Sandbox backend** card shows **Not enforced**, and internet sandboxes can reach your LAN, the host and cloud metadata endpoints.
+[Security](../../deployment/security/) lists the alternatives, such as **Allowed domains only** or setting `sandbox.egress_filter` to `required`.
+:::
+
+## Next steps
+
+Your instance is ready for [your first job](../first-job/).
+To make it reachable for others over HTTPS, continue with [Reverse proxy](../../deployment/reverse-proxy/).

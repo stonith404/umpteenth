@@ -1,0 +1,134 @@
+---
+title: Upgrades and maintenance
+description: Upgrade a single-node instance, know what survives a restart, and watch the health check, the logs and the background tasks that keep Umpteenth tidy.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Upgrade a single-node instance in a few commands, and keep it healthy between upgrades.
+Umpteenth migrates its database on start and cleans up after itself on a schedule, which leaves backups and monitoring to you.
+
+## Upgrade a single node
+
+The project doesn't publish images yet, so an upgrade means building both images from the new version of the repository.
+
+<Steps>
+
+1. Back up `config.yml` and `data/` as [Backups and migration](../backups/) describes.
+
+   Umpteenth migrates the database forward and has no downgrade command, so this backup is your way back.
+
+2. Pull the new version into your clone of the repository.
+
+   ```bash
+   git pull
+   ```
+
+3. Rebuild the app image and the sandbox image under their usual tags.
+
+   ```bash
+   docker build -f docker/Dockerfile --build-arg VERSION=$(git describe --tags --always) -t ghcr.io/stonith404/umpteenth:latest .
+   ```
+
+   ```bash
+   docker build -t ghcr.io/stonith404/umpteenth-sandbox:latest docker/sandbox
+   ```
+
+   `VERSION` shows up in the log and under `/api/system/info`, and without it both read `dev`.
+   Umpteenth never pulls a sandbox image that already exists in the engine, so skipping the second build leaves your sandboxes on the old image.
+
+4. Recreate the container on the new image.
+
+   ```bash
+   docker compose up -d
+   ```
+
+   A run in flight ends when the old container stops, so pick a moment when nothing runs.
+
+5. Read the log.
+
+   ```bash
+   docker compose logs umpteenth
+   ```
+
+   The `Umpteenth is starting` line names the version, and an `Applied database migration` line follows for each migration the new version brings.
+   `Server listening` means the server is up.
+   If the new version dropped or renamed an option, Umpteenth stops with an error such as `config.yml: line 12: unknown option ...`, and the new `config.example.yml` shows the current names.
+
+6. Open **Settings → General** and check that the **Sandbox backend** card shows the same engine and **Egress firewall** state as before.
+
+7. Rebuild the images of jobs with their own Dockerfile.
+
+   A job image stays on the sandbox image Umpteenth built it from.
+   Click **Rebuild** on the job's **Environment** tab to build it on the new one ([Sandboxes](../../guides/sandboxes/#builds-and-base-image-updates) explains builds).
+
+</Steps>
+
+To go back to the old version, stop the container, restore the backup from step 1, check out the old commit and build both images from it.
+
+With several replicas, upgrade one at a time as [High availability](../high-availability/#upgrades) describes.
+
+## After a restart
+
+Umpteenth recovers from a crash or a host reboot the same way as from an upgrade:
+
+| Item | After the restart |
+|---|---|
+| Schedules | They keep their next time. A job that missed occurrences while Umpteenth was down runs once when it's back, so after a week offline your daily digest arrives once instead of seven times in a row. |
+| Queued runs | They start once the server is up. |
+| Runs in flight | They don't resume. Umpteenth stops them on shutdown and records them as **Cancelled** or **Failed**. A run it had no time to record fails within two minutes of the next start, with an error that begins with `interrupted:`. Umpteenth doesn't run them again, since a second attempt could repeat what the first one did. |
+| Their sandboxes | Umpteenth removes each one within 10 minutes after its run ends. |
+| Reflections and image builds | Umpteenth starts interrupted ones again. |
+| Sessions | They survive, so you stay signed in. |
+| Open run pages | They reconnect and catch up. |
+
+For each interrupted run it fails, Umpteenth sends the `run.failed` [notification](../../guides/notifications/), which is on by default.
+
+## Background maintenance
+
+Umpteenth runs these maintenance tasks on its own:
+
+| Schedule | Task |
+|---|---|
+| Every minute | Fails runs that have had no heartbeat from their replica for a minute, with the error `interrupted: the replica executing this run stopped responding`. |
+| At start, then every 10 minutes | Removes sandboxes of finished runs and any sandbox older than 25 hours, and reinstalls the egress firewall rules, which a restart of the container engine drops. |
+| Every night around 03:17 | Deletes the timeline events and stored files of runs that finished more than **Retention** days ago, and keeps the run records ([Reading a run](../../guides/runs/#retention)). |
+| Every night around 04:43 | Removes old job images, keeping the newest build of each Dockerfile from a job's last five playbook versions. If you roll a job back further than that, Umpteenth rebuilds its image on the next run. |
+| Every 12 hours | Downloads the models.dev catalog and syncs every provider's model list, set by `models.catalog_refresh_interval` ([Models and costs](../../guides/models/#keeping-the-list-current)). |
+
+The nightly times follow the container's clock, which runs on UTC unless you set `TZ`.
+Each nightly task starts at a random point up to 10 minutes before or after its time.
+If Umpteenth is down at that moment, the task runs as soon as Umpteenth is back.
+
+## Health check
+
+`GET /healthz` on port 8080 (`server.port`) needs no sign-in and answers `204` when the database responds within 3 seconds, or `503` with `database unavailable`.
+Point an uptime monitor or a load balancer at it.
+It checks the database alone, so it keeps answering `204` while the container engine, the identity provider or a model provider is down.
+
+Every 30 seconds, the image's health check runs `umpteenth healthcheck`, which calls `/healthz` on `127.0.0.1`, and `docker compose ps` shows the result as `healthy` or `unhealthy`.
+That check fails if you bind `server.host` to a single address other than `127.0.0.1` or `0.0.0.0`.
+
+The **Sandbox backend** card under **Settings → General** shows the state of the sandbox backend, and with an [API token](../../reference/api/) you can read the same data from `GET /api/system/info`.
+
+## Logs
+
+Umpteenth logs to stderr, and `docker compose logs -f umpteenth` follows the output.
+Two options control it:
+
+| Option | Values |
+|---|---|
+| `log.level` (`LOG_LEVEL`) | `debug`, `info` (the default), `warn` or `error`. Any other value stops Umpteenth at start. |
+| `log.json` (`LOG_JSON`) | `true` for one JSON object per line, `false` (the default) for text. |
+
+Umpteenth logs requests to `/api/` and `/hooks/`: failed ones at `info` for a `4xx` status and at `error` for a `5xx` status, and the rest at `debug`.
+An error toast in the UI carries a **Request ID**, and the matching log line has the same value under `request_id`.
+
+To see every request for a while, set the level in `config.yml` and restart:
+
+```yaml title="config.yml"
+log:
+  level: debug
+```
+
+[Configuration](../configuration/) covers the other ways to set an option.

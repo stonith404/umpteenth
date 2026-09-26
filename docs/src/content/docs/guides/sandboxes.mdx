@@ -1,0 +1,192 @@
+---
+title: Sandboxes
+description: Choose the tools, network access and secrets a job's runs get, and find the files a run reads and writes.
+---
+
+import NetworkModes from '../../../components/diagrams/NetworkModes.astro';
+
+A sandbox is the Docker container a run executes in, and you choose what goes into it and what it can reach.
+You set it up in the job's **Environment** tab and in the **Sandbox** and **Secrets** cards of its **Settings** tab.
+
+## One container per run
+
+Umpteenth starts a fresh container for each run and runs the agent's commands in it as the user `agent` (uid 1000), with all Linux capabilities dropped.
+The scripts in the job's playbook (the notes and code the job has learned so far) run in the same container, and so do stdio MCP servers.
+
+Once the run ends, Umpteenth collects the files in `/ump/outputs` as the run's artifacts and removes the container.
+Anything else the run left in the sandbox, such as a package the agent installed or a file in `/workspace`, goes with it.
+Job state and the run's outputs survive, because Umpteenth keeps them outside the container from the moment the run sets them.
+
+## The default image
+
+Runs use `ghcr.io/stonith404/umpteenth-sandbox:latest` unless you pick another image.
+It's Debian trixie-slim with `bash`, `coreutils`, `curl`, `git`, `jq`, `ripgrep`, `python3`, `uv`, `node` and `npm`.
+It has no `pip`, so the agent runs Python scripts with `uv run --with <package>` and installs Node packages with `npm install` in `/workspace`.
+
+The `sandbox.image` option in the config file sets the image for the instance (see [Configuration](../../deployment/configuration/#sandboxes)).
+**Default image** under **Settings → General → Sandbox defaults** overrides it for the workspace, and a job's **Base image** field in its **Sandbox** card overrides both.
+
+A custom image needs `bash` and must target `amd64` or `arm64`, because Umpteenth runs commands with `bash -lc` and ships its `ump` CLI for those two architectures.
+Umpteenth pulls an image only if the host lacks it, so it doesn't refresh a `:latest` tag it already has.
+
+## A Dockerfile per job
+
+If a job needs `ffmpeg` and has no Dockerfile, the agent installs it on every run, and you pay for those turns each time.
+Put it in the job's Dockerfile instead: Umpteenth installs it once, when it builds the image, and `apt-get` drops off your model bill.
+Open the job's **Environment** tab, click **Start from a template** and add what the job needs:
+
+```dockerfile title="Dockerfile"
+FROM ghcr.io/stonith404/umpteenth-sandbox:latest
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN uv pip install --system pandas
+```
+
+Click **Save & build**, and Umpteenth saves the Dockerfile as a new playbook version and queues a build.
+A run that starts before the image is ready waits for it with "Waiting for the job image to build" on its timeline, and the wait counts against the run's **Timeout**.
+
+Once a job has a Dockerfile, its `FROM` line sets the base image and the job's **Base image** field no longer applies.
+Umpteenth builds the image under these rules:
+
+- The builder receives the Dockerfile alone, with no build context, so `COPY` of local files fails.
+- Umpteenth uses Docker's classic builder, which rejects BuildKit syntax such as `RUN --mount` and heredocs.
+- Build steps run as root, since the default image sets no `USER`.
+- A build can run for up to 15 minutes and produce an image of up to 5 GiB.
+- On Docker, build steps get the network of an **Internet access** sandbox without **Allow private network**, whatever the job's own setting.
+
+### Builds and base image updates
+
+Umpteenth builds each Dockerfile once and reuses the image for every run until the Dockerfile changes.
+The **Builds** list below the editor has each build's status, build time, size and digest, and **Log** opens its output, live while the build runs.
+
+Each build pulls the `FROM` image and pins the digest it resolves to, so the job's image keeps that exact base after the tag moves on.
+If the pull fails, for example because the image exists only on your host, the build uses the local image with that tag.
+After you update the base image, for example by rebuilding the sandbox image during an upgrade, click **Rebuild** to build the same Dockerfile on the new base.
+Runs keep using the last good build of that Dockerfile while a rebuild runs, and if it fails.
+
+### A failed build blocks runs
+
+If a Dockerfile has no successful build and its latest build failed, every run of the job fails with `Environment build failed: <error>`.
+Read the build's **Log**, fix the Dockerfile and click **Save & build**.
+Click **Rebuild** instead if the cause lay outside the Dockerfile, such as a package mirror that was down.
+Umpteenth never falls back to the image of an older Dockerfile, because the playbook's scripts may depend on the new tools.
+
+To run the job on its base image again, click **Use the base image**.
+The Dockerfile stays in the playbook's history, and you can roll it back from the **Playbook** tab.
+
+### Reflection and the Dockerfile
+
+Reflection is the model pass after a run that saves what the job learned.
+With **Self-improve** on, it moves packages the agent installed by hand into the Dockerfile.
+Umpteenth builds reflection's Dockerfile before applying it and rejects one that doesn't build.
+It holds some changes for your review, such as a switch to a new base image or a download piped into a shell, and [How jobs learn](../self-improvement/) shows how to apply them.
+
+## Run as root
+
+**Run as root** in the **Sandbox** card lets the agent install system packages at run time.
+The agent's commands and the playbook's scripts then run as uid 0 with Docker's default capabilities, and `no-new-privileges` stays on.
+Anything the agent installs as root vanishes with the sandbox, and the agent installs it again on the next run.
+Packages a job needs on every run belong in its Dockerfile.
+
+In a root sandbox, Umpteenth skips stdio MCP servers that have environment variables, because root could read them.
+[MCP servers](../mcp/#add-a-stdio-server) lists the alternatives.
+
+## Network
+
+The **Network** select in the **Sandbox** card has three options: **Internet access**, **Allowed domains only** and **No network**.
+The **New job** page offers the first and last of those, so switch to **Allowed domains only** in the job's settings after you save it.
+
+The `ump` CLI reaches MCP tools, models, job state and outputs through Umpteenth's broker, the port on the Umpteenth server that sandboxes talk to.
+Those calls work in all three modes, and so do HTTP MCP servers, because Umpteenth connects to them from its own host.
+
+<NetworkModes />
+
+### Internet access
+
+**Internet access** is the default.
+The sandbox reaches the internet, and Umpteenth installs firewall rules on the host that block private IPv4 ranges, the Docker host and cloud metadata endpoints.
+Umpteenth turns IPv6 off on sandbox networks, so a run can't reach IPv6-only hosts.
+
+:::caution[The block depends on the egress firewall]
+Umpteenth installs these rules on Docker only.
+On Podman, or on a Docker host where the install fails, **Internet access** sandboxes reach your LAN, the Docker host and cloud metadata, and the **Sandbox backend** card under **Settings → General** shows **Not enforced**.
+Set `sandbox.egress_filter` to `required` to refuse internet runs in that state, or use **Allowed domains only**, which works without the firewall.
+[Security](../../deployment/security/#the-egress-firewall) has the details.
+:::
+
+### Allowed domains only
+
+Pick **Allowed domains only** for a job that needs a few known hosts and nothing else.
+The sandbox has no route out.
+Umpteenth points `HTTP_PROXY`, `HTTPS_PROXY` and their lowercase forms at an egress proxy on its broker, and the proxy connects only to the hosts you list under **Allowed domains**:
+
+```txt
+api.github.com
+*.githubusercontent.com
+```
+
+List one host name per line, up to 100, without a scheme, port, path or IP address.
+`*.example.com` matches every name below `example.com` but not `example.com` itself, so list both if a job needs both.
+Any port on an allowed host works.
+
+Tools that ignore the proxy variables can't connect, such as `git` over SSH or a raw TCP client.
+The run's timeline records the first connection to each host and every refusal as a `ump proxy <host>` step, which shows you the domain a failing run is missing.
+The proxy refuses allowed names that resolve to private addresses unless the job has **Allow private network**.
+
+### No network
+
+The sandbox reaches the broker and nothing else.
+HTTP MCP servers and `ump llm` keep working, so a job that talks to other services through MCP alone runs fine here.
+A stdio MCP server started with `npx -y` can't download its package, so install the package in the job's Dockerfile and start the installed command.
+
+### Allow private network
+
+Turn on **Allow private network** for a job that needs your LAN or the Docker host, for example a Gitea instance on your home network.
+The switch appears for **Internet access** and **Allowed domains only**.
+With **Allowed domains only**, the proxy then connects to listed names that resolve to private addresses, except loopback.
+Cloud metadata endpoints stay blocked in both modes.
+
+## Secrets
+
+Create a secret for each credential under **Settings → Secrets** with **Create secret**.
+Umpteenth encrypts the values at rest, and you can't read a value back through the UI or the API.
+
+A secret reaches a run only after you map it in the job's **Secrets** card.
+Click **Add secret**, pick the secret and name the environment variable (Umpteenth suggests `GITHUB_TOKEN` for a secret named `github-token`).
+Umpteenth reads the values when each run starts, so an updated secret applies from the next run.
+The variables exist for every command in the sandbox, from the agent's shell to the setup, toolkit and main scripts.
+
+The agent gets no list of the variables, so name them in the instruction:
+
+```txt
+Fetch the open pull requests of acme/api from the GitHub API with curl, using $GITHUB_TOKEN as the bearer token.
+```
+
+Umpteenth drops mappings to its own variables `UMP_BROKER_URL`, `UMP_TOKEN`, `UMP_RUN_ID` and `UMP_DNS`, and to the proxy variables of an **Allowed domains only** job.
+Deleting a secret removes it from every job that maps it.
+
+MCP servers take secrets as `{{secret:NAME}}` in their headers and environment instead, and the credentials of an HTTP server never enter the sandbox.
+[MCP servers](../mcp/) shows both.
+
+:::caution[Umpteenth redacts secrets for reflection only]
+Reflection reads the run's transcript with each secret value of six or more characters replaced by `[secret $NAME]`.
+The run's timeline and the agent's model receive whatever a command prints, so `env` or `echo $GITHUB_TOKEN` puts the value in the timeline and in the model provider's context.
+:::
+
+## Files and paths
+
+| Path | Contents |
+|---|---|
+| `/workspace` | The working directory of the agent's commands and the playbook's scripts, removed with the sandbox |
+| `/ump/input.json` | The run's input: a webhook body, the **Input** of **Run now** or the API, or `{}` |
+| `/ump/outputs/` | Files to keep, which Umpteenth collects as the run's artifacts, up to 50 MiB, even from a failed run |
+| `/ump/PLAYBOOK.md` | The job's current playbook as Markdown |
+
+Artifacts appear in the **Artifacts** card on the run's **Outputs** tab (see [Reading a run](../runs/)).
+Umpteenth deletes them once they're older than the **Retention** period under **Settings → General**, 90 days by default, and keeps the run records.
+The [ump CLI](../../reference/ump-cli/) reference lists the other paths.
+
+## Resource limits
+
+Each sandbox gets 1 CPU, 1024 MB of memory and 256 processes by default.
+Change them for one job in its **Sandbox** card, or for the workspace under **Settings → General → Sandbox defaults**.
+[Managing jobs](../jobs/) covers what happens when a run hits one.

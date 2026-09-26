@@ -1,0 +1,150 @@
+---
+title: High availability
+description: Run several Umpteenth replicas behind a load balancer, on one Postgres database and shared file storage.
+---
+
+import HaTopology from '../../../components/diagrams/HaTopology.astro';
+
+Run several replicas of Umpteenth behind a load balancer, so schedules and webhooks keep firing and the UI keeps answering when one replica or its host goes down.
+
+<HaTopology />
+
+## Requirements
+
+- **Postgres** that every replica reaches.
+  SQLite supports a single replica, and Umpteenth has no converter from SQLite to Postgres: moving an instance over takes [export and import](../backups/#export-and-import), which leave the run history behind.
+- **Shared file storage**: the `s3` backend with any S3-compatible bucket, or `database`.
+  The `filesystem` backend works on a volume that every replica mounts at the same `file_storage.path`.
+  On separate disks, each replica sees the artifacts and tool outputs it wrote itself and none of the others'.
+- **A container engine** per replica, or one engine they share.
+- **A load balancer** in front of port 8080.
+  Skip sticky sessions, since sessions and sign-in state travel in signed cookies.
+  The load balancer has to pass server-sent events through without buffering and keep idle connections open for more than 20 seconds, the interval of Umpteenth's keepalives ([Reverse proxy](../reverse-proxy/) has working configurations).
+  Use `/healthz` as its health check.
+- **UDP between the replicas** on port 7571 (`ha.actors.port`), which carries their peer connections.
+  Replicas on different hosts need `7571/udp` published and reachable.
+- **A container registry** is optional.
+  Without one, each replica builds a job's custom image the first time it runs that job.
+  With `sandbox.registry.repository` set, the first build goes to the registry and the other replicas pull it.
+
+:::caution[Connection poolers]
+Umpteenth keeps a Postgres connection open to listen for updates, and holds a session lock while it migrates the database.
+A pooler in transaction mode, such as PgBouncer with `pool_mode=transaction`, breaks both, so connect the replicas to Postgres itself or to a pool in session mode.
+:::
+
+## Settings
+
+Give every replica the same `config.yml`, with the same `app.url` (the load balancer's public URL), `app.encryption_key` and `oidc` block.
+The replicas derive the keys of their peer connections from the encryption key, so a replica with a different key can't join.
+
+On top of that file, each replica needs these options, which `docker-compose.ha.yml` sets through environment variables:
+
+| Option | Environment variable | Value |
+|---|---|---|
+| `database.connection_string` | `DATABASE_CONNECTION_STRING` | `postgres://…`, the same everywhere |
+| `ha.enabled` | `HA_ENABLED` | `true` on every replica |
+| `file_storage.backend` | `FILE_STORAGE_BACKEND` | `s3` with the `file_storage.s3` options, or `database` |
+| `server.trust_proxy` | `SERVER_TRUST_PROXY` | `true`, since the load balancer sets `X-Forwarded-For` |
+| `ha.replica_id` | `HA_REPLICA_ID` | A fixed name, different on each replica, such as `umpteenth-1` |
+| `ha.actors.host` | `HA_ACTORS_HOST` | The hostname or IP address the other replicas reach this replica at |
+
+`ha.replica_id` defaults to the hostname, and a container without `hostname:` gets a new hostname each time Compose recreates it, so set one of the two.
+Replicas that share an engine need different IDs, since the ID labels the sandboxes and networks each one creates.
+`ha.actors.host` defaults to `127.0.0.1`, and Umpteenth doesn't check it, so a replica that keeps the default starts without an error and stays unreachable for the others.
+
+Keep the registry settings and the [workspace defaults](../configuration/#workspace-defaults) `sandbox.image`, `runs.daily_spend_limit_usd` and `runs.retention_days` identical across replicas.
+Until you save the matching card under **Settings → General**, a workspace default takes the value of whichever replica reads it.
+`runs.max_concurrent` can differ, since each replica executes up to its own number of runs at once.
+
+## The example setup
+
+The repository's [`docker-compose.ha.yml`](https://github.com/stonith404/umpteenth/blob/main/docker-compose.ha.yml) runs Postgres, SeaweedFS as the S3 store, two replicas on the host's Docker engine, and Caddy as the load balancer on port 8080.
+Both replicas read `config.yml`, and the compose file adds the HA options through the environment.
+The replicas share most of their settings through YAML anchors, and with those expanded the first replica looks like this:
+
+```yaml
+services:
+  umpteenth-1:
+    image: ghcr.io/stonith404/umpteenth:latest
+    restart: unless-stopped
+    hostname: umpteenth-1
+    container_name: umpteenth-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      s3:
+        condition: service_started
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DATABASE_CONNECTION_STRING: postgres://umpteenth:umpteenth@postgres:5432/umpteenth?sslmode=disable
+      HA_ENABLED: "true"
+      SERVER_TRUST_PROXY: "true"
+      FILE_STORAGE_BACKEND: s3
+      FILE_STORAGE_S3_ENDPOINT: http://s3:8333
+      FILE_STORAGE_S3_BUCKET: umpteenth
+      FILE_STORAGE_S3_ACCESS_KEY_ID: umpteenth
+      FILE_STORAGE_S3_SECRET_ACCESS_KEY: umpteenth-secret
+      HA_REPLICA_ID: umpteenth-1
+      HA_ACTORS_HOST: umpteenth-1
+```
+
+Copy `config.example.yml` to `config.yml`, fill in `app.url`, `app.encryption_key` and the `oidc` block as in [Installation](../../getting-started/installation/), and start the stack:
+
+```bash
+docker compose -f docker-compose.ha.yml up -d
+```
+
+The file hard-codes demo passwords for Postgres and the bucket, so replace them before the stack holds anything you care about.
+Its replicas share one engine and need no registry.
+In production, give each replica its own host and engine, set `HA_ACTORS_HOST` to an address the other hosts reach, publish `7571:7571/udp`, and run Postgres and the bucket with backups of their own.
+
+## Work across replicas
+
+- A scheduled run fires once across all replicas.
+  An occurrence missed while every replica was down fires once when the first one returns.
+- A job's **When runs overlap** setting holds across replicas, because Umpteenth handles every trigger of a job in one place.
+- Runs wait in one queue, and each replica takes up to `runs.max_concurrent` of them into sandboxes on its own engine, so your capacity is the sum over all replicas.
+- Any replica serves any page.
+  A run page streams the output of a run that executes on another replica, and **Cancel** reaches the replica that runs it.
+- A settings change applies on every replica at once, and the rate limits for sign-in and webhooks count across replicas.
+- The **Sandbox backend** card under **Settings → General** shows the engine of the replica that answered the request.
+
+## If a replica fails
+
+A run lives on the replica that executes it, together with its sandbox and the stdio MCP servers inside that sandbox.
+The executing replica records a heartbeat every 15 seconds.
+Once the heartbeats stop, another replica fails the run 60 to 120 seconds after the last one, with the error `interrupted: the replica executing this run stopped responding`, and sends the `run.failed` [notification](../../guides/notifications/).
+Umpteenth doesn't run it again, since a second attempt could repeat a side effect of the first, such as a message it already posted.
+Click **Retry** on the run page once you know that's safe.
+
+A replica that misses its check-ins for 20 seconds loses its work to the others: queued runs, schedules, webhooks, and the image builds and reflections it had started.
+
+Cleanup of its sandboxes depends on the engine:
+
+- On a shared engine, the replica that fails the run removes its sandbox at once.
+- On separate engines, the failed replica removes its leftovers when it starts again.
+- If it never comes back, remove them on its engine yourself.
+  This command lists them:
+
+  ```bash
+  docker ps -a --filter label=umpteenth.role=sandbox --filter label=umpteenth.host=<replica id>
+  ```
+
+  Pass the listed IDs to `docker rm -f`.
+
+## Upgrades
+
+Upgrade the replicas one at a time, with the steps from [Upgrades and maintenance](../upgrading/) for each, so the others keep serving.
+A replica that stops ends the runs it executes, so pick a quiet moment.
+The first upgraded replica applies the database migrations, under a lock that keeps replicas starting at the same moment from applying them twice.
+Umpteenth doesn't guarantee that a replica on the old version works against the new schema, so keep the time between the first and the last replica short.
+
+### Switch HA on or off
+
+Every replica needs the same `ha.enabled` value.
+A replica whose value differs from the running ones refuses to start with `host was configured with a different max hosts value than the rest of the cluster`.
+A second replica on a Postgres database without `ha.enabled` refuses with `the cluster has reached its maximum number of hosts`.
+
+To change the value, stop every replica, wait half a minute, and start them again with the new value.
