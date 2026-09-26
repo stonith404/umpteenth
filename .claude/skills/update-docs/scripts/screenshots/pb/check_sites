@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+# ump:name        check_sites
+# ump:description Check that each site answers HTTP 200 within 2 seconds and report the ones whose status changed since the last run
+# ump:args        {"sites":"string"}
+# ump:side-effects none
+import argparse
+import json
+import subprocess
+import time
+import urllib.error
+import urllib.request
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--sites", required=True, help="Space-separated URLs")
+args = parser.parse_args()
+
+# The last status of each site lives in job state, so a run only reports changes
+previous = {}
+got = subprocess.run(["ump", "state", "get", "last_status"], capture_output=True, text=True)
+if got.returncode == 0 and got.stdout.strip():
+    previous = json.loads(got.stdout)
+
+def check(site):
+    # Some sites refuse Python's default user agent with 403
+    request = urllib.request.Request(site, headers={"User-Agent": "uptime-check/1.0"})
+    start = time.monotonic()
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            code = response.status
+    except urllib.error.HTTPError as e:
+        code = e.code
+    except OSError:
+        code = 0
+    return code, round((time.monotonic() - start) * 1000)
+
+
+current, changed = {}, []
+for site in args.sites.split():
+    # A second attempt keeps one slow answer from counting as an outage
+    code, ms = check(site)
+    if code != 200 or ms > 2000:
+        code, ms = check(site)
+    current[site] = "up" if code == 200 and ms <= 2000 else "down"
+    print(f"{site}: HTTP {code} in {ms} ms, {current[site]}")
+    if site in previous and previous[site] != current[site]:
+        changed.append(site)
+
+subprocess.run(["ump", "state", "set", "last_status", json.dumps(current)], check=True)
+print(json.dumps({"up": sum(s == "up" for s in current.values()), "changed": changed}))

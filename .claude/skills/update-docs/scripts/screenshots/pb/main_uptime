@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# ump:description Check both sites and report status changes without the agent
+set -euo pipefail
+
+ump step "check sites"
+/ump/toolkit/check_sites --sites "https://example.com https://example.org" | tee /workspace/check.txt
+result=$(tail -n 1 /workspace/check.txt)
+
+up=$(echo "$result" | jq '.up')
+changed=$(echo "$result" | jq '.changed | length > 0')
+ump output set up "$up"
+ump output set changed "$changed"
+if [ "$changed" = "true" ]; then
+  ump summary "Status changed for $(echo "$result" | jq -r '.changed | join(", ")'). $up of 2 sites answered 200 within 2 seconds."
+else
+  ump summary "$up of 2 sites answered 200 within 2 seconds. No status changed since the last check."
+fi

@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+# ump:name        render_digest
+# ump:description Render saved front-page stories as the Markdown digest and count the stories that match our topics
+# ump:args        {"input":"string","output":"string"}
+# ump:side-effects none
+import argparse
+import json
+import os
+import re
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--input", required=True)
+parser.add_argument("--output", required=True)
+args = parser.parse_args()
+
+# "Go" only counts with a capital G, the other topics match in any case
+TOPICS = re.compile(r"self-?host|homelab|postgres|sqlite|database|docker|kubernetes|\bk8s\b", re.IGNORECASE)
+GO = re.compile(r"\bGo\b|\bGolang\b")
+
+
+def matches(title):
+    return bool(TOPICS.search(title) or GO.search(title))
+
+
+with open(args.input) as f:
+    stories = json.load(f)
+
+lines = [
+    "# Hacker News digest",
+    "",
+    f"{len(stories)} front-page stories by points. ★ marks self-hosting, Go and databases.",
+    "",
+]
+matched = 0
+for rank, story in enumerate(stories, start=1):
+    star = ""
+    if matches(story["title"]):
+        star = "★ "
+        matched += 1
+    lines.append(f"{rank}. {star}[{story['title']}]({story['url']}) · {story['points']} points · {story['comments']} comments")
+
+os.makedirs(os.path.dirname(args.output), exist_ok=True)
+with open(args.output, "w") as f:
+    f.write("\n".join(lines) + "\n")
+print(json.dumps({"stories": len(stories), "matches": matched, "output": args.output}))
