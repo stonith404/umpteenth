@@ -1,0 +1,213 @@
+---
+title: Kubernetes
+seoTitle: Install on Kubernetes with Helm
+description: Run Umpteenth on Kubernetes with the Helm chart, where every run's sandbox is a pod, NetworkPolicies confine it and BuildKit builds job images.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Install Umpteenth on a Kubernetes cluster with the Helm chart, where every run's sandbox is a pod and Umpteenth needs no Docker socket.
+The chart starts two [replicas](#replicas) on a bundled Postgres, so schedules and webhooks keep firing when a node goes down, and keeps files in the database, so you need no bucket.
+
+## Requirements
+
+- Kubernetes 1.30 or later, with amd64 or arm64 nodes.
+- A network plugin that enforces NetworkPolicies, such as Calico, Cilium or kindnet.
+  Umpteenth refuses to start sandboxes on a cluster that ignores them, see [Network policies](#network-policies).
+- A default StorageClass for the bundled Postgres.
+- An identity provider or GitHub, and a model provider, as in [Installation](../../getting-started/installation/#requirements).
+- A container registry, if jobs build their own images from a Dockerfile, see [Job images](#job-images).
+
+## Install
+
+<Steps>
+
+1. Create a `values.yaml` with the address you'll open Umpteenth at and a sign-in provider.
+
+   ```yaml title="values.yaml"
+   app:
+     url: https://umpteenth.example.com
+
+   config:
+     auth:
+       providers:
+         pocket-id:
+           type: oidc
+           name: Pocket ID
+           issuer: https://id.example.com
+           client_id: umpteenth
+
+   # The client secret comes from a Secret you create
+   extraEnv:
+     - name: AUTH_PROVIDERS_POCKET_ID_CLIENT_SECRET
+       valueFrom:
+         secretKeyRef:
+           name: umpteenth-oidc
+           key: client-secret
+
+   ingress:
+     enabled: true
+     className: nginx
+     host: umpteenth.example.com
+     tls:
+       - secretName: umpteenth-tls
+         hosts: [umpteenth.example.com]
+   ```
+
+   The chart renders `config` into `config.yml`, so every option from [Configuration](../configuration/) fits there.
+   It sets the database, replica and sandbox options itself, through environment variables that win over `config`, so you change those through the chart's values instead.
+   [Sign-in](../sign-in/) explains the providers, and [Reverse proxy](../reverse-proxy/#live-updates) the buffering your ingress controller must not do, which the chart's default annotations turn off for ingress-nginx.
+
+2. Create the namespace and the Secret with the client secret.
+
+   ```bash
+   kubectl create namespace umpteenth
+   ```
+
+   ```bash
+   kubectl --namespace umpteenth create secret generic umpteenth-oidc --from-literal=client-secret='<client secret>'
+   ```
+
+3. Install the chart.
+
+   ```bash
+   helm install umpteenth oci://ghcr.io/stonith404/charts/umpteenth --namespace umpteenth --values values.yaml
+   ```
+
+   The chart's version is the Umpteenth version it installs.
+   Add `--version 1.2.3` to pin one, as [Upgrades](../upgrading/#pin-a-version) recommends for Compose.
+
+4. Open `app.url`, sign in, and [connect a model](../../getting-started/installation/#connect-a-model).
+
+</Steps>
+
+Without an ingress, `kubectl --namespace umpteenth port-forward service/umpteenth 8080:8080` reaches Umpteenth at `http://localhost:8080`, which then has to be `app.url`.
+
+### The encryption key
+
+The chart generates `app.encryption_key` on install into the Secret `umpteenth`, and keeps it on upgrades and when you uninstall the release.
+Copy it next to your backups, since Umpteenth can't decrypt what it stored without it:
+
+```bash
+kubectl --namespace umpteenth get secret umpteenth --output jsonpath='{.data.encryption-key}' | base64 --decode
+```
+
+To bring your own key, put it under `encryption-key` in a Secret and name that Secret in `app.encryptionKey.existingSecret`.
+
+### The database
+
+The bundled Postgres is a single pod with a PersistentVolumeClaim, which suits a small team.
+For anything larger, point the chart at a Postgres you run with backups and turn the bundled one off:
+
+```yaml title="values.yaml"
+postgresql:
+  enabled: false
+database:
+  # A Secret that holds the postgres:// URL under connection-string
+  existingSecret: umpteenth-database
+```
+
+`database.connectionString` takes the URL inline instead.
+
+:::caution[Connection poolers]
+Umpteenth keeps a Postgres connection open to listen for updates, and holds a session lock while it migrates the database.
+A pooler in transaction mode, such as PgBouncer with `pool_mode=transaction`, breaks both, so connect the replicas to Postgres itself or to a pool in session mode.
+:::
+
+To run a single replica on SQLite, set `replicaCount: 1`, `postgresql.enabled: false`, `persistence.enabled: true` and `fileStorage.backend: filesystem`.
+The chart then keeps the data directory on a PersistentVolumeClaim and replaces the pod only after the old one stopped.
+
+## Sandboxes
+
+Umpteenth creates a pod per run in the release's namespace, or in `sandbox.namespace`, and deletes it after the run.
+An init container copies the `ump` CLI from the Umpteenth image into the pod, so any image works as a job image, and a Secret next to the pod holds the job's secrets and the run's broker token.
+The chart grants Umpteenth a Role in that namespace for pods, their exec and log, Secrets and ConfigMaps, and nothing outside it.
+
+A sandbox pod runs its init process as root with all capabilities dropped except the six the `ump` CLI needs to switch users and write files, and your commands run as the `agent` user (uid 1000), as with [Docker](../security/#sandbox-defaults).
+The pod gets no service account token, no service links and a deadline of the run's timeout plus 6 minutes, and it fits the Pod Security level `baseline`.
+Set `sandbox.createNamespace: true` together with `sandbox.namespace` to have the chart create the namespace with that level enforced.
+
+Two things differ from Docker:
+
+- A command that runs out of memory ends the whole sandbox, since the kubelet kills every process in the container, and the run fails with `ran out of memory and stopped while running a command`.
+- Kubernetes limits processes per node, so the 256-process limit of a sandbox doesn't apply.
+  Set the kubelet's `podPidsLimit` to cap them.
+
+For stronger isolation, install gVisor or Kata Containers on your nodes and set `sandbox.runtimeClass` to its RuntimeClass, such as `gvisor`.
+Use `sandbox.nodeSelector` and `sandbox.tolerations` to keep sandboxes on nodes of their own.
+
+### Network policies
+
+The chart installs NetworkPolicies that let sandbox pods reach the broker port (8081) of the Umpteenth pods and nothing else, and no pod can connect to a sandbox.
+**Internet access** and **Allowed domains only** sandboxes go through the egress proxy on that port as they do on Docker, and **Unrestricted network** sandboxes reach public addresses and the cluster DNS directly, but no address in `networkPolicy.privateRanges`.
+A further policy leaves the Umpteenth pods open on port 8080, their broker port to sandboxes and builds only, and the actor port to each other only.
+
+At start, each replica starts a sandbox without network and checks that it reaches the broker but not the Kubernetes API server.
+On a cluster that ignores NetworkPolicies, the check fails, the log shows `Sandboxes can't start until the network check passes`, and runs fail with `the cluster does not enforce the sandbox NetworkPolicies`.
+Set `sandbox.requireNetworkPolicy: false` to run sandboxes anyway, for example on a laptop cluster, knowing that they then reach everything in the cluster.
+
+The egress proxy runs in the Umpteenth pods and refuses private addresses unless a job turns on **Allow private network**.
+List your cluster's pod and Service networks in `sandbox.clusterRanges`, such as `[10.244.0.0/16, 10.96.0.0/12]`, and the proxy refuses them for every job, so an **Allow private network** job reaches your LAN but not the database or other services in the cluster.
+
+## Job images
+
+Jobs with a Dockerfile need `sandbox.registry.repository`, since nodes pull job images from a registry:
+
+```yaml title="values.yaml"
+sandbox:
+  registry:
+    repository: ghcr.io/acme/umpteenth-jobs
+    username: acme-bot
+    existingSecret: umpteenth-registry
+```
+
+The Secret holds the password or token under `registry-password`, and Umpteenth turns the credentials into an image pull Secret for the sandbox pods.
+Without a registry, runs of a job with a Dockerfile fail with `the active sandbox adapter cannot build job images`.
+
+The chart runs a rootless BuildKit daemon in the sandbox namespace, which keeps the layers of earlier builds, and each build runs as a short-lived client pod next to it.
+Rootless BuildKit needs unconfined seccomp and AppArmor profiles, which the Pod Security level `baseline` forbids, so a sandbox namespace the chart creates gets `privileged` while builds are on.
+Set `sandbox.buildkit.persistence.enabled: true` to keep the cache across restarts of the daemon.
+Build steps reach the internet through the egress proxy like an **Internet access** sandbox, and BuildKit pulls base images and pushes job images itself, over public addresses only.
+For a registry inside the cluster, add a rule for it to `networkPolicy.build.extraEgress` and set `sandbox.registry.insecure: true` if it speaks plain HTTP.
+
+Umpteenth deletes the images of old builds from the registry, where the registry allows it, and leaves them to the registry's cleanup policy otherwise.
+
+## Replicas
+
+The replicas share one run queue, and each takes up to its own `runs.max_concurrent` runs at once, so your capacity is the sum over all of them.
+A schedule fires once across the cluster.
+Any replica serves any page: a run page streams the output of a run on another replica, and **Stop** reaches the replica that runs it.
+Scale with `replicaCount`, and check the `Joined the replica cluster` line each replica logs as it starts, whose `replicas` count includes any Umpteenth you point at the same database, a staging copy too.
+
+### A failed replica
+
+A run lives on the replica that executes it.
+If that replica goes down, another one fails the run within two minutes with `interrupted: the replica executing this run stopped responding` and sends the `run.failed` [notification](../../guides/notifications/).
+Umpteenth doesn't retry it, since a second attempt could repeat a side effect of the first, such as a message it already posted.
+Click **Retry** on the run page once you know that's safe.
+The other replicas take over the failed replica's queued runs, schedules and webhooks.
+
+### Replicas without Kubernetes
+
+Replicas outside Kubernetes work the same way, with the settings the chart otherwise makes for you.
+Run them on Postgres, with `file_storage.backend` set to `s3` or `database`, behind a load balancer that checks `/healthz` and doesn't buffer server-sent events.
+Give them the same `config.yml`, including `app.encryption_key`, from which they derive the keys of their peer connections, and open UDP port 7571 between them.
+Each replica also needs its own settings:
+
+| Option | Value |
+|---|---|
+| `server.trust_proxy` | `true`, since the load balancer sets `X-Forwarded-For` |
+| `ha.replica_id` | A fixed name, different on each replica, since the default is the hostname |
+| `ha.actors.host` | An address the other replicas reach this replica at, since the default `127.0.0.1` makes a second replica refuse to start |
+
+Set `sandbox.registry.repository` so the replicas share job images instead of each building them again.
+
+## Upgrades
+
+```bash
+helm upgrade umpteenth oci://ghcr.io/stonith404/charts/umpteenth --namespace umpteenth --values values.yaml
+```
+
+Kubernetes starts a new replica before it stops an old one, and the replica that stops ends the runs it executes, as [A failed replica](#a-failed-replica) describes, so pick a quiet moment.
+The first upgraded replica migrates the database, and Umpteenth doesn't guarantee that a replica on the old version works against the new schema.
+Every replica deletes the sandbox pods of runs that ended, including those of a replica that went away.
