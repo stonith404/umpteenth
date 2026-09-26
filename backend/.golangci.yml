@@ -1,0 +1,38 @@
+version: "2"
+run:
+  build-tags:
+    - exclude_frontend
+    - exclude_ump
+    - unit
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - misspell
+    - nilerr
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (*database/sql.Rows).Close
+        - (*github.com/stonith404/umpteenth/backend/internal/database.DB).Close
+        - (github.com/stonith404/umpteenth/backend/internal/storage.FileStorage).Close
+        - fmt.Fprintf
+        - fmt.Fprint
+    gosec:
+      excludes:
+        # SQL built from strings, as in listquery and the storage prefix conditions, only interpolates whitelisted identifiers and placeholders
+        - G201
+        - G202
+  exclusions:
+    generated: strict
+    paths:
+      - internal/.*/.*db/
+formatters:
+  enable:
+    - gofmt

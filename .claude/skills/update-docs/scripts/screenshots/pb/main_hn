@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# ump:description Fetch the front page and write the digest without the agent
+set -euo pipefail
+
+ump step "fetch front page"
+/ump/toolkit/fetch_front_page --limit 30 --out /workspace/front.json
+
+ump step "render digest"
+/ump/toolkit/render_digest --input /workspace/front.json --output /ump/outputs/digest.md > /workspace/result.json
+
+stories=$(jq -r '.stories' /workspace/result.json)
+matched=$(jq -r '.matches' /workspace/result.json)
+ump output set stories "$stories"
+ump output set matches "$matched"
+ump summary "Wrote the digest of $stories front-page stories to digest.md and marked $matched on our topics with a ★."

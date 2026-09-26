@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "umpteenth.fullname" . }}
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+data:
+  config.yml: |
+    {{- if .Values.config }}
+    {{- toYaml .Values.config | nindent 4 }}
+    {{- else }}
+    # Settings come from the environment the chart sets; add more under the config value
+    {}
+    {{- end }}

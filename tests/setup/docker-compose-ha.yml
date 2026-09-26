@@ -1,0 +1,115 @@
+# The HA topology for the Playwright suite: Postgres, SeaweedFS (S3) and two replicas behind a load balancer
+x-umpteenth: &umpteenth
+  image: umpteenth:test
+  depends_on:
+    postgres:
+      condition: service_healthy
+    s3:
+      condition: service_healthy
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+  # Specs run webhook receivers on the machine running Playwright, which Linux engines only resolve with this mapping
+  extra_hosts:
+    - 'host.docker.internal:host-gateway'
+  environment: &env
+    APP_ENV: test
+    APP_URL: http://localhost:8080
+    APP_ENCRYPTION_KEY: umpteenth-e2e-test-encryption-key
+    DATABASE_CONNECTION_STRING: postgres://umpteenth:umpteenth@postgres:5432/umpteenth?sslmode=disable
+    # The load balancer sets X-Forwarded-For, so the login rate limit can see client addresses
+    SERVER_TRUST_PROXY: 'true'
+    FILE_STORAGE_BACKEND: s3
+    FILE_STORAGE_S3_ENDPOINT: http://s3:8333
+    FILE_STORAGE_S3_BUCKET: umpteenth
+    FILE_STORAGE_S3_ACCESS_KEY_ID: umpteenth
+    FILE_STORAGE_S3_SECRET_ACCESS_KEY: umpteenth-secret
+    # Sign-in providers for the login page, the same as the single-node stack, which are never contacted since specs sign in through /api/test/session
+    AUTH_PROVIDERS_POCKET_ID_TYPE: oidc
+    AUTH_PROVIDERS_POCKET_ID_NAME: Pocket ID
+    AUTH_PROVIDERS_POCKET_ID_ISSUER: https://id.example.com
+    AUTH_PROVIDERS_POCKET_ID_CLIENT_ID: umpteenth
+    AUTH_PROVIDERS_POCKET_ID_PRIMARY: 'true'
+    AUTH_PROVIDERS_GITHUB_TYPE: github
+    AUTH_PROVIDERS_GITHUB_NAME: GitHub
+    AUTH_PROVIDERS_GITHUB_CLIENT_ID: umpteenth
+    AUTH_PROVIDERS_GITHUB_CLIENT_SECRET: e2e-secret
+    AUTH_PROVIDERS_GITHUB_ALLOWED_USERS: octocat
+    AUTH_PROVIDERS_CORP_SSO_TYPE: oidc
+    AUTH_PROVIDERS_CORP_SSO_NAME: Corp SSO
+    AUTH_PROVIDERS_CORP_SSO_ISSUER: https://sso.corp.example
+    AUTH_PROVIDERS_CORP_SSO_CLIENT_ID: umpteenth
+  healthcheck:
+    test: ['CMD', '/app/umpteenth', 'healthcheck']
+    interval: 2s
+    retries: 60
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: umpteenth
+      POSTGRES_PASSWORD: umpteenth
+      POSTGRES_DB: umpteenth
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'umpteenth']
+      interval: 2s
+      retries: 30
+
+  # Any S3-compatible store works; SeaweedFS is used because MinIO no longer publishes images
+  s3:
+    image: chrislusf/seaweedfs:4.47
+    # SeaweedFS rejects signed requests unless the keys Umpteenth signs with are configured as an identity
+    command: server -s3 -dir=/data -s3.config=/etc/seaweedfs/s3.json
+    configs:
+      - source: s3-identities
+        target: /etc/seaweedfs/s3.json
+    # The replicas check the bucket on startup and exit when the S3 port is not listening yet
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8333/healthz']
+      interval: 2s
+      retries: 30
+
+  umpteenth-1:
+    <<: *umpteenth
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        - BUILD_TAGS=e2etest
+    hostname: umpteenth-1
+    # Direct ports let tests target one replica, e.g. to cancel a run from the replica that is not executing it
+    ports:
+      - '18081:8080'
+    environment:
+      <<: *env
+      HA_REPLICA_ID: umpteenth-1
+      HA_ACTORS_HOST: umpteenth-1
+
+  umpteenth-2:
+    <<: *umpteenth
+    hostname: umpteenth-2
+    ports:
+      - '18082:8080'
+    depends_on:
+      umpteenth-1:
+        condition: service_healthy
+    environment:
+      <<: *env
+      HA_REPLICA_ID: umpteenth-2
+      HA_ACTORS_HOST: umpteenth-2
+
+  lb:
+    image: caddy:2-alpine
+    command: caddy reverse-proxy --from :8080 --to umpteenth-1:8080 --to umpteenth-2:8080
+    ports:
+      - '8080:8080'
+    depends_on:
+      umpteenth-1:
+        condition: service_healthy
+      umpteenth-2:
+        condition: service_healthy
+
+configs:
+  s3-identities:
+    content: |
+      {"identities": [{"name": "umpteenth", "credentials": [{"accessKey": "umpteenth", "secretKey": "umpteenth-secret"}], "actions": ["Admin", "Read", "Write", "List", "Tagging"]}]}

@@ -1,0 +1,13 @@
+/* The landing page lives outside Starlight, so it adds the few base rules that Starlight's reset gives the docs pages */
+@import './global.css';
+
+@layer base {
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+	a {
+		color: var(--sl-color-accent);
+	}
+}

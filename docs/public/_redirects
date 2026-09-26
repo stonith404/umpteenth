@@ -1,0 +1,4 @@
+# Cloudflare answers these with a permanent redirect before it looks for a file, see wrangler.jsonc
+# The API reference used to give every route its own page, which is now an anchor on the one reference page
+/reference/api-endpoints/operations/:operation/ /reference/api-endpoints/#:operation 301
+/reference/api-endpoints/operations/:operation /reference/api-endpoints/#:operation 301

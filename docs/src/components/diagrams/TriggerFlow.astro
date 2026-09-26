@@ -1,0 +1,117 @@
+---
+// The path from a trigger to a running sandbox: the job's overlap policy, the shared run queue and the per-replica cap
+import Figure from '../Figure.astro';
+import { dg } from './classes';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'Every trigger passes the same overlap policy. Past it, every run waits in the queue until a replica has a free slot.'
+} = Astro.props;
+
+// Five trigger columns across the full width, 124px wide with 15px gaps
+const colW = 124;
+const colX = (i: number) => i * (colW + 15);
+const colMid = (i: number) => colX(i) + colW / 2;
+
+// Rows of 52px boxes, 60px apart above the policy to fit the line the triggers join on, and 44px apart below it, where the branches carry longer labels
+const rowH = 52;
+const y = { triggers: 0, policy: 112, branch: 208, queue: 304, start: 400 };
+const height = y.start + rowH + 2;
+
+const triggers = [
+	{ title: 'Schedule', sub: 'cron, time zone' },
+	{ title: 'Webhook', sub: 'POST /hooks/…' },
+	{ title: 'Run now', sub: 'job header' },
+	{ title: 'API', sub: 'API token' },
+	{ title: 'Retry', sub: 'an earlier run' }
+];
+
+// Every trigger joins one line before the policy, 26px below the boxes
+const busY = y.triggers + rowH + 26;
+const busX = colMid(2);
+
+// The policy's three outcomes leave its bottom edge at the columns of the boxes they lead to
+// A run that starts right away goes down the left, clear of the labels of the Queue and Skip branches
+const parallelX = (colX(1) + colW) / 2;
+const waits = { x: colX(2), w: 202, title: 'Waits its turn', sub: 'status Queued, in trigger order' };
+const skipped = { x: 500, w: 180, title: 'Skipped run', sub: 'recorded, never starts' };
+const queueX = waits.x + waits.w / 2;
+const skipX = skipped.x + skipped.w / 2;
+const lower = { x: 0, w: waits.x + waits.w };
+---
+
+<Figure caption={caption}>
+	<svg viewBox={`0 0 680 ${height}`} role="img" aria-label={caption}>
+		<defs>
+			<marker id="tf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class={dg.arrowhead} />
+			</marker>
+		</defs>
+
+		{
+			triggers.map((t, i) => (
+				<g>
+					<rect class={dg.box} x={colX(i)} y={y.triggers} width={colW} height={rowH} rx="8" />
+					<text class={dg.title} x={colX(i) + 14} y={y.triggers + 21}>
+						{t.title}
+					</text>
+					<text class={dg.sub} x={colX(i) + 14} y={y.triggers + 38}>
+						{t.sub}
+					</text>
+				</g>
+			))
+		}
+
+		{/* Every trigger joins one line into the policy */}
+		{triggers.map((_, i) => <line class={dg.edge} x1={colMid(i)} y1={y.triggers + rowH} x2={colMid(i)} y2={busY} />)}
+		<line class={dg.edge} x1={colMid(0)} y1={busY} x2={colMid(4)} y2={busY} />
+		<line class={dg.edge} x1={busX} y1={busY} x2={busX} y2={y.policy - 2} marker-end="url(#tf-arrow)" />
+
+		{/* The overlap policy is the job setting this drawing is about */}
+		<g>
+			<rect class={dg.boxLime} x="0" y={y.policy} width="680" height={rowH} rx="8" />
+			<text class={dg.titleOnLime} x="14" y={y.policy + 21}>When runs overlap</text>
+			<text class={dg.subOnLime} x="14" y={y.policy + 38}>applies while another run of the same job is active</text>
+		</g>
+
+		{/* Parallel, or no active run, goes straight to the run queue */}
+		<line class={dg.edge} x1={parallelX} y1={y.policy + rowH} x2={parallelX} y2={y.queue - 2} marker-end="url(#tf-arrow)" />
+		<text class={dg.edgeLabel} x={parallelX + 8} y={y.branch - 16}>Parallel, or no active run</text>
+
+		<line class={dg.edge} x1={queueX} y1={y.policy + rowH} x2={queueX} y2={y.branch - 2} marker-end="url(#tf-arrow)" />
+		<text class={dg.edgeLabel} x={queueX + 8} y={y.branch - 16}>Queue</text>
+		<g>
+			<rect class={dg.box} x={waits.x} y={y.branch} width={waits.w} height={rowH} rx="8" />
+			<text class={dg.title} x={waits.x + 14} y={y.branch + 21}>{waits.title}</text>
+			<text class={dg.sub} x={waits.x + 14} y={y.branch + 38}>{waits.sub}</text>
+		</g>
+		<line class={dg.edge} x1={queueX} y1={y.branch + rowH} x2={queueX} y2={y.queue - 2} marker-end="url(#tf-arrow)" />
+		<text class={dg.edgeLabel} x={queueX + 8} y={y.queue - 16}>when the active run ends</text>
+
+		<line class={dg.edge} x1={skipX} y1={y.policy + rowH} x2={skipX} y2={y.branch - 2} marker-end="url(#tf-arrow)" />
+		<text class={dg.edgeLabel} x={skipX + 8} y={y.branch - 16}>Skip</text>
+		<g>
+			<rect class={dg.boxMuted} x={skipped.x} y={y.branch} width={skipped.w} height={rowH} rx="8" />
+			<text class={dg.title} x={skipped.x + 14} y={y.branch + 21}>{skipped.title}</text>
+			<text class={dg.sub} x={skipped.x + 14} y={y.branch + 38}>{skipped.sub}</text>
+		</g>
+
+		{/* The run queue is shared by the replicas, and each one takes runs up to its own cap */}
+		<g>
+			<rect class={dg.box} x={lower.x} y={y.queue} width={lower.w} height={rowH} rx="8" />
+			<text class={dg.title} x={lower.x + 14} y={y.queue + 21}>Run queue</text>
+			<text class={dg.sub} x={lower.x + 14} y={y.queue + 38}>status Queued, shared by every replica</text>
+		</g>
+		<line class={dg.edge} x1={parallelX} y1={y.queue + rowH} x2={parallelX} y2={y.start - 2} marker-end="url(#tf-arrow)" />
+		<text class={dg.edgeLabel} x={parallelX + 8} y={y.start - 16}>a replica has a free slot</text>
+		<g>
+			<rect class={dg.box} x={lower.x} y={y.start} width={lower.w} height={rowH} rx="8" />
+			<text class={dg.title} x={lower.x + 14} y={y.start + 21}>Starts in a sandbox</text>
+			<text class={dg.sub} x={lower.x + 14} y={y.start + 38}>
+				at most <tspan class="font-mono text-[11px]">runs.max_concurrent</tspan> per replica, 3 by default
+			</text>
+		</g>
+	</svg>
+</Figure>

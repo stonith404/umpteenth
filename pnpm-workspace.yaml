@@ -1,0 +1,9 @@
+packages:
+  - frontend
+  - tests
+  - docs
+
+# openapi-typescript works with TypeScript 6 but still declares a peer range of ^5
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: '6'
