@@ -1,0 +1,145 @@
+{{- if include "umpteenth.buildkit" . }}
+{{- $name := printf "%s-buildkit" (include "umpteenth.fullname" .) -}}
+{{- $namespace := include "umpteenth.sandboxNamespace" . -}}
+{{- $registryHost := regexReplaceAll "/.*" .Values.sandbox.registry.repository "" -}}
+# The BuildKit daemon job image builds run on, which keeps the layers of earlier builds; build pods are only its clients
+{{- if .Values.sandbox.registry.insecure }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "umpteenth.metaLabels" . | nindent 4 }}
+data:
+  buildkitd.toml: |
+    [registry.{{ $registryHost | quote }}]
+      http = true
+      insecure = true
+---
+{{- end }}
+{{- if .Values.sandbox.buildkit.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "umpteenth.metaLabels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.sandbox.buildkit.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.sandbox.buildkit.persistence.size }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "umpteenth.metaLabels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: buildkit
+  ports:
+    - name: buildkit
+      port: 1234
+      targetPort: buildkit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "umpteenth.metaLabels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: buildkit
+spec:
+  replicas: 1
+  # The cache belongs to one daemon at a time
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: buildkit
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: buildkit
+        umpteenth.dev/role: buildkit
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      {{- with .Values.sandbox.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.sandbox.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: buildkitd
+          image: {{ .Values.sandbox.buildkit.image }}
+          args:
+            - --addr
+            - tcp://0.0.0.0:1234
+            - --addr
+            - unix:///run/user/1000/buildkit/buildkitd.sock
+            - --oci-worker-no-process-sandbox
+            {{- if .Values.sandbox.registry.insecure }}
+            - --config
+            - /etc/buildkit/buildkitd.toml
+            {{- end }}
+          ports:
+            - name: buildkit
+              containerPort: 1234
+          # Rootless BuildKit creates user namespaces, which the runtime's default seccomp and AppArmor profiles forbid
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: Unconfined
+            appArmorProfile:
+              type: Unconfined
+          readinessProbe:
+            tcpSocket:
+              port: buildkit
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.sandbox.buildkit.resources | nindent 12 }}
+          volumeMounts:
+            - name: cache
+              mountPath: /home/user/.local/share/buildkit
+            {{- if .Values.sandbox.registry.insecure }}
+            - name: config
+              mountPath: /etc/buildkit
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: cache
+          {{- if .Values.sandbox.buildkit.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $name }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.sandbox.registry.insecure }}
+        - name: config
+          configMap:
+            name: {{ $name }}
+        {{- end }}
+{{- end }}

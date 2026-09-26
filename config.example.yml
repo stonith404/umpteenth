@@ -1,0 +1,180 @@
+# Umpteenth configuration
+# Copy this file to config.yml next to docker-compose.yml, or to backend/config.yml for local development, and fill in the values
+# Options you leave out, or leave empty, keep the defaults shown here
+#
+# Every option can also be set through an environment variable named after its path, e.g. server.port as SERVER_PORT, which wins over this file
+# In environment variables lists are comma-separated, and a _FILE suffix reads the value from a file, e.g. APP_ENCRYPTION_KEY_FILE for Docker secrets
+
+app:
+  # Public URL Umpteenth is opened at, which must match the redirect URI registered with the identity provider
+  # An https:// URL also marks the session cookie as Secure
+  url: http://localhost:8080
+  # production, development or test
+  env: production
+  # Holds the SQLite database and the stored files, unless database.connection_string or file_storage.path point elsewhere
+  data_dir: data
+  # Encrypts secrets and API keys at rest and signs sessions, at least 16 bytes
+  # Generate one with: openssl rand -base64 32
+  # Stored secrets can't be decrypted anymore once it changes, so keep it safe
+  encryption_key: ""
+
+auth:
+  # The ways users sign in, keyed by an ID of lowercase letters, digits and hyphens
+  # Register each with the redirect URI <app.url>/api/auth/callback/<id>
+  # Environment variables spell the ID with underscores, e.g. AUTH_PROVIDERS_POCKET_ID_CLIENT_SECRET
+  # Keep the blocks you use and delete the others, since an unfilled one stops the server from starting
+  providers:
+    pocket-id:
+      # oidc for any OpenID Connect identity provider, or github for GitHub accounts
+      type: oidc
+      # The label of the sign-in button
+      name: Pocket ID
+      # An image on the sign-in button, as an http(s) URL or a data:image URI
+      icon: ""
+      # Gives this provider the large sign-in button, which at most one provider can have
+      # A lone provider always gets it
+      primary: false
+      client_id: umpteenth
+      client_secret: ""
+      # oidc only: the issuer URL of the identity provider
+      issuer: https://id.example.com
+      # oidc only: only members of these groups may sign in, checked against the groups claim
+      # Empty lets in everyone the identity provider lets through
+      allowed_groups: []
+      # oidc only: members of these groups are instance admins, who see every user and workspace and can deactivate users
+      # They may sign in even when allowed_groups doesn't list them, and the groups are checked again at every sign-in
+      admin_groups: []
+    github:
+      type: github
+      name: GitHub
+      # The client ID and secret of a GitHub OAuth app
+      client_id: ""
+      client_secret: ""
+      # github only: these GitHub usernames may sign in
+      # A github provider needs someone in allowed_users, allowed_organizations or an admin list, since anyone with a GitHub account could sign in otherwise
+      allowed_users: [octocat]
+      # github only: members of these GitHub organizations may sign in
+      allowed_organizations: []
+      # github only: these GitHub usernames are instance admins, who see every user and workspace and can deactivate users
+      admin_users: []
+      # github only: members of these GitHub organizations are instance admins
+      admin_organizations: []
+
+workspaces:
+  # Lets people create workspaces, invite others to them and switch between them
+  # Off, everyone who signs in shares one workspace
+  enabled: false
+
+server:
+  # The interface the UI, API and broker listen on
+  host: 0.0.0.0
+  # The UI and API
+  port: 8080
+  # The broker sandboxes talk to
+  broker_port: 8081
+  # Takes client addresses for rate limits from X-Forwarded-For
+  # Only enable it behind a reverse proxy that sets the header
+  trust_proxy: false
+
+log:
+  # debug, info, warn or error
+  level: info
+  # Log JSON lines instead of text
+  json: false
+
+database:
+  # A SQLite file path or a postgres:// URL, <app.data_dir>/umpteenth.db when empty
+  connection_string: ""
+
+# Where artifacts, full tool outputs and build logs are stored
+file_storage:
+  # filesystem, s3 or database
+  backend: filesystem
+  # The directory of the filesystem backend, <app.data_dir>/blobs when empty
+  path: ""
+  # The bucket of the s3 backend
+  s3:
+    endpoint: ""
+    region: ""
+    bucket: ""
+    access_key_id: ""
+    secret_access_key: ""
+    # Whether to talk to the endpoint over TLS
+    use_ssl: true
+
+sandbox:
+  # docker, kubernetes, or none to run without sandboxes
+  # The Docker socket is taken from DOCKER_HOST
+  adapter: docker
+  # The default sandbox image
+  image: ghcr.io/stonith404/umpteenth-sandbox:latest
+  # Where the broker relay forwards to when Umpteenth runs outside a container, host.docker.internal when empty
+  # With the kubernetes adapter it is required and is this replica's pod IP, which sandbox pods reach the broker on
+  broker_host: ""
+  # Whether jobs may use the unrestricted network, which bypasses the egress proxy and reaches everything the host can
+  allow_unrestricted_network: true
+  # A registry for job images, so replicas share builds
+  registry:
+    # e.g. ghcr.io/acme/umpteenth-jobs
+    repository: ""
+    username: ""
+    password: ""
+  docker:
+    # runsc runs sandboxes under gVisor
+    runtime: runc
+    # Resolvers of unrestricted sandboxes instead of Docker's embedded DNS, 8.8.8.8 and 8.8.4.4 under gVisor when empty
+    dns: []
+  kubernetes:
+    # A kubeconfig file for running Umpteenth outside the cluster, the in-cluster service account when empty
+    kubeconfig: ""
+    # Where sandbox and build pods run, Umpteenth's own namespace when empty
+    namespace: ""
+    # The image an init container copies the ump CLI from, the Umpteenth image of this version when empty
+    bootstrap_image: ""
+    # The rootless BuildKit image that builds job images, which needs sandbox.registry
+    build_image: moby/buildkit:v0.33.0-rootless
+    # A BuildKit daemon that keeps the build cache, e.g. tcp://umpteenth-buildkit:1234, which the Helm chart runs; without it every build starts from an empty cache in a pod of its own
+    buildkit_address: ""
+    # The RuntimeClass of sandbox pods, e.g. gvisor or kata
+    runtime_class: ""
+    # Node labels sandbox and build pods must run on, as key=value
+    node_selector: []
+    # Taints sandbox and build pods tolerate, as key=value:Effect, key:Effect or key
+    tolerations: []
+    # The pod and Service networks of the cluster, e.g. 10.244.0.0/16 and 10.96.0.0/12, which sandboxes never reach through the egress proxy, not even with Allow private network
+    cluster_ranges: []
+    # Whether sandbox.registry speaks plain HTTP, e.g. a registry inside the cluster
+    insecure_registry: false
+    # Whether to refuse sandboxes when a test sandbox finds the cluster doesn't enforce their NetworkPolicies
+    require_network_policy: true
+
+runs:
+  # Runs executing at once on each replica
+  max_concurrent: 3
+  # How many days new workspaces keep run events and files, at least 1
+  retention_days: 90
+
+network:
+  # Whether Umpteenth itself may call private addresses, e.g. a local Ollama, an MCP server on the LAN or a notification webhook
+  allow_private_targets: true
+  # IP addresses and CIDR ranges that neither Umpteenth itself nor sandboxes may reach, e.g. the host's own public address
+  blocked_targets: []
+
+models:
+  # How often the models.dev catalog is downloaded and every provider's model list synced, at least 5m
+  # 0 keeps the catalog Umpteenth was built with
+  catalog_refresh_interval: 12h
+
+# Several replicas sharing a Postgres database and an s3 or database file storage backend
+# How replicas that share a Postgres database find each other, which they do without further settings
+# SQLite allows a single replica
+ha:
+  # A stable, unique name per replica, the hostname when empty
+  replica_id: ""
+  actors:
+    # The address other replicas reach this replica at
+    host: 127.0.0.1
+    # The port of the replicas' peer connections
+    port: 7571
+    # The interface the peer server listens on when set, otherwise all interfaces on Postgres when actors.host isn't a loopback address, and actors.host without
+    bind_address: ""

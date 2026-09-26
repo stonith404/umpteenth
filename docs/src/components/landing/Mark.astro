@@ -1,0 +1,44 @@
+---
+// The Signal mark drawn cell by cell in the current text color, with the bar in lime
+interface Props {
+	class?: string;
+}
+const { class: className } = Astro.props;
+// The same 12 by 8 bitmap as branding/mark/mark.svg, on a 16 cell grid with 4 unit cells
+const rows = [
+	'#.#.####oooo',
+	'...#.#.#oooo',
+	'..#.#.##oooo',
+	'...#.#.#oooo',
+	'#.#.####oooo',
+	'...#.#.#oooo',
+	'..#.#.##oooo',
+	'...#.#.#oooo'
+];
+const cells: { x: number; y: number; bar: boolean }[] = [];
+rows.forEach((row, y) => {
+	[...row].forEach((ch, x) => {
+		if (ch !== '.') cells.push({ x, y, bar: ch === 'o' });
+	});
+});
+---
+
+<svg
+	viewBox="0 0 64 64"
+	width="24"
+	height="24"
+	class:list={['block', className]}
+	aria-hidden="true"
+>
+	{
+		cells.map((c) => (
+			<rect
+				x={(2 + c.x) * 4}
+				y={(4 + c.y) * 4}
+				width="4.1"
+				height="4.1"
+				class={c.bar ? 'fill-brand' : 'fill-current'}
+			/>
+		))
+	}
+</svg>

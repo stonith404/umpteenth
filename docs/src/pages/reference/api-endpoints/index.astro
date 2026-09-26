@@ -1,0 +1,80 @@
+---
+// The API reference: every route of the spec on one page, grouped by resource, with the page's table of contents as the index
+import AnchorHeading from '@astrojs/starlight/components/AnchorHeading.astro';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import '../../../styles/api.css';
+import Method from '../../../components/api/Method.astro';
+import Operation from '../../../components/api/Operation.astro';
+import Path from '../../../components/api/Path.astro';
+import { groups } from '../../../components/api/spec';
+
+const all = groups();
+
+// Routes the REST API page and the guides walk through with examples, linked from their entry here
+const guides: Record<string, { text: string; href: string }> = {
+	'run-job': { text: 'Start a run', href: '../api/#start-a-run' },
+	'get-run': { text: 'Read a run', href: '../api/#read-a-run' },
+	'list-run-events': { text: 'Timeline and live stream', href: '../api/#timeline-and-live-stream' },
+	'stream-run': { text: 'Timeline and live stream', href: '../api/#timeline-and-live-stream' },
+	'list-run-artifacts': { text: 'Artifacts', href: '../api/#artifacts' },
+	'get-run-artifact': { text: 'Artifacts', href: '../api/#artifacts' },
+	'cancel-run': { text: 'Cancel, retry and learn', href: '../api/#cancel-retry-and-learn' },
+	'retry-run': { text: 'Cancel, retry and learn', href: '../api/#cancel-retry-and-learn' },
+	'learn-from-run': { text: 'Cancel, retry and learn', href: '../api/#cancel-retry-and-learn' },
+	'rotate-webhook-token': { text: 'Webhooks', href: '../api/#webhooks' },
+	'trigger-webhook': { text: 'Triggers and schedules', href: '../../guides/triggers/#webhooks' }
+};
+
+// The table of contents lists each resource and its routes, which makes it the index a long reference needs
+const headings = all.flatMap((group) => [
+	{ depth: 2, slug: group.id, text: group.name },
+	...group.operations.map((op) => ({ depth: 3, slug: op.id, text: op.summary }))
+]);
+---
+
+<StarlightPage
+	frontmatter={{
+		title: 'API endpoints',
+		description: 'Every route of the Umpteenth REST API on one page, grouped by resource, with its parameters, request body and response fields.',
+		editUrl: false,
+		lastUpdated: false
+	}}
+	headings={headings}
+>
+	<p>
+		Every route of the REST API, with the parameters it takes and the fields it answers with.
+		The page comes from the backend's OpenAPI spec at every docs build, so it lists what the code serves.
+	</p>
+	<p>
+		Send an API token as a bearer token with each call.{' '}
+		<a href="../api/">REST API</a> covers tokens, the error shape every failed call shares, and scripting a run from start to finish.
+		Your instance serves the spec at <code>/api/openapi.json</code>, and <a href="/openapi.json">this copy</a> suits Postman, code generators and AI assistants.
+	</p>
+
+	{
+		all.map((group) => (
+			<>
+				<AnchorHeading level={2} id={group.id}>
+					{group.name}
+				</AnchorHeading>
+				{/* A compact index of the group's routes, which reads like the route table of a router */}
+				<ul class="not-content api-index">
+					{group.operations.map((op) => (
+						<li>
+							<a href={`#${op.id}`}>
+								<Method method={op.method} />
+								<span>
+									<Path path={op.path} />
+									{op.summary}
+								</span>
+							</a>
+						</li>
+					))}
+				</ul>
+				{group.operations.map((op) => (
+					<Operation operation={op} guide={guides[op.id]} />
+				))}
+			</>
+		))
+	}
+</StarlightPage>

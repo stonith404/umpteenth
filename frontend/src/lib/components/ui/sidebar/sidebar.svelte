@@ -1,0 +1,145 @@
+<script lang="ts">
+	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import { cn, type WithElementRef } from '$lib/utils/style.js';
+	import { SIDEBAR_WIDTH_MOBILE } from './constants.js';
+	import { useSidebar } from './context.svelte.js';
+	import type { HTMLAttributes } from 'svelte/elements';
+
+	let {
+		ref = $bindable(null),
+		side = 'left',
+		variant = 'sidebar',
+		collapsible = 'offcanvas',
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
+		side?: 'left' | 'right';
+		variant?: 'sidebar' | 'floating' | 'inset';
+		collapsible?: 'offcanvas' | 'icon' | 'none';
+	} = $props();
+
+	const sidebar = useSidebar();
+
+	const iconGapWidth = $derived(
+		variant === 'floating' || variant === 'inset'
+			? 'w-[calc(var(--sidebar-width-icon)_+_(--spacing(4)))]'
+			: 'w-(--sidebar-width-icon)'
+	);
+	// Below the wide breakpoint the page always keeps the rail's width, and the expanded sidebar floats over it
+	const floats = $derived(!sidebar.isWide && collapsible === 'icon');
+
+	// The floating sidebar goes away with Escape, or when keyboard focus moves on to the page it covers
+	function onOverlayKeydown(e: KeyboardEvent) {
+		if (sidebar.overlay && e.key === 'Escape') {
+			e.preventDefault();
+			sidebar.setOpen(false);
+		}
+	}
+	function onOverlayFocusout(e: FocusEvent) {
+		const next = e.relatedTarget;
+		if (sidebar.overlay && next instanceof Element && next.closest('[data-slot=sidebar-inset]')) {
+			sidebar.setOpen(false);
+		}
+	}
+</script>
+
+{#if collapsible === 'none'}
+	<div
+		class={cn(
+			'flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground',
+			className
+		)}
+		bind:this={ref}
+		{...restProps}
+	>
+		{@render children?.()}
+	</div>
+{:else if sidebar.isMobile}
+	<Sheet.Root bind:open={() => sidebar.openMobile, (v) => sidebar.setOpenMobile(v)} {...restProps}>
+		<Sheet.Content
+			bind:ref
+			data-sidebar="sidebar"
+			data-slot="sidebar"
+			data-mobile="true"
+			class={cn(
+				// Unlike other sheets the navigation stays a drawer on phones, so the page shows beside it and a tap there closes it
+				'w-(--sidebar-width) data-[side=left]:w-(--sidebar-width) data-[side=right]:w-(--sidebar-width) sm:data-[side=left]:w-(--sidebar-width) sm:data-[side=right]:w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden',
+				className
+			)}
+			style="--sidebar-width: {SIDEBAR_WIDTH_MOBILE};"
+			{side}
+		>
+			<Sheet.Header class="sr-only">
+				<Sheet.Title>Navigation</Sheet.Title>
+			</Sheet.Header>
+			<div class="flex h-full w-full flex-col">
+				{@render children?.()}
+			</div>
+		</Sheet.Content>
+	</Sheet.Root>
+{:else}
+	<div
+		bind:this={ref}
+		class="group peer hidden text-sidebar-foreground md:block"
+		data-state={sidebar.state}
+		data-collapsible={sidebar.state === 'collapsed' ? collapsible : ''}
+		data-variant={variant}
+		data-side={side}
+		data-slot="sidebar"
+	>
+		<!-- This is what handles the sidebar gap on desktop -->
+		<div
+			data-slot="sidebar-gap"
+			class={cn(
+				'relative w-(--sidebar-width) bg-transparent transition-[width] duration-(--sidebar-duration) ease-(--sidebar-easing)',
+				'group-data-[collapsible=offcanvas]:w-0',
+				'group-data-[side=right]:rotate-180',
+				variant === 'floating' || variant === 'inset'
+					? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_(--spacing(4)))]'
+					: 'group-data-[collapsible=icon]:w-(--sidebar-width-icon)',
+				floats && iconGapWidth
+			)}
+		></div>
+		{#if floats}
+			<!-- Like the phone drawer's backdrop it sets the page back, and a tap on it closes the sidebar rather than reaching the page -->
+			<!-- It is hidden from assistive technology, since keyboard users close the sidebar with Escape inside it -->
+			<div
+				data-slot="sidebar-scrim"
+				aria-hidden="true"
+				class={cn(
+					'bg-recessed/80 fixed inset-0 z-30 transition-opacity duration-(--sidebar-duration) ease-(--sidebar-easing)',
+					sidebar.overlay ? 'opacity-100' : 'pointer-events-none opacity-0'
+				)}
+				onclick={() => sidebar.setOpen(false)}
+			></div>
+		{/if}
+		<div
+			data-slot="sidebar-container"
+			data-side={side}
+			data-overlay={sidebar.overlay || undefined}
+			class={cn(
+				'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-(--sidebar-duration) ease-(--sidebar-easing) data-[side=left]:start-0 data-[side=left]:group-data-[collapsible=offcanvas]:start-[calc(var(--sidebar-width)_*_-1)] data-[side=right]:end-0 data-[side=right]:group-data-[collapsible=offcanvas]:end-[calc(var(--sidebar-width)_*_-1)] md:flex',
+				// Adjust the padding for floating and inset variants.
+				variant === 'floating' || variant === 'inset'
+					? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_(--spacing(4))_+_2px)]'
+					: 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-e group-data-[side=right]:border-s',
+				// A floating sidebar stays above the page's sticky header and the scrim through its whole collapse, and its shadow fades as it narrows back into the rail
+				floats && 'z-40 transition-[left,right,width,box-shadow] data-overlay:shadow-lg',
+				className
+			)}
+			onkeydown={onOverlayKeydown}
+			onfocusout={onOverlayFocusout}
+			{...restProps}
+		>
+			<!-- Contents keep their expanded layout while the panel narrows and clips them, so nothing wraps or jumps mid-transition -->
+			<div
+				data-sidebar="sidebar"
+				data-slot="sidebar-inner"
+				class="bg-sidebar group-data-[variant=floating]:ring-sidebar-border group-data-[variant=floating]:rounded-2xl group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 flex size-full flex-col overflow-hidden whitespace-nowrap"
+			>
+				{@render children?.()}
+			</div>
+		</div>
+	</div>
+{/if}

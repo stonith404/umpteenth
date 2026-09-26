@@ -1,0 +1,25 @@
+# The app image only builds from the workspace manifests, the frontend and the backend, so everything else stays out of the build context
+*
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!frontend
+!backend
+
+# Dependencies and build output are recreated in the image, and local copies would be merged into it
+**/node_modules
+frontend/.svelte-kit
+backend/bin
+backend/frontend/dist/*
+!backend/frontend/dist/.gitkeep
+backend/internal/sandbox/umpbin/bin/*
+!backend/internal/sandbox/umpbin/bin/.gitkeep
+
+# Local data, config and env files hold secrets
+backend/data
+backend/config.yml
+backend/config.yaml
+**/.env
+**/.env.*
+
+**/.DS_Store

@@ -1,0 +1,272 @@
+---
+// The sections below the hero: how a job graduates, example jobs, the story behind the name, the feature grid and a closing call to action
+import lockupReveal from "../../assets/lockup-reveal.svg?raw";
+import { bayer } from "../diagrams/dither";
+import UseCases from "./UseCases.astro";
+import { button } from "./button";
+
+// The animated lockup carries a fixed size, which would fight the CSS size below, so it is stripped before inlining
+const unsized = (svg: string) =>
+  svg.replace(/ width="[^"]+" height="[^"]+"/, "");
+
+// Small density fields drawn with the mark's dither, one per run mode
+const field = (
+  w: number,
+  h: number,
+  cell: (x: number, y: number) => number | "bar",
+) => {
+  const cells: { x: number; y: number; cls: string }[] = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const v = cell(x, y);
+      if (v === "bar") cells.push({ x, y, cls: "fill-brand" });
+      else if (bayer[y % 4][x % 4] < v * 16)
+        cells.push({ x, y, cls: "fill-current" });
+    }
+  }
+  return cells;
+};
+const steps = [
+  {
+    mode: "Explore",
+    title: "Describe it",
+    text: "Write the job like you would brief a colleague. A compile step turns it into a schedule, success criteria, outputs and the MCP servers it needs, and you confirm before saving.",
+    cells: field(12, 6, () => 0.25),
+  },
+  {
+    mode: "Assisted",
+    title: "Run it in a sandbox",
+    text: "Every run gets a fresh container with resource limits, no capabilities by default and a network policy. The agent works with shell tools and your MCP servers, and every step is recorded with its cost.",
+    cells: field(12, 6, (x) => (x >= 9 ? "bar" : (x + 1) / 9)),
+  },
+  {
+    mode: "Scripted",
+    title: "Let it learn",
+    text: "After a run, reflection writes down what the job learned: notes, tested scripts, installs moved into its Dockerfile. Once three successful runs in a row take the same steps, it can graduate to a script that runs without the agent.",
+    cells: field(12, 6, () => "bar"),
+  },
+];
+const features = [
+  {
+    title: "Plain-language jobs",
+    text: "No workflow builder. The instruction is the job, and the compile step derives everything else for you to confirm.",
+  },
+  {
+    title: "Any trigger",
+    text: "Cron schedules with time zones, authenticated webhooks, the API, or a manual run with input.",
+  },
+  {
+    title: "Isolated sandboxes",
+    text: "A fresh container per run, non-root with every capability dropped by default, and gVisor as a second kernel boundary if you want it.",
+  },
+  {
+    title: "Egress control",
+    text: "Internet sandboxes go out through an egress proxy that keeps them off private networks, the Docker host and cloud metadata. Limit a job to a list of domains, or give it no network at all.",
+  },
+  {
+    title: "Per-job environments",
+    text: "A job can carry its own Dockerfile. The image is built once and cached, so tools are not installed on every run.",
+  },
+  {
+    title: "MCP servers",
+    text: "HTTP and stdio servers with a per-job tool allow-list. HTTP server credentials stay on the host, and stdio servers run as a separate user from the agent.",
+  },
+  {
+    title: "Any model",
+    text: "The Anthropic API or any OpenAI-compatible endpoint: OpenAI, OpenRouter, Ollama, vLLM, LM Studio.",
+  },
+  {
+    title: "Cost control",
+    text: "Per-run cost, turn and time limits, a daily spend cap for the workspace, and per-model pricing on every run.",
+  },
+  {
+    title: "Runs you can read",
+    text: "A live timeline of model calls, tool calls and outputs for every run. Playbook changes are versions you can diff and roll back.",
+  },
+];
+
+// Shared type for every section: the headings, the eyebrow above them and the lede below
+const section = "py-[clamp(3.5rem,8vw,6.5rem)]";
+const wrap = "max-w-[72rem] mx-auto px-6";
+const eyebrow = "m-0 mb-3 text-sm font-medium text-gray-3 leading-[1.55]";
+const h2 =
+  "font-display font-semibold text-[clamp(1.75rem,3.6vw,2.5rem)] leading-[1.1] tracking-[-0.015em] text-fg m-0 mb-4 text-balance";
+const lede = "text-lg leading-[1.55] text-gray-3 m-0 text-pretty";
+const h3 = "text-lg font-semibold text-fg m-0 mb-2 leading-[1.3]";
+const p = "text-gray-3 leading-[1.55] m-0";
+// Both the steps and the features sit in one hairline grid, the way the dashboard lays out its panels
+const panels =
+  "list-none m-0 mt-10 p-0 grid gap-px bg-surface-border border border-surface-border rounded-lg overflow-hidden";
+---
+
+{/* How it works */}
+<section class:list={[section, "border-t border-hairline"]}>
+  <div class={wrap}>
+    <p class={eyebrow}>How it works</p>
+    <h2 class:list={[h2, "max-w-[36rem]"]}>Three steps to the optimal job.</h2>
+    <p class:list={[lede, "max-w-[38rem]"]}>
+      A job starts as an agent exploring. It ends as a script, with the agent on
+      call. Every run in between makes the next one cheaper.
+    </p>
+    <ol class:list={[panels, "md:grid-cols-[repeat(3,1fr)]"]}>
+      {
+        steps.map((s, i) => (
+          <li class="bg-surface p-6">
+            <div class="flex items-center justify-between mb-5">
+              <svg
+                class="w-24 h-12 text-fg"
+                viewBox="0 0 48 24"
+                aria-hidden="true"
+              >
+                {s.cells.map((c) => (
+                  <rect
+                    x={c.x * 4}
+                    y={c.y * 4}
+                    width="4.15"
+                    height="4.15"
+                    class={c.cls}
+                  />
+                ))}
+              </svg>
+              <span class="font-mono text-xs text-gray-3">{s.mode}</span>
+            </div>
+            <h3 class={h3}>
+              <span class="inline-grid place-items-center size-6 mr-2 rounded-md bg-gray-7 text-gray-2 font-mono text-xs align-[0.1em]">
+                {i + 1}
+              </span>
+              {s.title}
+            </h3>
+            <p class={p}>{s.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+{/* Use cases */}
+<section class:list={[section, "border-t border-hairline"]}>
+  <div class={wrap}>
+    <p class={eyebrow}>Use cases</p>
+    <h2 class:list={[h2, "max-w-[36rem]"]}>
+      The legwork, done before anyone looks.
+    </h2>
+    <p class:list={[lede, "max-w-[38rem]"]}>
+      An alert, a release or the clock starts the job. The agent gathers the
+      context from your tools and puts its findings where you look first.
+    </p>
+    <UseCases />
+  </div>
+</section>
+
+{/* The brand band stays ink in both themes, so the lime has a home */}
+<section class:list={[section, "bg-ink text-paper"]}>
+  <div
+    class:list={[
+      wrap,
+      "grid gap-10 items-center *:min-w-0 min-[60rem]:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] min-[60rem]:gap-16",
+    ]}
+  >
+    {
+      /* The reveal waits until the band is on screen, otherwise it would have played before anyone scrolled to it */
+    }
+    {
+      /* The pause needs !important because the lockup's own unlayered style sets the animation, and unlayered rules beat Tailwind's layered utilities */
+    }
+    <div
+      class="[&_svg]:h-[clamp(3.5rem,8vw,6rem)] [&_svg]:w-auto [&_svg]:block [&:not(.in-view)_[class^=lk]]:[animation-play-state:paused]!"
+      data-reveal
+      set:html={unsized(lockupReveal)}
+    />
+    <div>
+      <p
+        class="font-display font-medium text-[clamp(1.25rem,2.4vw,1.75rem)] leading-[1.3] tracking-[-0.01em] text-paper m-0 mb-4 text-pretty"
+      >
+        Named for the lazy developer's instinct. Do it by hand once and take
+        notes. Script the boring parts the second time. Keep trimming until the
+        job runs itself, and only get up when something breaks.
+      </p>
+      <p class="text-tile-subtle text-base leading-[1.55] m-0">
+        Umpteenth does the same on a schedule, with a receipt for every run, and
+        it never forgets what it learned.
+      </p>
+    </div>
+  </div>
+</section>
+
+{/* Features */}
+<section class={section}>
+  <div class={wrap}>
+    <p class={eyebrow}>What you get</p>
+    <h2 class:list={[h2, "max-w-[36rem]"]}>
+      Everything a recurring job needs, none of the ceremony.
+    </h2>
+    <ul
+      class:list={[
+        panels,
+        "sm:grid-cols-[repeat(2,1fr)] min-[60rem]:grid-cols-[repeat(3,1fr)]",
+      ]}
+    >
+      {
+        features.map((f) => (
+          <li class="bg-surface p-6">
+            <span
+              class="block size-[10px] mb-5 ml-[14px] bg-brand [box-shadow:-14px_0_0_-2px_color-mix(in_oklch,var(--sl-color-white),transparent_70%)]"
+              aria-hidden="true"
+            />
+            <h3 class={h3}>{f.title}</h3>
+            <p class:list={[p, "text-sm"]}>{f.text}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+{/* Closing call to action */}
+<section class:list={[section, "border-t border-hairline text-center"]}>
+  <div class:list={[wrap, "grid justify-items-center"]}>
+    <h2 class={h2}>Give it the job you are tired of.</h2>
+    <p class={lede}>
+      Describe it once. By the umpteenth time, it runs itself.
+    </p>
+    <div class="flex flex-wrap gap-3 mt-7">
+      <a class={button.primary} href="/getting-started/installation/">
+        Install
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M5 12h14M13 6l6 6-6 6"></path>
+        </svg>
+      </a>
+      <a class={button.secondary} href="https://github.com/stonith404/umpteenth"
+        >GitHub</a
+      >
+    </div>
+  </div>
+</section>
+
+<script>
+  // Start the lockup reveal the first time the brand band scrolls into view
+  const reveal = document.querySelector("[data-reveal]");
+  if (reveal) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          reveal.classList.add("in-view");
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(reveal);
+  }
+</script>

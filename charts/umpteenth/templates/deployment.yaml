@@ -1,0 +1,240 @@
+{{- include "umpteenth.validate" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "umpteenth.fullname" . }}
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    {{- if and (include "umpteenth.databaseSecret" .) (not .Values.persistence.enabled) }}
+    # Replicas on Postgres join the cluster by themselves, so a new one starts before an old one leaves and the others keep serving
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+    {{- else }}
+    # One replica owns the data directory, so the old one stops before the new one starts
+    type: Recreate
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "umpteenth.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "umpteenth.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # Pods restart when the config changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "umpteenth.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # No Docker socket, so the server runs without root
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if and .Values.postgresql.enabled (not .Values.database.connectionString) (not .Values.database.existingSecret) }}
+      # The server exits when it can't reach its database, so it waits for the bundled one instead of restarting until it is up
+      initContainers:
+        - name: wait-for-postgres
+          image: {{ .Values.postgresql.image }}
+          command: [sh, -c, 'until pg_isready -q -h "$0" -p 5432; do sleep 1; done', {{ printf "%s-postgresql" (include "umpteenth.fullname" .) | quote }}]
+          securityContext:
+            runAsUser: 70
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      {{- end }}
+      containers:
+        - name: umpteenth
+          image: {{ include "umpteenth.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [serve]
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: broker
+              containerPort: 8081
+            - name: actors
+              containerPort: 7571
+              protocol: UDP
+          env:
+            - name: APP_URL
+              value: {{ .Values.app.url | quote }}
+            - name: APP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.app.encryptionKey.existingSecret | default (include "umpteenth.fullname" .) }}
+                  key: encryption-key
+            {{- with (include "umpteenth.databaseSecret" .) }}
+            - name: DATABASE_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ include "umpteenth.databaseSecretKey" $ }}
+            {{- end }}
+            - name: FILE_STORAGE_BACKEND
+              value: {{ .Values.fileStorage.backend | quote }}
+            - name: SERVER_TRUST_PROXY
+              value: {{ .Values.server.trustProxy | quote }}
+            # Replicas find each other by pod IP and name themselves after their pod
+            - name: HA_REPLICA_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HA_ACTORS_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            # Sandboxes are pods, which reach this replica's broker by its pod IP
+            - name: SANDBOX_ADAPTER
+              value: kubernetes
+            - name: SANDBOX_BROKER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SANDBOX_KUBERNETES_NAMESPACE
+              value: {{ include "umpteenth.sandboxNamespace" . | quote }}
+            # Sandboxes get the ump CLI of this very image
+            - name: SANDBOX_KUBERNETES_BOOTSTRAP_IMAGE
+              value: {{ include "umpteenth.image" . | quote }}
+            - name: SANDBOX_ALLOW_UNRESTRICTED_NETWORK
+              value: {{ .Values.sandbox.allowUnrestrictedNetwork | quote }}
+            - name: SANDBOX_KUBERNETES_REQUIRE_NETWORK_POLICY
+              value: {{ .Values.sandbox.requireNetworkPolicy | quote }}
+            {{- with .Values.sandbox.image }}
+            - name: SANDBOX_IMAGE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.sandbox.runtimeClass }}
+            - name: SANDBOX_KUBERNETES_RUNTIME_CLASS
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if include "umpteenth.buildkit" . }}
+            - name: SANDBOX_KUBERNETES_BUILDKIT_ADDRESS
+              value: {{ printf "tcp://%s-buildkit.%s.svc:1234" (include "umpteenth.fullname" .) (include "umpteenth.sandboxNamespace" .) | quote }}
+            {{- end }}
+            {{- with .Values.sandbox.buildImage }}
+            - name: SANDBOX_KUBERNETES_BUILD_IMAGE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.sandbox.clusterRanges }}
+            - name: SANDBOX_KUBERNETES_CLUSTER_RANGES
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- with .Values.sandbox.nodeSelector }}
+            - name: SANDBOX_KUBERNETES_NODE_SELECTOR
+              value: {{ include "umpteenth.nodeSelectorList" . | quote }}
+            {{- end }}
+            {{- with .Values.sandbox.tolerations }}
+            - name: SANDBOX_KUBERNETES_TOLERATIONS
+              value: {{ include "umpteenth.tolerationList" . | quote }}
+            {{- end }}
+            {{- with .Values.sandbox.registry }}
+            {{- if .repository }}
+            - name: SANDBOX_REGISTRY_REPOSITORY
+              value: {{ .repository | quote }}
+            - name: SANDBOX_KUBERNETES_INSECURE_REGISTRY
+              value: {{ .insecure | quote }}
+            {{- if .username }}
+            - name: SANDBOX_REGISTRY_USERNAME
+              value: {{ .username | quote }}
+            - name: SANDBOX_REGISTRY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .existingSecret | default (include "umpteenth.fullname" $) }}
+                  key: registry-password
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          # The server applies migrations before it listens, which the startup probe waits for
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 90
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            failureThreshold: 4
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yml
+              subPath: config.yml
+              readOnly: true
+            - name: data
+              mountPath: /app/data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "umpteenth.fullname" . }}
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "umpteenth.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
