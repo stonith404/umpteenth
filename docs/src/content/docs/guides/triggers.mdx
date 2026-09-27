@@ -1,0 +1,115 @@
+---
+title: Triggers and schedules
+seoTitle: Cron schedules, webhooks and API triggers
+description: Start runs by hand, on a cron schedule, from a webhook or through the API, and choose what happens when runs overlap.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+import TriggerFlow from '../../../components/diagrams/TriggerFlow.astro';
+import Screenshot from '../../../components/Screenshot.astro';
+
+A run starts in one of five ways: **Run now** on the job page, the job's schedule, its webhook, the REST API, or **Retry** on an earlier run ([Reading a run](../runs/#stop-retry-and-learn)).
+Every trigger passes the job's overlap policy, which sets what happens while another of its runs is active.
+
+<TriggerFlow />
+
+## Run now
+
+**Run now** in the job header opens a dialog whose two optional fields apply to this one run.
+
+**Extra instructions** takes up to 10,000 characters of guidance, such as "Only look at pull requests opened this week".
+The agent reads it after the job's own instruction, and a graduated job's main script ignores it.
+
+**Input** takes JSON, which the run reads from `/ump/input.json`.
+For a job that declares inputs, the field starts with a template of them, and for any other job **Add input JSON** opens it.
+
+## Schedules
+
+Turn on **Run on a schedule** in the **Schedule** card of the job's **Settings** tab.
+The switch starts you off with `0 9 * * *` in your browser's time zone.
+
+**Cron expression** takes five fields (minute, hour, day of month, month, day of week) or a descriptor such as `@daily` or `@hourly`.
+Cron expressions are easier to write than to read, so the **Presets** menu covers the common ones and the card repeats your schedule in plain words, such as "Weekdays at 08:00".
+There is no seconds field, so the tightest schedule is once a minute.
+
+**Timezone** takes an IANA name such as `Europe/Berlin`, and a schedule without one runs in UTC.
+If Umpteenth was down when an occurrence came due, the job runs once as soon as Umpteenth is back, however many occurrences it missed.
+
+## Webhooks
+
+To start a run from another system, send an HTTP POST to the job's webhook.
+The request body becomes the run's input.
+
+<Steps>
+
+1. Open the job's **Settings** tab and find the **Webhook** card.
+   A new job shows **No token**, and its webhook refuses every call until you create one.
+
+2. Click **Generate token**.
+   The **Webhook token** dialog shows the token, which starts with `umh_`, and an example call.
+   Copy the token now, since Umpteenth shows it only this once.
+
+3. Call the URL from the card, `https://umpteenth.example.com/hooks/<job ID>`, with the token as a bearer token.
+
+</Steps>
+
+<Screenshot name="webhook-token" alt="The Webhook token dialog with the token, a copyable example curl call and a warning that the token won't be shown again" />
+
+```bash
+curl -X POST "https://umpteenth.example.com/hooks/$JOB_ID" \
+  -H "Authorization: Bearer $WEBHOOK_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"tag": "v2.4.0"}'
+```
+
+The card builds the URL from the address you opened Umpteenth at.
+A caller outside your network, such as GitHub or an online shop, needs your public HTTPS address, which a [reverse proxy](../../deployment/reverse-proxy/) provides.
+
+The body is optional and takes up to 1 MiB.
+Umpteenth writes a JSON body to `/ump/input.json` as it is and wraps anything else in a JSON string, and an empty body gives `{}`.
+The webhook has no field for extra instructions, so anything a run needs goes into the body.
+
+A successful call answers `{"runId": "…", "status": "queued"}`, with `"skipped"` as the status when the overlap policy skipped the run.
+A wrong or rotated token gets `401`.
+Umpteenth limits each job's webhook to a sustained 60 calls a minute and answers `429` beyond that, with the seconds to wait in the `Retry-After` header.
+
+**Rotate token** replaces the token, and the old one stops working at once, so update every caller right after you rotate.
+
+### From GitHub Actions
+
+GitHub's repository webhooks can't send an `Authorization` header, so call the webhook from a workflow step, with the URL stored as a repository variable and the token as a repository secret:
+
+```yaml title=".github/workflows/release-notes.yml"
+on:
+  release:
+    types: [published]
+
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start the release notes job
+        run: |
+          curl -fsS -X POST "${{ vars.RELEASE_NOTES_WEBHOOK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.RELEASE_NOTES_WEBHOOK_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"repository": "${{ github.repository }}", "tag": "${{ github.event.release.tag_name }}"}'
+```
+
+## The API
+
+Scripts and other services start runs with `POST /api/jobs/<job ID>/runs` and an API token from **Settings → API tokens**.
+The body takes the same two optional fields as **Run now**, `input` and `instructions`, and the answer has the webhook's shape ([REST API](../../reference/api/#start-a-run)).
+
+## Overlapping runs
+
+The **When runs overlap** setting in the **Schedule** card sets what happens to a trigger that arrives while another run of the job is active:
+
+- **Skip**, the default, records the new run as **Skipped**.
+- **Queue** holds the new run as **Queued** until the active run ends, whatever its outcome.
+  Queued runs start one at a time, in the order of their triggers.
+- **Parallel** starts every run right away.
+  Parallel runs share the job's [state](../jobs/#job-state), so they can overwrite each other's values.
+
+Apart from the policy, each Umpteenth replica executes at most `runs.max_concurrent` runs at once, 3 by default ([Configuration](../../deployment/configuration/#runs)).
+Runs beyond that wait as **Queued** until a slot frees up, and their timeout starts only then.

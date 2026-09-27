@@ -1,0 +1,23 @@
+Umpteenth is starting with {{ .Values.replicaCount }} {{ if eq (int .Values.replicaCount) 1 }}replica{{ else }}replicas{{ end }}{{ if gt (int .Values.replicaCount) 1 }} in high availability mode{{ end }}.
+
+Open it at {{ .Values.app.url }}
+{{- if not .Values.ingress.enabled }}
+No ingress is enabled, so expose the {{ include "umpteenth.fullname" . }} Service yourself, or try it with:
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "umpteenth.fullname" . }} 8080:{{ .Values.service.port }}
+{{- end }}
+
+Sandboxes run as pods in the {{ include "umpteenth.sandboxNamespace" . }} namespace.
+{{- if not .Values.networkPolicy.enabled }}
+WARNING: networkPolicy.enabled is off, so sandboxes can reach everything in the cluster, and sandboxes refuse to start while sandbox.requireNetworkPolicy is on.
+{{- end }}
+{{- if not .Values.sandbox.registry.repository }}
+No sandbox.registry.repository is set, so jobs can't use Dockerfiles.
+{{- end }}
+{{- if .Values.postgresql.enabled }}
+{{- if and (not .Values.database.connectionString) (not .Values.database.existingSecret) }}
+The bundled Postgres keeps its data in a PersistentVolumeClaim; back it up like any database.
+{{- end }}
+{{- end }}
+{{- if not .Values.app.encryptionKey.existingSecret }}
+The encryption key was generated into the {{ include "umpteenth.fullname" . }} Secret, which uninstalling keeps. Back it up, since stored secrets can't be decrypted without it.
+{{- end }}

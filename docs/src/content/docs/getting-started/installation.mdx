@@ -1,0 +1,174 @@
+---
+title: Install with Docker
+seoTitle: Install with Docker Compose
+description: Run Umpteenth on one host with Docker Compose from the published images, sign in through your identity provider or GitHub, and connect a model.
+next:
+  link: /getting-started/first-job/
+  label: Your first job
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+Set up Umpteenth on one host with Docker Compose, from an empty directory to a signed-in instance with a working model.
+This setup keeps its SQLite database and its files in `./data` next to the compose file, so you need no database server.
+On a Kubernetes cluster, [install the Helm chart](../kubernetes/) instead.
+
+## Requirements
+
+- A host with Docker Engine and Docker Compose on amd64 (x86-64) or arm64.
+- An OpenID Connect identity provider, such as [Pocket ID](https://pocket-id.org), Authentik, Keycloak or Zitadel, or a GitHub account to sign in with.
+- An Anthropic API key, or an OpenAI-compatible API such as OpenAI, OpenRouter, Ollama or LM Studio.
+
+## Set up
+
+<Steps>
+
+1. Create a directory for Umpteenth and a `docker-compose.yml` in it.
+
+   ```bash
+   mkdir umpteenth && cd umpteenth
+   ```
+
+   ```yaml title="docker-compose.yml"
+   services:
+     umpteenth:
+       image: ghcr.io/stonith404/umpteenth:latest
+       container_name: umpteenth
+       restart: unless-stopped
+       ports:
+         - "8080:8080"
+       volumes:
+         - ./config.yml:/app/config.yml:ro
+         - ./data:/app/data
+         - /var/run/docker.sock:/var/run/docker.sock
+   ```
+
+   Umpteenth creates each run's sandbox through the Docker socket.
+
+2. Generate an encryption key of at least 16 bytes.
+
+   ```bash
+   openssl rand -base64 32
+   ```
+
+   Umpteenth encrypts your secrets, model API keys and MCP logins with the key and signs sessions with it.
+   Keep a copy with your backups: under a different key, Umpteenth can't decrypt what it stored, and everyone has to sign in again.
+
+3. Register Umpteenth with a sign-in provider.
+
+   Umpteenth has no passwords of its own, so you sign in through an identity provider or with GitHub.
+   [Sign-in](../../deployment/sign-in/) shows how to register Umpteenth with either, and you come back with a client ID and a client secret.
+
+   For a first try on your own machine, pick GitHub, since a GitHub OAuth app accepts a callback on `http://localhost:8080`.
+   An identity provider such as Pocket ID needs an HTTPS address that both your browser and the Umpteenth container reach.
+
+4. Create `config.yml` next to `docker-compose.yml`, with the key and the provider.
+
+   <Tabs syncKey="sign-in">
+   <TabItem label="OpenID Connect">
+
+   ```yaml title="config.yml"
+   app:
+     url: http://localhost:8080
+     encryption_key: "<the key from step 2>"
+
+   auth:
+     providers:
+       pocket-id:
+         type: oidc
+         name: Pocket ID
+         issuer: https://id.example.com
+         client_id: "<client ID>"
+         client_secret: "<client secret>"
+   ```
+
+   </TabItem>
+   <TabItem label="GitHub">
+
+   ```yaml title="config.yml"
+   app:
+     url: http://localhost:8080
+     encryption_key: "<the key from step 2>"
+
+   auth:
+     providers:
+       github:
+         type: github
+         name: GitHub
+         client_id: "<client ID>"
+         client_secret: "<client secret>"
+         allowed_users: [octocat]
+   ```
+
+   </TabItem>
+   </Tabs>
+
+   `app.url` is the address you open Umpteenth at, and your sign-in provider sends you back to it:
+
+   - On the machine that runs Docker, keep `http://localhost:8080`.
+   - From another computer on your network, use the host's address, such as `http://192.168.1.10:8080`.
+   - On a server that others reach, set its HTTPS address, such as `https://umpteenth.example.com`, and set up the [reverse proxy](../../deployment/reverse-proxy/) before you sign in.
+     With an `https://` address, Umpteenth marks the session cookie as Secure, so a sign-in over plain HTTP on port 8080 fails.
+
+   Everyone who gets through the provider joins your workspace, with every job and secret in it.
+   A `github` provider admits only the accounts you list, and [Sign-in](../../deployment/sign-in/#openid-connect) shows how to limit an identity provider to a group.
+
+   Every other option has a default, which [Configuration](../../deployment/configuration/) lists.
+
+5. Start Umpteenth.
+
+   ```bash
+   docker compose up -d
+   ```
+
+   On its first start, Umpteenth pulls the default sandbox image, `ghcr.io/stonith404/umpteenth-sandbox:latest`, which takes a moment.
+   The log shows `Server listening` once Umpteenth is up:
+
+   ```bash
+   docker compose logs umpteenth
+   ```
+
+   A missing or invalid option stops the start with an error that names it, such as `app.encryption_key (APP_ENCRYPTION_KEY) is required`.
+
+6. Open `app.url` in your browser and click your provider's button, such as **Sign in with Pocket ID**.
+
+   As the first to sign in, you own the workspace, and the **Dashboard** shows **Nothing to show yet** until your first job runs.
+   If sign-in fails, the login page shows the reason.
+
+</Steps>
+
+:::caution[Before you open it up]
+The Docker socket gives Umpteenth root access to the host.
+Read [Security](../../deployment/security/) before you run jobs you didn't write, and put Umpteenth behind HTTPS with a [reverse proxy](../../deployment/reverse-proxy/) before anyone else signs in.
+:::
+
+## Connect a model
+
+A fresh instance has no model providers, so jobs have nothing to run on until you add one.
+
+<Steps>
+
+1. Open **Settings → Providers & models** and click **Add provider**.
+   Keep the **Anthropic** kind, paste your key into **API key** and click **Add provider**.
+
+2. Click **Test** on the new row, pick a model and click **Send test prompt**.
+   **Replied in** with the model's answer means the key works, and **Failed after** shows the provider's error.
+
+3. Open **Settings → General**, pick a model for **Agent** under **Default models**, such as Claude Opus 5.5, and click **Save**.
+   A cheaper **Utility** model, such as Claude Haiku 4.5, compiles jobs and checks results for less, and without one the Agent model does that work.
+
+</Steps>
+
+<Screenshot
+	name="settings-providers"
+	alt="Settings, Providers & models tab, with the Anthropic provider and its Claude models"
+/>
+
+For another provider, choose **OpenAI-compatible** and a preset in step 1.
+[Models and costs](../../guides/models/) explains the model roles and how to connect a local server such as Ollama.
+
+## Next steps
+
+Your instance is ready for [your first job](../first-job/).
+To make it reachable for others over HTTPS, continue with [Reverse proxy](../../deployment/reverse-proxy/).

@@ -1,0 +1,15 @@
+apiVersion: v2
+name: umpteenth
+description: Self-hosted agent jobs that run in sandboxes and turn into scripts, with every run's sandbox a pod
+type: application
+home: https://umpteenth.dev
+sources:
+  - https://github.com/stonith404/umpteenth
+icon: https://umpteenth.dev/favicon.svg
+# The release workflow sets both to the released version
+version: 0.0.0
+appVersion: "0.0.0"
+keywords:
+  - agents
+  - automation
+  - sandbox

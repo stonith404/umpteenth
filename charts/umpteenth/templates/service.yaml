@@ -1,0 +1,22 @@
+# Only the web port is published, since sandboxes reach the broker by pod IP and nobody else may
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "umpteenth.fullname" . }}
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "umpteenth.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      {{- if and .Values.service.nodePort (ne .Values.service.type "ClusterIP") }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}

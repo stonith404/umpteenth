@@ -1,0 +1,168 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $sandboxNamespace := include "umpteenth.sandboxNamespace" . -}}
+{{- $dns := .Values.networkPolicy.dns -}}
+# Every sandbox and build pod may reach nothing but the Umpteenth pods' broker, whose egress proxy decides what else it reaches
+# Nothing may connect to them, so sandboxes can't reach each other either
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "umpteenth.fullname" . }}-sandboxes
+  namespace: {{ $sandboxNamespace }}
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: umpteenth.dev/role
+        operator: In
+        values: [sandbox, build]
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              {{- include "umpteenth.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8081
+---
+# The unrestricted network reaches public addresses and the cluster DNS directly, but still nothing inside the cluster
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "umpteenth.fullname" . }}-sandboxes-unrestricted
+  namespace: {{ $sandboxNamespace }}
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      umpteenth.dev/role: sandbox
+      umpteenth.dev/network: unrestricted
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              {{- toYaml .Values.networkPolicy.privateRanges | nindent 14 }}
+    {{- include "umpteenth.dnsEgress" $dns | nindent 4 }}
+---
+# BuildKit pulls base images and pushes job images itself, while build steps go through the egress proxy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "umpteenth.fullname" . }}-builds
+  namespace: {{ $sandboxNamespace }}
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      umpteenth.dev/role: build
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              {{- toYaml .Values.networkPolicy.privateRanges | nindent 14 }}
+    {{- include "umpteenth.dnsEgress" $dns | nindent 4 }}
+    {{- if include "umpteenth.buildkit" . }}
+    - to:
+        - podSelector:
+            matchLabels:
+              umpteenth.dev/role: buildkit
+      ports:
+        - protocol: TCP
+          port: 1234
+    {{- end }}
+    {{- with .Values.networkPolicy.build.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- if include "umpteenth.buildkit" . }}
+---
+# The BuildKit daemon takes builds from build pods only, and runs their steps with the same reach as a build pod
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "umpteenth.fullname" . }}-buildkit
+  namespace: {{ $sandboxNamespace }}
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      umpteenth.dev/role: buildkit
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              umpteenth.dev/role: build
+      ports:
+        - protocol: TCP
+          port: 1234
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              {{- toYaml .Values.networkPolicy.privateRanges | nindent 14 }}
+    {{- include "umpteenth.dnsEgress" $dns | nindent 4 }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              {{- include "umpteenth.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8081
+    {{- with .Values.networkPolicy.build.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- if .Values.networkPolicy.server.enabled }}
+---
+# The web port stays open to everyone, the broker only to sandboxes and builds, and the actor port only to other replicas
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "umpteenth.fullname" . }}-server
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "umpteenth.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8080
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $sandboxNamespace }}
+          podSelector:
+            matchExpressions:
+              - key: umpteenth.dev/role
+                operator: In
+                values: [sandbox, build, buildkit]
+      ports:
+        - protocol: TCP
+          port: 8081
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "umpteenth.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: UDP
+          port: 7571
+{{- end }}
+{{- end }}

@@ -1,0 +1,11 @@
+{{- if and .Values.sandbox.createNamespace .Values.sandbox.namespace }}
+{{- $level := .Values.sandbox.podSecurityLevel | default (ternary "privileged" "baseline" (eq (include "umpteenth.buildkit" .) "true")) }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.sandbox.namespace }}
+  labels:
+    {{- include "umpteenth.labels" . | nindent 4 }}
+    pod-security.kubernetes.io/enforce: {{ $level }}
+    pod-security.kubernetes.io/warn: {{ $level }}
+{{- end }}

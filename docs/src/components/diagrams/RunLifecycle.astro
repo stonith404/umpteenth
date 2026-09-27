@@ -1,0 +1,150 @@
+---
+// The statuses a run passes through, from the trigger to the final status, with what moves it from one to the next
+import Figure from '../Figure.astro';
+import { dg, dgBox, dgTitle } from './classes';
+import { arrowPath, type Edge } from './edges';
+
+interface Props {
+	caption?: string;
+}
+const {
+	caption = 'A trigger creates a queued run, or a skipped one if another run of the job is active and the job skips overlapping runs. A live run ends as Succeeded, Failed, Timed out or Cancelled, and a scripted run goes back from Verifying to Running when the agent takes over.'
+} = Astro.props;
+
+type Box = { x: number; y: number; w: number; h: number; title: string; sub?: string; tone?: 'lime' | 'muted' | 'danger' };
+
+// Live statuses in a column on the left, final ones in a column on the right, on a 92 unit pitch so the vertical gaps hold a label
+const live = { x: 86, w: 170 };
+const done = { x: 540, w: 140 };
+const liveMid = live.x + live.w / 2;
+const rows = [102, 194, 286, 378];
+const h = 52;
+const mid = (y: number) => y + h / 2;
+const between = (i: number) => (rows[i] + h + rows[i + 1]) / 2 + 4;
+
+// Stop works in any live status, so the live column sits in a zone and the arrow to Cancelled leaves the zone itself
+const zone = { x: 0, y: 74, w: 272, h: 374 };
+
+// Running has three ways out, which fan from its right edge and turn at one x so they never cross
+const fanX = 310;
+const spread = 12;
+const gapMid = (fanX + done.x) / 2;
+const zoneGapMid = (zone.x + zone.w + done.x) / 2;
+
+// The fallback loop runs up the left side of the column, from Verifying back to Running
+const loopX = 70;
+
+const boxes: Box[] = [
+	{ ...live, y: 0, h: 48, title: 'Trigger', sub: 'schedule, webhook, API…', tone: 'muted' },
+	{ ...live, y: rows[0], h, title: 'Queued', sub: 'waits for a free slot' },
+	{ ...live, y: rows[1], h, title: 'Provisioning', sub: 'image, sandbox, setup' },
+	{ ...live, y: rows[2], h, title: 'Running', sub: 'agent or main script' },
+	{ ...live, y: rows[3], h, title: 'Verifying', sub: 'scripted runs only' },
+	{ ...done, y: 0, h: 48, title: 'Skipped' },
+	{ ...done, y: rows[0], h, title: 'Cancelled' },
+	{ ...done, y: rows[1], h, title: 'Failed', tone: 'danger' },
+	{ ...done, y: rows[2], h, title: 'Timed out', tone: 'danger' },
+	{ ...done, y: rows[3], h, title: 'Succeeded', tone: 'lime' }
+];
+
+const edges: Edge[] = [
+	// A trigger either creates a queued run or records a skipped one
+	{
+		points: [[live.x + live.w, 24], [done.x, 24]],
+		labels: [{ x: (live.x + live.w + done.x) / 2, y: 16, text: 'another run is active, overlap is Skip' }]
+	},
+	{
+		points: [[liveMid, 48], [liveMid, rows[0]]],
+		labels: [{ x: liveMid + 12, y: 66, text: 'creates a run', anchor: 'start' }]
+	},
+
+	// The live statuses in order, and the fallback that hands a scripted run back to the agent
+	{
+		points: [[liveMid, rows[0] + h], [liveMid, rows[1]]],
+		labels: [{ x: liveMid + 12, y: between(0), text: 'a slot is free', anchor: 'start' }]
+	},
+	{
+		points: [[liveMid, rows[1] + h], [liveMid, rows[2]]],
+		labels: [{ x: liveMid + 12, y: between(1), text: 'sandbox ready', anchor: 'start' }]
+	},
+	{
+		points: [[liveMid, rows[2] + h], [liveMid, rows[3]]],
+		labels: [{ x: liveMid + 12, y: between(2), text: 'main exits', anchor: 'start' }]
+	},
+	{
+		points: [[live.x, mid(rows[3])], [loopX, mid(rows[3])], [loopX, mid(rows[2])], [live.x, mid(rows[2])]],
+		labels: [{ x: loopX - 6, y: between(2), text: 'falls back', anchor: 'end' }]
+	},
+
+	// Final statuses sit level with a live status that leads there, so most arrows run straight across
+	{
+		points: [[zone.x + zone.w, mid(rows[0])], [done.x, mid(rows[0])]],
+		labels: [{ x: zoneGapMid, y: mid(rows[0]) - 8, text: 'you click Stop' }]
+	},
+	{
+		points: [[live.x + live.w, mid(rows[1]) - spread + 2], [done.x, mid(rows[1]) - spread + 2]],
+		labels: [{ x: zoneGapMid, y: mid(rows[1]) - spread - 6, text: 'spend cap, failed build or setup' }]
+	},
+	{
+		points: [[live.x + live.w, mid(rows[2]) - spread], [fanX, mid(rows[2]) - spread], [fanX, mid(rows[1]) + spread - 2], [done.x, mid(rows[1]) + spread - 2]],
+		labels: [{ x: gapMid, y: mid(rows[1]) + spread + 12, text: 'agent fails, turn or cost limit' }]
+	},
+	{
+		points: [[live.x + live.w, mid(rows[2])], [done.x, mid(rows[2])]],
+		labels: [{ x: gapMid, y: mid(rows[2]) - 8, text: 'time limit' }]
+	},
+	{
+		points: [[live.x + live.w, mid(rows[2]) + spread], [fanX, mid(rows[2]) + spread], [fanX, mid(rows[3]) - spread + 2], [done.x, mid(rows[3]) - spread + 2]],
+		labels: [{ x: gapMid, y: mid(rows[3]) - spread - 6, text: 'agent finishes' }]
+	},
+	{
+		points: [[live.x + live.w, mid(rows[3]) + spread - 2], [done.x, mid(rows[3]) + spread - 2]],
+		labels: [{ x: gapMid, y: mid(rows[3]) + spread + 12, text: 'checks pass' }]
+	}
+];
+
+// Titles sit above subtitles around the box's middle, or on it when a box has no subtitle
+const titleY = (b: Box) => (b.sub ? b.y + b.h / 2 - 4 : b.y + b.h / 2 + 4.5);
+---
+
+<Figure caption={caption}>
+	<svg viewBox="0 0 680 452" role="img" aria-label={caption}>
+		<defs>
+			<marker id="rl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" class={dg.arrowhead} />
+			</marker>
+		</defs>
+
+		<rect class={dg.zone} x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx="12" />
+		<text class={dg.zoneLabel} x={zone.x + 12} y={zone.y + 18}>Live, you can stop</text>
+
+		{
+			boxes.map((b) => (
+				<g>
+					<rect class={dgBox(b.tone)} x={b.x} y={b.y} width={b.w} height={b.h} rx="8" />
+					<text class={dgTitle(b.tone === 'lime')} x={b.x + 14} y={titleY(b)}>
+						{b.title}
+					</text>
+					{b.sub && (
+						<text class={dg.sub} x={b.x + 14} y={titleY(b) + 17}>
+							{b.sub}
+						</text>
+					)}
+				</g>
+			))
+		}
+
+		{
+			edges.map((e) => (
+				<g>
+					<path class={dg.edge} d={arrowPath(e.points)} marker-end="url(#rl-arrow)" />
+					{e.labels.map((l) => (
+						<text class={dg.edgeLabel} x={l.x} y={l.y} text-anchor={l.anchor ?? 'middle'}>
+							{l.text}
+						</text>
+					))}
+				</g>
+			))
+		}
+	</svg>
+</Figure>

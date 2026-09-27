@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://raw.githubusercontent.com/projectcalico/calico/v3.32.2/manifests/calico.yaml
+# Match kind's pod subnet so Calico masquerades traffic to the broker and registry on Docker's network
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: calico-node
+        namespace: kube-system
+      spec:
+        template:
+          spec:
+            containers:
+              - name: calico-node
+                env:
+                  - name: CALICO_IPV4POOL_CIDR
+                    value: 10.244.0.0/16

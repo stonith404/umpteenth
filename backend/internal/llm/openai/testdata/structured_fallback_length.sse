@@ -1,0 +1,8 @@
+data: {"id":"chatcmpl-316","object":"chat.completion.chunk","created":1790363700,"model":"llama3.3:70b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"role":"assistant","content":"","tool_calls":[{"id":"call_q8r3n1tv","index":0,"type":"function","function":{"name":"submit_criteria","arguments":"{\"criteria\":[\"PR list is posted\",\"Issue tr"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-316","object":"chat.completion.chunk","created":1790363700,"model":"llama3.3:70b","system_fingerprint":"fp_ollama","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"length"}]}
+
+data: {"id":"chatcmpl-316","object":"chat.completion.chunk","created":1790363700,"model":"llama3.3:70b","system_fingerprint":"fp_ollama","choices":[],"usage":{"prompt_tokens":410,"completion_tokens":4096,"total_tokens":4506}}
+
+data: [DONE]
+

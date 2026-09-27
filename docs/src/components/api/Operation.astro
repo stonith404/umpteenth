@@ -1,0 +1,108 @@
+---
+// One API route: its method and path, the parameters and body it takes and the answers it gives when it succeeds, styled in src/styles/api.css
+import AnchorHeading from '@astrojs/starlight/components/AnchorHeading.astro';
+import Disclosure from './Disclosure.astro';
+import Fields from './Fields.astro';
+import Method from './Method.astro';
+import Path from './Path.astro';
+import type { Operation } from './spec';
+
+interface Props {
+	operation: Operation;
+	// The guide section that explains the route with examples, for the routes that have one
+	guide?: { text: string; href: string };
+}
+const { operation, guide } = Astro.props;
+
+const locations = [
+	['path', 'Path parameters'],
+	['query', 'Query parameters'],
+	['header', 'Headers'],
+	['cookie', 'Cookies']
+] as const;
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+const { body } = operation;
+---
+
+<section class="api-op">
+	<AnchorHeading level={3} id={operation.id}>{operation.summary}</AnchorHeading>
+	<div class="not-content">
+		<div class="api-endpoint">
+			<Method method={operation.method} />
+			<Path path={operation.path} />
+		</div>
+		{
+			guide && (
+				<p class="api-guide">
+					Examples and details in <a href={guide.href}>{guide.text}</a>.
+				</p>
+			)
+		}
+
+		{
+			locations.map(([location, title]) => {
+				const params = operation.params.filter((p) => p.in === location);
+				return (
+					params.length > 0 && (
+						<>
+							<p class="api-label">{title}</p>
+							<Fields fields={params} />
+						</>
+					)
+				);
+			})
+		}
+
+		{
+			body && (
+				<>
+					<p class="api-label">
+						Body <span>{body.contentType}</span>
+					</p>
+					{body.fields && body.type && <p class="api-desc">An array, with these fields per item:</p>}
+					{body.fields ? (
+						<Fields fields={body.fields} />
+					) : (
+						<p class="api-raw">
+							<span class="api-type">{body.type}</span> {body.type === 'binary' ? 'The raw request body.' : body.description}
+						</p>
+					)}
+				</>
+			)
+		}
+
+		<p class="api-label">{operation.responses.length === 1 ? 'Response' : 'Responses'}</p>
+		{
+			operation.responses.map((response) => (
+				<div class="api-response">
+					<div class="api-status">
+						<b>{response.status}</b> {response.description}
+						{response.contentType && <span>{response.contentType}</span>}
+					</div>
+					{response.fields && response.fields.length > 0 && (
+						<Disclosure label={count(response.fields.length, 'field') + (response.type?.startsWith('array') ? ' per item' : '')}>
+							<Fields fields={response.fields} />
+						</Disclosure>
+					)}
+					{response.events && (
+						<ul class="api-fields api-events">
+							{response.events.map((event) => (
+								<li>
+									<div class="api-field">
+										<span class="api-type">event</span>
+										<code class="api-name">{event.name}</code>
+									</div>
+									{event.fields && (
+										<Disclosure label={count(event.fields.length, 'data field')} nested>
+											<Fields fields={event.fields} />
+										</Disclosure>
+									)}
+								</li>
+							))}
+						</ul>
+					)}
+				</div>
+			))
+		}
+	</div>
+</section>

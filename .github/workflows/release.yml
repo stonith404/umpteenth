@@ -1,0 +1,203 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (auto uses conventional commits)
+        type: choice
+        default: auto
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.commit.outputs.commit }}
+    steps:
+      - name: Require the main branch
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::Releases must be triggered from main."
+            exit 1
+          fi
+
+      # A release ships the commit exactly as CI tested it, so a red, pending or missing CI run stops it before anything is pushed
+      - name: Require a passing CI run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          run=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --event push --limit 1 --json status,conclusion,url --jq '.[0] // empty')
+          if [[ -z "$run" ]]; then
+            echo "::error::CI has not run for $GITHUB_SHA."
+            exit 1
+          fi
+
+          status=$(jq -r .status <<<"$run")
+          conclusion=$(jq -r .conclusion <<<"$run")
+          url=$(jq -r .url <<<"$run")
+          if [[ "$status" != completed ]]; then
+            echo "::error::CI is still running for $GITHUB_SHA, retry once it passes: $url"
+            exit 1
+          fi
+          if [[ "$conclusion" != success ]]; then
+            echo "::error::CI did not pass for $GITHUB_SHA ($conclusion): $url"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
+        with:
+          tool: git-cliff@2.14.2
+
+      - name: Calculate next version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(git cliff --bumped-version --unreleased --offline --bump "$BUMP")
+          version=${version#v}
+          if [[ "$version" == "$(cat .version)" ]]; then
+            echo "No commits requiring a version bump; no release created." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Preparing release v$version from $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update version and changelog
+        if: steps.version.outputs.tag != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s\n' "$VERSION" > .version
+          touch CHANGELOG.md
+          git cliff --prepend CHANGELOG.md --tag "$RELEASE_TAG" --unreleased
+
+      - name: Commit and tag release
+        if: steps.version.outputs.tag != ''
+        id: commit
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Attribute the release commit to GitHub Actions and authenticate the push with the workflow token
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          gh auth setup-git
+
+          git add .version CHANGELOG.md
+          git commit -m "release: $VERSION"
+          git tag "$RELEASE_TAG"
+
+          # Publish both refs together so a concurrent main update cannot leave an orphaned release tag
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/$RELEASE_TAG"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build images
+    needs: prepare
+    if: needs.prepare.outputs.tag != ''
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    uses: ./.github/workflows/build-images.yml
+    with:
+      ref: ${{ needs.prepare.outputs.commit }}
+      version: ${{ needs.prepare.outputs.version }}
+      tags: |
+        type=semver,pattern={{version}},value=${{ needs.prepare.outputs.tag }}
+        type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare.outputs.tag }}
+        type=semver,pattern={{major}},value=${{ needs.prepare.outputs.tag }}
+        type=raw,value=latest
+
+  # The GitHub release is only created once the images exist, so it never announces a version that cannot be pulled
+  # Every step is safe to repeat, so "Re-run failed jobs" finishes a release whose build or publish failed
+  publish:
+    name: Publish release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+    steps:
+      # Pulling by version and asking the binary for its version proves the tags exist and the version was baked in
+      - name: Smoke test the release images
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+        run: |
+          reported=$(docker run --rm "$REGISTRY/umpteenth:$VERSION" version)
+          if [[ "$reported" != "$VERSION" ]]; then
+            echo "::error::$REGISTRY/umpteenth:$VERSION reports version '$reported'."
+            exit 1
+          fi
+          docker pull --quiet "$REGISTRY/umpteenth-sandbox:$VERSION"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          persist-credentials: false
+
+      # The chart carries the release's version, so it installs exactly the images the smoke test pulled
+      # Pushing the same version again replaces it, which keeps the step safe to repeat
+      - name: Publish the Helm chart
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          helm package charts/umpteenth --version "$VERSION" --app-version "$VERSION" --destination "$RUNNER_TEMP"
+          helm registry login ghcr.io --username "$ACTOR" --password-stdin <<< "$GH_TOKEN"
+          helm push "$RUNNER_TEMP/umpteenth-$VERSION.tgz" "oci://$REGISTRY/charts"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists."
+          else
+            awk '/^## v[0-9]/ { if (found) exit; found=1; next } found' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+            gh release create "$RELEASE_TAG" --verify-tag --latest --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+          echo "Published [$RELEASE_TAG](https://github.com/$GH_REPO/releases/tag/$RELEASE_TAG)." >> "$GITHUB_STEP_SUMMARY"
