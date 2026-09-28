@@ -105,6 +105,11 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 	if err != nil {
 		return nil, err
 	}
+	// Compiling a job and testing a stdio MCP server call a model or start a sandbox that no run or spend limit counts, so each person gets a few of each a minute
+	expensiveLimiter, err := newRateLimiter(actors, "expensive", 5, 5)
+	if err != nil {
+		return nil, err
+	}
 
 	// With workspaces turned off everyone shares the default workspace, and with them on only a fresh instance gets it, for its first user to own
 	svc.workspaces = workspaces.New(workspaces.Dependencies{DB: db, Enabled: cfg.Workspaces.Enabled, AppURL: cfg.App.URL})
@@ -165,7 +170,7 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 	}
 	svc.mcpServers, err = mcpservers.New(mcpservers.Dependencies{
 		DB: db, Egress: guard, Secrets: svc.secrets, Adapter: svc.adapter, EncryptionKey: encryptionKey, AppURL: cfg.App.URL,
-		GrantProxy: proxyGranter(registry),
+		GrantProxy: proxyGranter(registry), TestLimiter: expensiveLimiter,
 		DefaultImage: func(ctx context.Context, wid string) string {
 			ws, err := svc.settings.Get(ctx, wid)
 			if err != nil {
@@ -199,6 +204,7 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 		Models: modelResolver{svc.providers.Service()}, Secrets: svc.secrets, MCP: svc.mcpServers,
 		SandboxInfo:    svc.sandboxInfo,
 		WebhookLimiter: webhookLimiter,
+		CompileLimiter: expensiveLimiter,
 	})
 	if err != nil {
 		return nil, err

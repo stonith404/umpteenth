@@ -12,6 +12,7 @@ import (
 
 	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/llm"
+	"github.com/stonith404/umpteenth/backend/internal/middleware"
 	"github.com/stonith404/umpteenth/backend/internal/principal"
 )
 
@@ -133,6 +134,12 @@ func (m *Module) compileSpec(ctx context.Context, wid, instruction string, previ
 		return Spec{}, nil, errNoCompileModel
 	}
 	provider, model, err := m.deps.Models.ResolveModel(ctx, wid, *modelID)
+	if err != nil {
+		return Spec{}, nil, err
+	}
+
+	// No run or spend limit counts the compile step's model calls, so each person gets only a few of them a minute in a workspace
+	err = middleware.CheckRateLimit(ctx, m.deps.CompileLimiter, "compile:"+wid+":"+principal.CallerID(ctx))
 	if err != nil {
 		return Spec{}, nil, err
 	}

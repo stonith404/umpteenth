@@ -54,12 +54,12 @@ type MCPCatalog interface {
 	ServerNames(ctx context.Context, workspaceID string) ([]string, error)
 }
 
-// WebhookLimiter decides whether a webhook call may proceed
-type WebhookLimiter interface {
+// RateLimiter decides whether a webhook call or a compile may proceed
+type RateLimiter interface {
 	Allow(ctx context.Context, key string) (bool, time.Duration, error)
 }
 
-// Dependencies wire the module; Secrets, MCP, SandboxInfo and WebhookLimiter are optional, and a nil Models skips the model checks
+// Dependencies wire the module; Secrets, MCP, SandboxInfo and the limiters are optional, and a nil Models skips the model checks
 type Dependencies struct {
 	DB        *database.DB
 	Actors    francishost.Host
@@ -71,7 +71,9 @@ type Dependencies struct {
 	MCP       MCPCatalog
 	// SandboxInfo reports the active adapter's capabilities, which decide the networks a job may pick
 	SandboxInfo    func(ctx context.Context) (sandbox.Info, error)
-	WebhookLimiter WebhookLimiter
+	WebhookLimiter RateLimiter
+	// CompileLimiter bounds the compile step's model calls per person and workspace, since no run or spend limit counts them
+	CompileLimiter RateLimiter
 }
 
 type Module struct {

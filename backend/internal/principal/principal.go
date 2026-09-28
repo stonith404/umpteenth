@@ -74,6 +74,15 @@ func UserIDOf(ctx context.Context) string {
 	return p.UserID
 }
 
+// CallerID returns the person behind the call for per-person limits, which is the creator for an API token
+func CallerID(ctx context.Context) string {
+	p, _ := From(ctx)
+	if p.UserID != "" {
+		return p.UserID
+	}
+	return p.TokenCreatorID
+}
+
 // UserIDPtr returns the caller's user ID as a pointer suitable for nullable columns
 func UserIDPtr(ctx context.Context) *string {
 	p, _ := From(ctx)

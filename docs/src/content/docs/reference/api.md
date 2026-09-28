@@ -50,7 +50,7 @@ Error answers share one JSON shape:
 | `forbidden` | 403 | Your role doesn't allow the route, or a token called a route that needs a signed-in session |
 | `not_found` | 404 | The job, run or other resource doesn't exist |
 | `conflict` | 409 | The action doesn't fit the current state, such as cancelling a finished run |
-| `rate_limited` | 429 | Too many webhook or login calls; retry after the seconds in the `Retry-After` header |
+| `rate_limited` | 429 | Too many webhook, login, job compile or stdio MCP server test calls; retry after the seconds in the `Retry-After` header |
 
 Every answer carries an `X-Request-ID` header, and error bodies repeat it as `requestId`.
 Search the server log for that ID to find the failed call.

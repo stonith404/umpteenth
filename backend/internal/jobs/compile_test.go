@@ -6,13 +6,16 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/require"
 
+	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/llm"
 	"github.com/stonith404/umpteenth/backend/internal/llm/fake"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
+	"github.com/stonith404/umpteenth/backend/internal/principal"
 	"github.com/stonith404/umpteenth/backend/internal/settings"
 	"github.com/stonith404/umpteenth/backend/internal/testutil"
 )
@@ -197,6 +200,36 @@ func TestFailedRebuildSavesNothing(t *testing.T) {
 	job, err := f.m.getJob(context.Background(), f.wid, f.jobID)
 	require.NoError(t, err)
 	require.Equal(t, "Post stale PRs of acme/api to #eng", job.Instruction)
+}
+
+// denyAll is a limiter the workspace has used up, which remembers the keys it refused
+type denyAll struct{ keys []string }
+
+func (d *denyAll) Allow(_ context.Context, key string) (bool, time.Duration, error) {
+	d.keys = append(d.keys, key)
+	return false, 10 * time.Second, nil
+}
+
+func TestCompileIsRateLimitedPerCaller(t *testing.T) {
+	f := newCompileFixture(t)
+	f.useModel(t)
+	limiter := &denyAll{}
+	f.m.deps.CompileLimiter = limiter
+
+	// The compile endpoint and an edited instruction are both refused before the model is called
+	ctx := principal.WithPrincipal(context.Background(), principal.Principal{UserID: "u1", WorkspaceID: f.wid})
+	in := &compileInput{}
+	in.Body.Instruction = "Post stale PRs"
+	_, err := f.m.compile(ctx, in)
+	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited), err)
+	_, err = f.m.withRebuiltSpec(ctx, f.wid, f.jobID, jobPatch{Instruction: new("Something new")})
+	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited), err)
+	require.Empty(t, f.provider.Requests())
+	require.Equal(t, []string{"compile:" + f.wid + ":u1", "compile:" + f.wid + ":u1"}, limiter.keys)
+
+	// An unchanged instruction needs no model call, so it doesn't count against the limit
+	f.patch(t, jobPatch{Name: new("Renamed"), Instruction: new("Post stale PRs of acme/api to #eng")})
+	require.Len(t, limiter.keys, 2)
 }
 
 func TestCleanQuestions(t *testing.T) {

@@ -24,6 +24,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/listquery"
 	"github.com/stonith404/umpteenth/backend/internal/mcp"
 	"github.com/stonith404/umpteenth/backend/internal/mcpservers/mcpserversdb"
+	"github.com/stonith404/umpteenth/backend/internal/middleware"
 	"github.com/stonith404/umpteenth/backend/internal/principal"
 	"github.com/stonith404/umpteenth/backend/internal/runner"
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
@@ -40,6 +41,11 @@ type JobChecker interface {
 	JobExists(ctx context.Context, workspaceID, jobID string) error
 }
 
+// RateLimiter decides whether a test may start a sandbox
+type RateLimiter interface {
+	Allow(ctx context.Context, key string) (bool, time.Duration, error)
+}
+
 type Dependencies struct {
 	DB            *database.DB
 	Egress        *egress.Guard
@@ -53,6 +59,8 @@ type Dependencies struct {
 	DefaultImage func(ctx context.Context, workspaceID string) string
 	// GrantProxy lets the test sandbox reach the internet through the egress proxy until revoke is called
 	GrantProxy func(token string, network sandbox.NetworkPolicy) (revoke func())
+	// TestLimiter bounds the test sandboxes per person and workspace, which runs.max_concurrent doesn't count; nil admits every test
+	TestLimiter RateLimiter
 }
 
 type Module struct {
@@ -491,6 +499,13 @@ func (m *Module) test(ctx context.Context, in *idInput) (*testOutput, error) {
 		if m.deps.Adapter == nil {
 			return nil, apperror.Unsupported("No sandbox adapter is available to test stdio servers")
 		}
+
+		// Test sandboxes skip the run queue and its concurrency limit, so each person may start only a few of them a minute in a workspace
+		err = middleware.CheckRateLimit(ctx, m.deps.TestLimiter, "mcp-test:"+wid+":"+principal.CallerID(ctx))
+		if err != nil {
+			return nil, err
+		}
+
 		// The test sandbox reaches the internet through the egress proxy, so a server started with npx or uvx can install itself
 		token := crypto.RandomToken(32)
 		if m.deps.GrantProxy != nil {
