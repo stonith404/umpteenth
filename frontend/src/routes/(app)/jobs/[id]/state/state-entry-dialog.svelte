@@ -99,7 +99,8 @@
 	}
 </script>
 
-<Dialog.Root bind:open>
+<!-- A pending save keeps the dialog open, so its completion can't close or report on whatever the dialog shows next -->
+<Dialog.Root bind:open={() => open, (next) => (next || !isLoading) && (open = next)}>
 	<Dialog.Content class="sm:max-w-lg">
 		<Dialog.Header>
 			<Dialog.Title>
@@ -149,7 +150,7 @@
 			</Field.Group>
 		</form>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
+			<Button variant="outline" disabled={isLoading} onclick={() => (open = false)}>Cancel</Button>
 			<Button type="submit" form="state-entry-form" {isLoading}>Save</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

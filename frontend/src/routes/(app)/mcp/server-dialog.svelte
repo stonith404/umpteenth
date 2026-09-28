@@ -167,7 +167,8 @@
 	the key button to insert one.
 {/snippet}
 
-<Dialog.Root bind:open>
+<!-- A pending save keeps the dialog open, so its completion can't close or report on whatever the dialog shows next -->
+<Dialog.Root bind:open={() => open, (next) => (next || !isLoading) && (open = next)}>
 	<Dialog.Content class="sm:max-w-2xl">
 		<Dialog.Header>
 			<Dialog.Title class="wrap-anywhere"
@@ -376,7 +377,7 @@
 			</Field.Group>
 		</form>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
+			<Button variant="outline" disabled={isLoading} onclick={() => (open = false)}>Cancel</Button>
 			<Button type="submit" form="mcp-server-form" {isLoading}>
 				{server ? 'Save' : 'Add MCP server'}
 			</Button>

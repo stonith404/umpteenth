@@ -57,7 +57,11 @@
 </script>
 
 <!-- Closing empties the form, so the next open starts fresh whatever was typed before -->
-<Dialog.Root bind:open onOpenChangeComplete={(isOpen) => !isOpen && form.reset()}>
+<!-- A pending save keeps the dialog open, so its completion can't close or report on whatever the dialog shows next -->
+<Dialog.Root
+	bind:open={() => open, (next) => (next || !isLoading) && (open = next)}
+	onOpenChangeComplete={(isOpen) => !isOpen && form.reset()}
+>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>Create API token</Dialog.Title>
@@ -83,7 +87,7 @@
 			</Field.Group>
 		</form>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
+			<Button variant="outline" disabled={isLoading} onclick={() => (open = false)}>Cancel</Button>
 			<Button type="submit" form="create-token-form" {isLoading}>Create API token</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
