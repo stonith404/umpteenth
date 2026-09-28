@@ -96,6 +96,26 @@ func TestDeliverySignsAndClassifiesAnswers(t *testing.T) {
 	assert.ErrorIs(t, m.deliver(t.Context(), "w1", p), errPermanent)
 }
 
+func TestDeliveryDoesNotFollowRedirects(t *testing.T) {
+	var moved []string
+	hook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/moved" {
+			moved = append(moved, r.Method)
+			return
+		}
+		http.Redirect(w, r, "/moved", http.StatusFound)
+	}))
+	defer hook.Close()
+	url := hook.URL + "/hook"
+	m := &Module{deps: Dependencies{Settings: fixedSettings{settings.WorkspaceSettings{NotifyWebhookURL: &url}}, Egress: egress.New(true)}}
+
+	// Following the redirect would deliver an empty GET and count it as delivered
+	err := m.deliver(t.Context(), "w1", Payload{Event: "test"})
+	require.ErrorIs(t, err, errPermanent)
+	assert.Contains(t, err.Error(), "302 Found")
+	assert.Empty(t, moved)
+}
+
 func TestFailedDeliveryLeavesTheURLOut(t *testing.T) {
 	// Webhook URLs such as Slack's carry their credential in the path, and failed deliveries are logged
 	hook := httptest.NewServer(http.NotFoundHandler())

@@ -292,7 +292,10 @@ func (m *Module) deliver(ctx context.Context, workspaceID string, p Payload) err
 		req.Header.Set("X-Umpteenth-Signature", sign(secret, body))
 	}
 
-	resp, err := m.deps.Egress.HTTPClient(deliveryTimeout).Do(req)
+	// A followed redirect would turn the POST into a GET without the payload that still counts as delivered, so a redirect answer is a rejection like any other
+	client := m.deps.Egress.HTTPClient(deliveryTimeout)
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
 	if err != nil {
 		if urlErr, ok := errors.AsType[*url.Error](err); ok {
 			err = urlErr.Err
