@@ -4,6 +4,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,6 +25,10 @@ type memoryStore struct {
 	creds   *OAuthCredentials
 	saves   int
 	expired bool
+	// saveErrs fail the next saves, one error each
+	saveErrs []error
+	// beforeSave runs at the start of every save
+	beforeSave func()
 }
 
 func (s *memoryStore) Load(context.Context) (OAuthCredentials, error) {
@@ -39,9 +44,20 @@ func (s *memoryStore) Lock(context.Context) (func(), error) {
 	return func() {}, nil
 }
 
-func (s *memoryStore) Save(_ context.Context, creds OAuthCredentials) error {
+func (s *memoryStore) Save(ctx context.Context, creds OAuthCredentials) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.beforeSave != nil {
+		s.beforeSave()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if len(s.saveErrs) > 0 {
+		err := s.saveErrs[0]
+		s.saveErrs = s.saveErrs[1:]
+		return err
+	}
 	s.creds = &creds
 	s.saves++
 	return nil
@@ -182,6 +198,43 @@ func TestExpiringTokensAreRefreshedAndStored(t *testing.T) {
 	require.Equal(t, 1, store.saves)
 	require.Equal(t, access, store.creds.AccessToken)
 	require.NotEqual(t, creds.RefreshToken, store.creds.RefreshToken, "the rotated refresh token is kept")
+}
+
+func TestRefreshedTokensAreStoredDespiteAFailedSave(t *testing.T) {
+	as := mcptest.NewAuthServer(t)
+	as.AccessTTL = 10
+	srv := mcptest.NewProtectedServer(t, as)
+	m := NewManager(egress.New(true))
+	creds := login(t, m, srv.URL+"/mcp", OAuthLoginRequest{})
+
+	// The authorization server rotated the refresh token, so a save that fails once is tried again instead of losing it
+	store := &memoryStore{creds: &creds, saveErrs: []error{errors.New("database is locked")}}
+	access, err := m.NewOAuthTokens(creds, store).Token(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, 1, store.saves)
+	require.Equal(t, access, store.creds.AccessToken)
+	require.NotEqual(t, creds.RefreshToken, store.creds.RefreshToken)
+
+	// A run canceled right after the refresh still stores the rotated refresh token
+	ctx, cancel := context.WithCancel(t.Context())
+	store.beforeSave = cancel
+	_, err = m.NewOAuthTokens(*store.creds, store).Token(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 2, store.saves)
+}
+
+func TestRefreshOfALoginLoggedOutMeanwhileIsNotUsed(t *testing.T) {
+	as := mcptest.NewAuthServer(t)
+	as.AccessTTL = 10
+	srv := mcptest.NewProtectedServer(t, as)
+	m := NewManager(egress.New(true))
+	creds := login(t, m, srv.URL+"/mcp", OAuthLoginRequest{})
+
+	// The store finds no login to save the tokens on, since it was logged out while the refresh was on the wire
+	store := &memoryStore{creds: &creds, saveErrs: []error{ErrLoginExpired}}
+	_, err := m.NewOAuthTokens(creds, store).Token(t.Context())
+	require.ErrorIs(t, err, ErrLoginExpired)
+	require.Zero(t, store.saves)
 }
 
 func TestRefreshUsesATokenAnotherReplicaStored(t *testing.T) {

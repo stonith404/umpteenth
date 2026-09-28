@@ -378,7 +378,7 @@ func (q *Queries) SaveOAuthLogin(ctx context.Context, arg SaveOAuthLoginParams) 
 	return err
 }
 
-const saveOAuthTokens = `-- name: SaveOAuthTokens :exec
+const saveOAuthTokens = `-- name: SaveOAuthTokens :execrows
 UPDATE mcp_servers SET oauth_credentials = $1, oauth_key_id = $2, oauth_expires_at = $3,
   oauth_refreshable = $4
 WHERE workspace_id = $5 AND id = $6 AND oauth_logged_in_at = $7
@@ -395,8 +395,8 @@ type SaveOAuthTokensParams struct {
 }
 
 // A refresh only lands on the login it refreshed, so it can't bring back a login that was logged out or replaced meanwhile
-func (q *Queries) SaveOAuthTokens(ctx context.Context, arg SaveOAuthTokensParams) error {
-	_, err := q.db.ExecContext(ctx, saveOAuthTokens,
+func (q *Queries) SaveOAuthTokens(ctx context.Context, arg SaveOAuthTokensParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, saveOAuthTokens,
 		arg.OauthCredentials,
 		arg.OauthKeyID,
 		arg.OauthExpiresAt,
@@ -405,7 +405,10 @@ func (q *Queries) SaveOAuthTokens(ctx context.Context, arg SaveOAuthTokensParams
 		arg.ID,
 		arg.OauthLoggedInAt,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const setOAuthPending = `-- name: SetOAuthPending :exec

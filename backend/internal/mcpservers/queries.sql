@@ -29,7 +29,7 @@ UPDATE mcp_servers SET oauth_credentials = sqlc.arg(oauth_credentials), oauth_ke
   oauth_refreshable = sqlc.arg(oauth_refreshable), oauth_logged_in_at = sqlc.arg(oauth_logged_in_at), oauth_supported = TRUE
 WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);
 
--- name: SaveOAuthTokens :exec
+-- name: SaveOAuthTokens :execrows
 -- A refresh only lands on the login it refreshed, so it can't bring back a login that was logged out or replaced meanwhile
 UPDATE mcp_servers SET oauth_credentials = sqlc.arg(oauth_credentials), oauth_key_id = sqlc.arg(oauth_key_id), oauth_expires_at = sqlc.narg(oauth_expires_at),
   oauth_refreshable = sqlc.arg(oauth_refreshable)

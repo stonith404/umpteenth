@@ -31,6 +31,12 @@ const (
 	oauthRequestTimeout = 30 * time.Second
 	// refreshSkew refreshes an access token this long before it expires, like Codex, so a request never races the expiry
 	refreshSkew = 30 * time.Second
+	// refreshSaveAttempts is how often storing refreshed tokens is tried, since a rotated refresh token is lost when it isn't stored
+	refreshSaveAttempts = 3
+	// refreshSaveDelay spaces those attempts
+	refreshSaveDelay = 500 * time.Millisecond
+	// refreshSaveTimeout bounds all attempts together, well within the lease on the refresh
+	refreshSaveTimeout = 10 * time.Second
 	// maxOAuthResponseBytes bounds metadata and token responses
 	maxOAuthResponseBytes = 1 << 20
 	// oauthClientName is the name authorization servers show on their consent screen
@@ -583,7 +589,7 @@ type OAuthStore interface {
 	Load(ctx context.Context) (OAuthCredentials, error)
 	// Lock waits until no other replica refreshes the login and holds theirs off until unlock is called
 	Lock(ctx context.Context) (unlock func(), err error)
-	// Save stores refreshed tokens on the login they belong to
+	// Save stores refreshed tokens on the login they belong to, returning ErrLoginExpired when that login was logged out or replaced meanwhile
 	Save(ctx context.Context, creds OAuthCredentials) error
 	// Expire drops a login whose refresh token the authorization server rejected
 	Expire(ctx context.Context, creds OAuthCredentials) error
@@ -675,12 +681,36 @@ func (t *OAuthTokens) refreshLocked(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("failed to refresh the OAuth token: %w", err)
 	}
 
-	// A failed save only costs another refresh later, so the fresh token is used either way
-	t.creds = used.withToken(tok, time.Now())
-	if err := t.store.Save(ctx, t.creds); err != nil {
-		slog.WarnContext(ctx, "Failed to store a refreshed MCP OAuth token", slog.Any("error", err))
+	// Store the fresh tokens, unless the login was logged out or replaced during the refresh and mustn't be used anymore
+	fresh := used.withToken(tok, time.Now())
+	err = t.saveRefreshed(ctx, fresh)
+	if errors.Is(err, ErrLoginExpired) {
+		return "", ErrLoginExpired
 	}
+
+	// A save that failed for good still leaves the fresh token as the only working one, since the refresh token it replaced may be spent already
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to store a refreshed MCP OAuth token, the login may need to be done again", slog.Any("error", err))
+	}
+	t.creds = fresh
 	return t.creds.AccessToken, nil
+}
+
+// saveRefreshed stores refreshed tokens, retrying a failed save while the lease is held
+// A rotated refresh token exists nowhere else until it is stored, so the save also outlasts a run that was canceled right after the refresh
+func (t *OAuthTokens) saveRefreshed(ctx context.Context, creds OAuthCredentials) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), refreshSaveTimeout)
+	defer cancel()
+	err := t.store.Save(ctx, creds)
+	for attempt := 1; attempt < refreshSaveAttempts && err != nil && !errors.Is(err, ErrLoginExpired); attempt++ {
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(refreshSaveDelay):
+		}
+		err = t.store.Save(ctx, creds)
+	}
+	return err
 }
 
 // oauthTransport adds the login's access token to every request for the server's origin, and refreshes it once when the server rejects it early

@@ -397,10 +397,17 @@ func (s oauthStore) Save(ctx context.Context, creds mcp.OAuthCredentials) error 
 	if err != nil {
 		return err
 	}
-	return s.m.queries.SaveOAuthTokens(ctx, mcpserversdb.SaveOAuthTokensParams{
+	n, err := s.m.queries.SaveOAuthTokens(ctx, mcpserversdb.SaveOAuthTokensParams{
 		WorkspaceID: s.workspaceID, ID: s.serverID, OauthCredentials: sealed, OauthKeyID: new(crypto.KeyIDV1),
 		OauthExpiresAt: nonZero(creds.ExpiresAt), OauthRefreshable: creds.RefreshToken != "", OauthLoggedInAt: new(creds.LoggedInAt),
 	})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return mcp.ErrLoginExpired
+	}
+	return nil
 }
 
 func (s oauthStore) Expire(ctx context.Context, creds mcp.OAuthCredentials) error {
