@@ -191,12 +191,13 @@ func hostLocal(addr netip.Addr) bool {
 }
 
 // Reached is the address a connection to addr really reaches, since IPv4-mapped and NAT64 addresses lead to the IPv4 address they embed
+// An IPv6 zone only picks the interface to leave through, so it is dropped, which also keeps range checks working since a prefix never contains a zoned address
 func Reached(addr netip.Addr) netip.Addr {
 	return reached(addr)
 }
 
 func reached(addr netip.Addr) netip.Addr {
-	addr = addr.Unmap()
+	addr = addr.WithZone("").Unmap()
 	if nat64.Contains(addr) {
 		b := addr.As16()
 		addr = netip.AddrFrom4([4]byte(b[12:]))

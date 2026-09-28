@@ -17,6 +17,7 @@ import (
 	"net/netip"
 	"net/url"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -254,16 +255,16 @@ func TestDomainAllowed(t *testing.T) {
 }
 
 func TestProxyStaysOffContainersAndBlockedRanges(t *testing.T) {
-	container := netip.MustParseAddr("172.18.0.5")
+	containers := []netip.Addr{netip.MustParseAddr("172.18.0.5"), netip.MustParseAddr("fd00:18::5")}
 	b := New(Dependencies{
 		Live:             runner.NewRegistry(),
-		Blocked:          []netip.Prefix{netip.MustParsePrefix("203.0.113.7/32")},
-		ContainerAddress: func(addr netip.Addr) bool { return addr == container },
+		Blocked:          []netip.Prefix{netip.MustParsePrefix("203.0.113.7/32"), netip.MustParsePrefix("2001:db8::/32")},
+		ContainerAddress: func(addr netip.Addr) bool { return slices.Contains(containers, addr) },
 	})
 
-	// Even a job that may reach the private network can't reach a container or a blocked address, however the address is spelled
+	// Even a job that may reach the private network can't reach a container, a blocked address or cloud metadata, however the address is spelled
 	dial := b.dialer(true)
-	for _, target := range []string{"172.18.0.5:5432", "[::ffff:172.18.0.5]:5432", "203.0.113.7:443"} {
+	for _, target := range []string{"172.18.0.5:5432", "[::ffff:172.18.0.5]:5432", "[fd00:18::5%1]:5432", "203.0.113.7:443", "[2001:db8::7%1]:443", "[fd00:ec2::254%1]:80"} {
 		_, err := dial(t.Context(), "tcp", target)
 		require.ErrorIs(t, err, errRefusedAddress, target)
 	}
@@ -286,6 +287,9 @@ func TestRefusedAddresses(t *testing.T) {
 		"::1":             {true, true},
 		"::ffff:10.0.0.1": {true, false},
 		"fd00:ec2::254":   {true, true},
+		// A zone only picks the interface, so the address behind it is judged
+		"fd00:ec2::254%eth0": {true, true},
+		"::1%lo":             {true, true},
 		// NAT64 addresses are judged by the IPv4 address they reach
 		"64:ff9b::a9fe:a9fe": {true, true},
 		"64:ff9b::a00:1":     {true, false},

@@ -73,6 +73,7 @@ func TestBlockedRangesApplyEvenWherePrivateTargetsAreAllowed(t *testing.T) {
 	assert.Error(t, g.checkDial("tcp", "203.0.113.7:443", nil))
 	assert.Error(t, g.checkDial("tcp", "[::ffff:203.0.113.7]:443", nil), "a mapped address reaches the blocked IPv4 address")
 	assert.Error(t, g.checkDial("tcp", "[2001:db8::1]:443", nil))
+	assert.Error(t, g.checkDial("tcp", "[2001:db8::1%eth0]:443", nil), "a zone doesn't change the address the connection reaches")
 	assert.NoError(t, g.checkDial("tcp", "203.0.113.8:443", nil))
 
 	// Without blocked ranges a guard that allows private targets refuses nothing, so it skips the check entirely
