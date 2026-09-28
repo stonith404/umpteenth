@@ -154,6 +154,9 @@ func (m *Module) list(ctx context.Context, in *listInput) (*httpserver.Paginated
 	return httpserver.NewPaginated(items, in.ListParams, total), nil
 }
 
+// maxTokenLifetime bounds how far ahead a token may expire, since a token without an end omits the expiry instead
+const maxTokenLifetime = 100 * 365 * 24 * time.Hour
+
 type createInput struct {
 	Body struct {
 		Name      string `json:"name" minLength:"1" maxLength:"100"`
@@ -185,6 +188,10 @@ func (m *Module) create(ctx context.Context, in *createInput) (*createOutput, er
 	now := database.Now()
 	if in.Body.ExpiresAt != nil && *in.Body.ExpiresAt <= now {
 		return nil, apperror.InvalidField("expiresAt", "invalid", "must be in the future")
+	}
+	// Browsers cannot represent dates far enough out, so an absurd expiry would break the token list for everyone who sees it
+	if in.Body.ExpiresAt != nil && *in.Body.ExpiresAt > now+maxTokenLifetime.Milliseconds() {
+		return nil, apperror.InvalidField("expiresAt", "invalid", "must be at most 100 years ahead")
 	}
 
 	token := TokenPrefix + crypto.RandomToken(32)

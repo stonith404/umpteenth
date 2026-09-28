@@ -89,3 +89,26 @@ func TestTokensActWithTheirCreatorsRole(t *testing.T) {
 	_, err = m.ValidateAPIToken(t.Context(), token)
 	require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken), err)
 }
+
+func TestCreateRejectsExpiriesBrowsersCannotShow(t *testing.T) {
+	db := testutil.NewDatabaseForTest(t)
+	workspaceID := testutil.SeedWorkspace(t, db)
+	creator := testutil.SeedUser(t, db)
+	testutil.SeedMember(t, db, workspaceID, creator, "member")
+	m := newTestModule(t, db)
+	ctx := principal.WithPrincipal(t.Context(), principal.Principal{WorkspaceID: workspaceID, UserID: creator, Role: principal.RoleMember})
+
+	// One millisecond past the largest date JavaScript can hold
+	tooLate := int64(8_640_000_000_000_001)
+	in := &createInput{}
+	in.Body.Name = "Forever"
+	in.Body.ExpiresAt = &tooLate
+	_, err := m.create(ctx, in)
+	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed), err)
+
+	inAYear := database.Now() + (365 * 24 * time.Hour).Milliseconds()
+	in.Body.ExpiresAt = &inAYear
+	out, err := m.create(ctx, in)
+	require.NoError(t, err)
+	require.Equal(t, &inAYear, out.Body.APIToken.ExpiresAt)
+}
