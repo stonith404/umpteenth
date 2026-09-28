@@ -806,12 +806,15 @@ func issuersEqual(a, b string) bool {
 }
 
 // union joins scope lists, dropping blanks and duplicates while keeping their order
+// The lists come from a server's metadata, so duplicates are tracked in a set to keep a huge document from costing quadratic time
 func union(lists ...[]string) []string {
 	var out []string
+	seen := map[string]struct{}{}
 	for _, list := range lists {
 		for _, s := range list {
 			s = strings.TrimSpace(s)
-			if s != "" && !slices.Contains(out, s) {
+			if _, dup := seen[s]; s != "" && !dup {
+				seen[s] = struct{}{}
 				out = append(out, s)
 			}
 		}

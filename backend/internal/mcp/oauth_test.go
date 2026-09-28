@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -279,4 +280,16 @@ func TestResourceMetadataMustCoverTheServer(t *testing.T) {
 	require.True(t, resourceCovers("https://mcp.example.com/v1/", base))
 	require.False(t, resourceCovers("https://mcp.example.com/v2", base))
 	require.False(t, resourceCovers("https://other.example.com/v1/mcp", base))
+}
+
+func TestUnionKeepsTheFirstOfEachScope(t *testing.T) {
+	require.Equal(t, []string{"read", "write", "admin"}, union([]string{"read", " write", ""}, []string{"write", "admin", "read "}))
+	require.Nil(t, union(nil, []string{" "}))
+
+	// A metadata document full of distinct scopes is deduplicated in linear time
+	many := make([]string, 200_000)
+	for i := range many {
+		many[i] = "s" + strconv.Itoa(i)
+	}
+	require.Len(t, union(many, many), len(many))
 }
