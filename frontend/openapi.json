@@ -2453,6 +2453,11 @@
 			"PutStateInputBody": {
 				"additionalProperties": false,
 				"properties": {
+					"baseUpdatedAt": {
+						"description": "The updatedAt of the entry the edit started from, or 0 to only add a new key; a key changed or added meanwhile makes the save fail with 409",
+						"format": "int64",
+						"type": "integer"
+					},
 					"value": {
 						"type": "string"
 					}

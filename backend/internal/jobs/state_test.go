@@ -183,3 +183,34 @@ func TestStateWritesOfAJobTakeTurnsOnAReplica(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, found)
 }
+
+func TestStateWritesWithABaseRefuseChangedEntries(t *testing.T) {
+	store := newStateStoreForTest(t, testutil.NewDatabaseForTest(t))
+	ctx := context.Background()
+	isConflict := func(err error) bool { return apperror.IsCode(err, apperror.CodeConflict) }
+	updatedAt := func(key string) int64 {
+		row, err := store.queries.GetState(ctx, jobsdb.GetStateParams{JobID: store.jobID, Key: key})
+		require.NoError(t, err)
+		return row.UpdatedAt
+	}
+	none := int64(0)
+
+	// A base of 0 only adds a key, so a key a run wrote meanwhile is kept
+	require.NoError(t, store.set(ctx, "seen", "first", &none))
+	require.True(t, isConflict(store.set(ctx, "seen", "second", &none)))
+
+	// An edit saves while the entry is the one it started from, and is refused once someone else wrote it
+	seen := updatedAt("seen")
+	testutil.Exec(t, store.db, "UPDATE job_state SET value = 'by a run', updated_at = $1 WHERE job_id = $2 AND key = 'seen'", seen+1, store.jobID)
+	require.True(t, isConflict(store.set(ctx, "seen", "stale edit", &seen)))
+	current := updatedAt("seen")
+	require.NoError(t, store.set(ctx, "seen", "fresh edit", &current))
+
+	// An edit of an entry deleted meanwhile doesn't bring it back
+	testutil.Exec(t, store.db, "DELETE FROM job_state WHERE job_id = $1 AND key = 'seen'", store.jobID)
+	current++
+	require.True(t, isConflict(store.set(ctx, "seen", "late edit", &current)))
+	_, found, err := store.Get(ctx, "seen")
+	require.NoError(t, err)
+	require.False(t, found)
+}

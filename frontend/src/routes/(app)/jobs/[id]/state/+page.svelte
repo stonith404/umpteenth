@@ -154,5 +154,11 @@
 	{/snippet}
 </DataTable>
 
-<StateEntryDialog bind:open={dialogOpen} jobId={job.id} entry={editing} {onSaved} />
+<StateEntryDialog
+	bind:open={dialogOpen}
+	jobId={job.id}
+	entry={editing}
+	{onSaved}
+	onStale={() => dataTable?.refresh()}
+/>
 <DeleteEntryDialog bind:entry={deleting} onDelete={deleteEntry} />

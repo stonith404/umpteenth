@@ -17,13 +17,16 @@
 		open = $bindable(false),
 		jobId,
 		entry,
-		onSaved
+		onSaved,
+		onStale
 	}: {
 		open?: boolean;
 		jobId: string;
 		// The entry to edit, or null to add a new key
 		entry: JobStateEntry | null;
 		onSaved: (key: string) => void;
+		// Called when the edited entry changed since it was loaded, so the list can show the current value
+		onStale: () => void;
 	} = $props();
 
 	const MAX_KEY_LENGTH = 200;
@@ -72,24 +75,19 @@
 		if (!validate()) return;
 		isLoading = true;
 
-		// Saving is an upsert, so adding a key that already exists would silently overwrite it
-		if (!entry) {
-			const exists = await tryCatch(jobService.stateKeyExists(jobId, key.trim()));
-			if (exists.error) {
-				apiErrorToast(exists.error, 'Failed to check whether the key exists');
-				isLoading = false;
-				return;
-			}
-			if (exists.data) {
-				keyError = 'This key already exists';
-				isLoading = false;
-				return;
-			}
-		}
-
-		const result = await tryCatch(jobService.putState(jobId, key.trim(), value));
+		// Runs write state too, so adding never overwrites an existing key and an edit never overwrites a value written since it was opened
+		const result = await tryCatch(
+			jobService.putState(jobId, key.trim(), value, entry ? entry.updatedAt : 0)
+		);
 		isLoading = false;
 		if (result.error) {
+			if (isApiError(result.error, 'conflict')) {
+				if (!entry) {
+					keyError = 'This key already exists';
+					return;
+				}
+				onStale();
+			}
 			if (isApiError(result.error, 'validation_failed')) {
 				keyError = getErrorMessage(result.error);
 			}

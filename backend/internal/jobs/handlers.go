@@ -389,6 +389,8 @@ type putStateInput struct {
 	Key  string `path:"key" maxLength:"200"`
 	Body struct {
 		Value string `json:"value"`
+		// BaseUpdatedAt guards against overwriting a value a run or another person wrote meanwhile, and is optional so scripts can still write unconditionally
+		BaseUpdatedAt *int64 `json:"baseUpdatedAt,omitempty" doc:"The updatedAt of the entry the edit started from, or 0 to only add a new key; a key changed or added meanwhile makes the save fail with 409"`
 	}
 }
 
@@ -416,7 +418,7 @@ func (m *Module) putState(ctx context.Context, in *putStateInput) (*struct{}, er
 	if err != nil {
 		return nil, err
 	}
-	return nil, m.ForJob(in.ID).Set(ctx, in.Key, in.Body.Value)
+	return nil, m.ForJob(in.ID).set(ctx, in.Key, in.Body.Value, in.Body.BaseUpdatedAt)
 }
 
 type stateKeyInput struct {

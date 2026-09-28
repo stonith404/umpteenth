@@ -9,7 +9,6 @@ import type {
 	JobStatsRange,
 	QueryOf
 } from '$lib/api/types';
-import { isApiError } from '$lib/api/api-error';
 import APIService from './api-service';
 
 export default class JobService extends APIService {
@@ -50,22 +49,13 @@ export default class JobService extends APIService {
 	listState = (id: string, query?: QueryOf<'list-job-state'>) =>
 		this.unwrap(this.api.GET('/api/jobs/{id}/state', { params: { path: { id }, query } }));
 
-	// Reads the exact key, since a substring search over the list could miss it among many similar keys
-	stateKeyExists = async (id: string, key: string) => {
-		try {
-			await this.unwrap(
-				this.api.GET('/api/jobs/{id}/state/{key}', { params: { path: { id, key } } })
-			);
-			return true;
-		} catch (error) {
-			if (isApiError(error, 'not_found')) return false;
-			throw error;
-		}
-	};
-
-	putState = (id: string, key: string, value: string) =>
+	// baseUpdatedAt is the updatedAt of the entry the edit started from, or 0 to only add a new key
+	putState = (id: string, key: string, value: string, baseUpdatedAt?: number) =>
 		this.unwrap(
-			this.api.PUT('/api/jobs/{id}/state/{key}', { params: { path: { id, key } }, body: { value } })
+			this.api.PUT('/api/jobs/{id}/state/{key}', {
+				params: { path: { id, key } },
+				body: { value, baseUpdatedAt }
+			})
 		);
 
 	deleteState = (id: string, key: string) =>

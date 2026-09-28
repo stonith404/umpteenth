@@ -2068,6 +2068,11 @@ export interface components {
 			id: string;
 		};
 		PutStateInputBody: {
+			/**
+			 * Format: int64
+			 * @description The updatedAt of the entry the edit started from, or 0 to only add a new key; a key changed or added meanwhile makes the save fail with 409
+			 */
+			baseUpdatedAt?: number;
 			value: string;
 		};
 		Question: {

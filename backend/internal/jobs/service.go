@@ -608,6 +608,11 @@ func (s *StateStore) Get(ctx context.Context, key string) (string, bool, error) 
 }
 
 func (s *StateStore) Set(ctx context.Context, key, value string) error {
+	return s.set(ctx, key, value, nil)
+}
+
+// set writes a key, and with base only when the key's updatedAt still matches it, where 0 stands for a key that doesn't exist yet
+func (s *StateStore) set(ctx context.Context, key, value string, base *int64) error {
 	if len(key) > 200 || len(value) > 1<<20 {
 		return apperror.InvalidField("state", "too_large", "keys are limited to 200 characters and values to 1 MiB")
 	}
@@ -637,6 +642,14 @@ func (s *StateStore) Set(ctx context.Context, key, value string) error {
 			return fmt.Errorf("failed to load state: %w", err)
 		}
 
+		// Writes take turns on the job's row, so no other write lands between this check and this one
+		if base != nil {
+			err = checkStateBase(ctx, q, s.jobID, key, exists, *base)
+			if err != nil {
+				return err
+			}
+		}
+
 		// A runaway script could otherwise write keys without bound, so new keys stop at a limit while existing ones stay writable
 		if !exists && usage.Keys >= runner.MaxStateKeys {
 			return apperror.InvalidField("state", "too_many", fmt.Sprintf("a job keeps at most %d state keys", runner.MaxStateKeys))
@@ -652,6 +665,27 @@ func (s *StateStore) Set(ctx context.Context, key, value string) error {
 		}
 		return q.SetState(ctx, jobsdb.SetStateParams{JobID: s.jobID, Key: key, Value: value, UpdatedAt: database.Now()})
 	})
+}
+
+// checkStateBase refuses a write whose caller saw another version of the entry than the stored one
+func checkStateBase(ctx context.Context, q *jobsdb.Queries, jobID, key string, exists bool, base int64) error {
+	if !exists {
+		if base != 0 {
+			return apperror.Conflict("The state entry was deleted since it was loaded")
+		}
+		return nil
+	}
+	if base == 0 {
+		return apperror.Conflict("This state key already exists")
+	}
+	row, err := q.GetState(ctx, jobsdb.GetStateParams{JobID: jobID, Key: key})
+	if err != nil {
+		return fmt.Errorf("failed to load state: %w", err)
+	}
+	if row.UpdatedAt != base {
+		return apperror.Conflict("The state entry changed since it was loaded")
+	}
+	return nil
 }
 
 // stateLocks gives the writers of each job's state their turn on this replica
