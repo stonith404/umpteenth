@@ -123,4 +123,5 @@ By default it may reach private addresses, since self-hosted models and MCP serv
 Set `network.allow_private_targets` to `false` to refuse them.
 Saving such a URL then fails with `points to a private or local network address`, and Umpteenth checks the address again on every connection, so a redirect or a changed DNS answer can't lead it to a private address either.
 The addresses in `network.blocked_targets` stay refused whatever this option says.
+While either option refuses an address, Umpteenth ignores `HTTP_PROXY` and `HTTPS_PROXY` for these calls, since it can only check connections it makes itself.
 Sandboxes ignore `network.allow_private_targets` and follow their job's network setting.

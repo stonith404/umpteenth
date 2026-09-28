@@ -81,6 +81,15 @@ func TestBlockedRangesApplyEvenWherePrivateTargetsAreAllowed(t *testing.T) {
 	assert.True(t, g.checks())
 }
 
+func TestCheckingGuardsIgnoreTheEnvironmentProxy(t *testing.T) {
+	// A proxy connects to the target on the guard's behalf, where the dial check can't see the address
+	assert.Nil(t, New(false).transport.Proxy)
+	assert.Nil(t, New(true, netip.MustParsePrefix("203.0.113.7/32")).transport.Proxy)
+
+	// A guard that refuses nothing keeps the proxy an instance may need to reach the internet
+	assert.NotNil(t, New(true).transport.Proxy)
+}
+
 func TestInRangesFollowsEmbeddedIPv4Addresses(t *testing.T) {
 	ranges := []netip.Prefix{netip.MustParsePrefix("198.51.100.0/24")}
 	assert.True(t, InRanges(netip.MustParseAddr("198.51.100.20"), ranges))

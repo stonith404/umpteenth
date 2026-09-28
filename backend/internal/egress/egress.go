@@ -30,10 +30,13 @@ type Guard struct {
 func New(allowPrivate bool, blocked ...netip.Prefix) *Guard {
 	g := &Guard{allowPrivate: allowPrivate, blocked: blocked}
 	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if g.checks() {
 		dialer.Control = g.checkDial
+
+		// A proxy from HTTP_PROXY or HTTPS_PROXY would connect to the target itself, so the dial check would only ever see the proxy's address
+		transport.Proxy = nil
 	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DialContext = dialer.DialContext
 	g.transport = transport
 	return g
