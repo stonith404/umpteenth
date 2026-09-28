@@ -13,7 +13,7 @@
 	import { tryCatch } from '$lib/utils/try-catch-util';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { openAiPresets, providerKindLabel, usesCatalog } from './provider-meta';
+	import { isOfficialApi, openAiPresets, providerKindLabel, usesCatalog } from './provider-meta';
 
 	let {
 		open = $bindable(false),
@@ -71,8 +71,8 @@
 		if (baseUrl.trim() && !/^https?:\/\//.test(baseUrl.trim())) {
 			next.baseUrl = 'Must start with http:// or https://';
 		}
-		if (!provider && kind === 'openai' && !baseUrl.trim() && !apiKey.trim()) {
-			next.apiKey = 'Required for the OpenAI API';
+		if (!provider && isOfficialApi(kind, baseUrl) && !apiKey.trim()) {
+			next.apiKey = `Required for the ${kind === 'anthropic' ? 'Anthropic' : 'OpenAI'} API`;
 		}
 		errors = next;
 		return Object.keys(next).length === 0;
@@ -192,7 +192,10 @@
 				</Field.Field>
 				<Field.Field data-invalid={!!errors.apiKey}>
 					<!-- A key is needed for the official APIs, while local servers behind a base URL usually run without one -->
-					<Field.Label for="provider-api-key" optional={!!provider || !!baseUrl.trim()}>
+					<Field.Label
+						for="provider-api-key"
+						optional={!!provider || !isOfficialApi(kind, baseUrl)}
+					>
 						API key
 					</Field.Label>
 					<Input

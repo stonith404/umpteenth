@@ -402,7 +402,7 @@ test("Testing a provider sends a prompt through the chosen model and shows the r
 	]);
 });
 
-test('The provider dialog rejects a missing name, a non-web base URL, a missing OpenAI key and a taken name inline', async ({
+test('The provider dialog rejects a missing name, a non-web base URL, a missing key for an official API and a taken name inline', async ({
 	page
 }) => {
 	await page.goto('/settings/providers');
@@ -422,15 +422,18 @@ test('The provider dialog rejects a missing name, a non-web base URL, a missing 
 	await expect(fieldError(dialog, 'Base URL')).toHaveText('Must start with http:// or https://');
 	await expect(fieldError(dialog, 'Name')).toHaveCount(0);
 
-	// The OpenAI API itself needs a key, and switching the kind renames the untouched default name
+	// The official APIs need a key, and switching the kind renames the untouched default name
 	await dialog.getByRole('tab', { name: 'OpenAI-compatible' }).click();
 	await expect(name).toHaveValue('OpenAI');
 	await expect(baseUrl).toHaveValue('');
 	await submit.click();
 	await expect(fieldError(dialog, 'API key')).toHaveText('Required for the OpenAI API');
+	await dialog.getByRole('tab', { name: 'Anthropic' }).click();
+	await submit.click();
+	await expect(fieldError(dialog, 'API key')).toHaveText('Required for the Anthropic API');
 
 	// A name another provider has is refused by the server and shown under the name
-	await dialog.getByRole('tab', { name: 'Anthropic' }).click();
+	await dialog.getByLabel('API key').fill('sk-ant-test-key');
 	await name.fill('Fake');
 	await submit.click();
 	await expect(fieldError(dialog, 'Name')).toHaveText('Provider name is already in use');

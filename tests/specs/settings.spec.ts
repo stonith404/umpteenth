@@ -107,6 +107,7 @@ test("Disable a synced model so it can no longer be picked, though it can't be d
 	// A new Anthropic provider lists the catalog models, enabled
 	await page.getByRole('button', { name: 'Add provider' }).click();
 	const addDialog = page.getByRole('dialog', { name: 'Add provider' });
+	await addDialog.getByLabel('API key').fill('sk-ant-test-key');
 	await addDialog.getByRole('button', { name: 'Add provider' }).click();
 	await expect(providers.getByRole('row', { name: /Anthropic/ })).toBeVisible();
 

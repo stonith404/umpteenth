@@ -32,6 +32,21 @@ export function usesCatalog(kind: string, baseUrl: string) {
 	}
 }
 
+// Whether a provider talks to its kind's official API, which rejects every request without an API key
+export function isOfficialApi(kind: string, baseUrl: string) {
+	const trimmed = baseUrl.trim();
+	if (!trimmed) return kind === 'anthropic' || kind === 'openai';
+	try {
+		const host = new URL(trimmed).hostname.toLowerCase();
+		return (
+			(kind === 'anthropic' && host === 'api.anthropic.com') ||
+			(kind === 'openai' && host === 'api.openai.com')
+		);
+	} catch {
+		return false;
+	}
+}
+
 // Where a provider's model list comes from, in the words the providers page uses
 export const modelSourceLabels: Record<Provider['modelSource'], string> = {
 	catalog: 'Catalog',
