@@ -407,34 +407,43 @@ func (m *Module) update(ctx context.Context, in *updateInput) (*idOutput, error)
 	env, _ := json.Marshal(orEmpty(b.Env))
 	headers, _ := json.Marshal(orEmpty(b.Headers))
 	oauth, _ := json.Marshal(orEmptyOAuth(b.OAuth)) // #nosec G117 -- the client secret is kept like header values, which should reference secrets as {{secret:NAME}}
-	n, err := m.queries.UpdateServer(ctx, mcpserversdb.UpdateServerParams{
-		Name: b.Name, Description: nonEmpty(b.Description), Transport: b.Transport, Command: nonEmpty(b.Command), Args: string(args),
-		Env: string(env), Url: nonEmpty(b.URL), Headers: string(headers), OauthConfig: string(oauth), Enabled: b.Enabled == nil || *b.Enabled,
-		UpdatedAt: database.Now(), WorkspaceID: wid, ID: in.ID,
-	})
-	if database.IsUniqueViolation(err) {
-		return nil, apperror.AlreadyInUse("MCP server name")
-	} else if err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		return nil, apperror.NotFound("MCP server")
-	}
 
 	// A login belongs to one server URL and client, so changing either needs a new login, like Codex keys its logins by URL
+	// The login is dropped in the same transaction as the change, so no connection ever sends its token to the new URL
 	var beforeOAuth oauthConfig
 	_ = json.Unmarshal([]byte(before.OauthConfig), &beforeOAuth)
 	urlChanged := before.Transport != b.Transport || deref(before.Url) != strings.TrimSpace(b.URL)
-	if urlChanged || beforeOAuth.ClientID != orEmptyOAuth(b.OAuth).ClientID {
-		if _, err := m.queries.ClearOAuthLogin(ctx, mcpserversdb.ClearOAuthLoginParams{WorkspaceID: wid, ID: in.ID}); err != nil {
-			return nil, err
+	loginChanged := urlChanged || beforeOAuth.ClientID != orEmptyOAuth(b.OAuth).ClientID
+	err = m.db.InTx(ctx, func(tx *database.Tx) error {
+		q := mcpserversdb.New(tx)
+		n, err := q.UpdateServer(ctx, mcpserversdb.UpdateServerParams{
+			Name: b.Name, Description: nonEmpty(b.Description), Transport: b.Transport, Command: nonEmpty(b.Command), Args: string(args),
+			Env: string(env), Url: nonEmpty(b.URL), Headers: string(headers), OauthConfig: string(oauth), Enabled: b.Enabled == nil || *b.Enabled,
+			UpdatedAt: database.Now(), WorkspaceID: wid, ID: in.ID,
+		})
+		if database.IsUniqueViolation(err) {
+			return apperror.AlreadyInUse("MCP server name")
+		} else if err != nil {
+			return err
 		}
-		m.forgetTokens(in.ID)
+		if n == 0 {
+			return apperror.NotFound("MCP server")
+		}
+		if loginChanged {
+			if _, err := q.ClearOAuthLogin(ctx, mcpserversdb.ClearOAuthLoginParams{WorkspaceID: wid, ID: in.ID}); err != nil {
+				return err
+			}
+		}
+		if urlChanged {
+			return q.SetOAuthSupported(ctx, mcpserversdb.SetOAuthSupportedParams{WorkspaceID: wid, ID: in.ID})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	if urlChanged {
-		if err := m.queries.SetOAuthSupported(ctx, mcpserversdb.SetOAuthSupportedParams{WorkspaceID: wid, ID: in.ID}); err != nil {
-			return nil, err
-		}
+	if loginChanged {
+		m.forgetTokens(in.ID)
 	}
 
 	// Detect again when the endpoint or its headers changed, or when no detection has succeeded yet

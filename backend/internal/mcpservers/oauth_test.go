@@ -15,6 +15,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/events"
 	"github.com/stonith404/umpteenth/backend/internal/llm"
 	"github.com/stonith404/umpteenth/backend/internal/mcp/mcptest"
+	"github.com/stonith404/umpteenth/backend/internal/mcpservers/mcpserversdb"
 	"github.com/stonith404/umpteenth/backend/internal/principal"
 	"github.com/stonith404/umpteenth/backend/internal/runner"
 	"github.com/stonith404/umpteenth/backend/internal/testutil"
@@ -173,6 +174,46 @@ func TestChangingTheURLDropsTheLogin(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, moved.Body.Auth.LoggedInAt)
 	require.Equal(t, authNotLoggedIn, moved.Body.Auth.Status, "the new URL is detected again")
+}
+
+func TestALoginOnlyLandsOnTheURLItWasStartedFor(t *testing.T) {
+	as := mcptest.NewAuthServer(t)
+	srv := mcptest.NewProtectedServer(t, as)
+	elsewhere := mcptest.NewProtectedServer(t, as)
+	m, ctx, wid := newTestModule(t)
+	server := addServer(t, m, ctx, serverBody{Name: "protected", Transport: "http", URL: srv.URL + "/mcp"})
+
+	// Renaming the server while the browser is at the authorization server keeps the login
+	started, err := m.login(ctx, &idInput{ID: server.ID})
+	require.NoError(t, err)
+	back := mcptest.FollowAuthorization(t, started.Body.AuthorizationURL)
+	_, err = m.update(ctx, &updateInput{ID: server.ID, Body: serverBody{Name: "renamed", Transport: "http", URL: srv.URL + "/mcp"}})
+	require.NoError(t, err)
+	done, err := m.callback(ctx, callbackFrom(server.ID, back))
+	require.NoError(t, err)
+	require.Equal(t, "/mcp?oauth=success&server="+server.ID, done.Location)
+
+	// Pointing it elsewhere meanwhile drops the started login, so its callback finishes nothing
+	started, err = m.login(ctx, &idInput{ID: server.ID})
+	require.NoError(t, err)
+	back = mcptest.FollowAuthorization(t, started.Body.AuthorizationURL)
+	sealed, err := m.queries.GetOAuthPending(ctx, mcpserversdb.GetOAuthPendingParams{WorkspaceID: wid, ID: server.ID})
+	require.NoError(t, err)
+	_, err = m.update(ctx, &updateInput{ID: server.ID, Body: serverBody{Name: "renamed", Transport: "http", URL: elsewhere.URL + "/mcp"}})
+	require.NoError(t, err)
+	done, err = m.callback(ctx, callbackFrom(server.ID, back))
+	require.NoError(t, err)
+	require.Contains(t, done.Location, "oauthError=")
+
+	// A callback that took the started login just before the change doesn't store its token on the moved server either
+	require.NoError(t, m.queries.SetOAuthPending(ctx, mcpserversdb.SetOAuthPendingParams{WorkspaceID: wid, ID: server.ID, OauthPending: sealed}))
+	done, err = m.callback(ctx, callbackFrom(server.ID, back))
+	require.NoError(t, err)
+	require.Contains(t, done.Location, "changed")
+	got, err := m.get(ctx, &idInput{ID: server.ID})
+	require.NoError(t, err)
+	require.Nil(t, got.Body.Auth.LoggedInAt)
+	require.Equal(t, authNotLoggedIn, got.Body.Auth.Status)
 }
 
 func TestAuthorizationHeaderWinsOverOAuth(t *testing.T) {

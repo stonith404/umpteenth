@@ -51,7 +51,7 @@ func (q *Queries) ClearJobServers(ctx context.Context, jobID string) error {
 }
 
 const clearOAuthLogin = `-- name: ClearOAuthLogin :execrows
-UPDATE mcp_servers SET oauth_credentials = NULL, oauth_key_id = NULL, oauth_expires_at = NULL, oauth_refreshable = FALSE, oauth_logged_in_at = NULL
+UPDATE mcp_servers SET oauth_credentials = NULL, oauth_key_id = NULL, oauth_expires_at = NULL, oauth_refreshable = FALSE, oauth_logged_in_at = NULL, oauth_pending = NULL
 WHERE workspace_id = $1 AND id = $2
 `
 
@@ -60,6 +60,7 @@ type ClearOAuthLoginParams struct {
 	ID          string
 }
 
+// A started login is dropped too, so it can't finish on a server that was pointed elsewhere or logged out meanwhile
 func (q *Queries) ClearOAuthLogin(ctx context.Context, arg ClearOAuthLoginParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, clearOAuthLogin, arg.WorkspaceID, arg.ID)
 	if err != nil {
@@ -349,10 +350,10 @@ func (q *Queries) ReleaseOAuthRefresh(ctx context.Context, arg ReleaseOAuthRefre
 	return err
 }
 
-const saveOAuthLogin = `-- name: SaveOAuthLogin :exec
+const saveOAuthLogin = `-- name: SaveOAuthLogin :execrows
 UPDATE mcp_servers SET oauth_credentials = $1, oauth_key_id = $2, oauth_expires_at = $3,
   oauth_refreshable = $4, oauth_logged_in_at = $5, oauth_supported = TRUE
-WHERE workspace_id = $6 AND id = $7
+WHERE workspace_id = $6 AND id = $7 AND transport = 'http' AND url = $8 AND oauth_config = $9
 `
 
 type SaveOAuthLoginParams struct {
@@ -363,10 +364,13 @@ type SaveOAuthLoginParams struct {
 	OauthLoggedInAt  *int64
 	WorkspaceID      string
 	ID               string
+	Url              *string
+	OauthConfig      string
 }
 
-func (q *Queries) SaveOAuthLogin(ctx context.Context, arg SaveOAuthLoginParams) error {
-	_, err := q.db.ExecContext(ctx, saveOAuthLogin,
+// A login only lands on the server while it still has the URL and OAuth client the login was started for, so a server pointed elsewhere meanwhile never gets the token
+func (q *Queries) SaveOAuthLogin(ctx context.Context, arg SaveOAuthLoginParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, saveOAuthLogin,
 		arg.OauthCredentials,
 		arg.OauthKeyID,
 		arg.OauthExpiresAt,
@@ -374,8 +378,13 @@ func (q *Queries) SaveOAuthLogin(ctx context.Context, arg SaveOAuthLoginParams) 
 		arg.OauthLoggedInAt,
 		arg.WorkspaceID,
 		arg.ID,
+		arg.Url,
+		arg.OauthConfig,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const saveOAuthTokens = `-- name: SaveOAuthTokens :execrows

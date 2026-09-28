@@ -79,11 +79,19 @@ func authOf(s mcpserversdb.McpServer, headers map[string]string) authDto {
 	return a
 }
 
-// pendingLogin is a started login, bound to the user who started it
+// pendingLogin is a started login, bound to the user who started it and to the server settings it was started for
 type pendingLogin struct {
 	mcp.OAuthLogin
 	UserID    string `json:"userId"`
 	ExpiresAt int64  `json:"expiresAt"`
+	// ServerURL and OAuthConfig are the server's settings when the login started, and the login is only stored while the server still has them
+	ServerURL   string `json:"serverUrl"`
+	OAuthConfig string `json:"oauthConfig"`
+}
+
+// startedFor reports whether a server still has the settings a login was started for
+func (p pendingLogin) startedFor(s mcpserversdb.McpServer) bool {
+	return s.Transport == mcp.TransportHTTP && deref(s.Url) == p.ServerURL && s.OauthConfig == p.OAuthConfig
 }
 
 type loginOutput struct {
@@ -141,7 +149,10 @@ func (m *Module) beginLogin(ctx context.Context, workspaceID, userID string, s m
 	}
 
 	// The login waits encrypted in the database, since it carries the PKCE verifier and possibly a client secret
-	raw, err := json.Marshal(pendingLogin{OAuthLogin: login, UserID: userID, ExpiresAt: time.Now().Add(pendingLoginTTL).UnixMilli()})
+	raw, err := json.Marshal(pendingLogin{
+		OAuthLogin: login, UserID: userID, ExpiresAt: time.Now().Add(pendingLoginTTL).UnixMilli(),
+		ServerURL: deref(s.Url), OAuthConfig: s.OauthConfig,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -214,11 +225,11 @@ func (m *Module) callback(ctx context.Context, in *callbackInput) (*redirectOutp
 		return back("The login expired or was already finished, start it again")
 	}
 
-	// A provider that rejects the discovered scopes gets one more attempt without them, like Codex
+	// A provider that rejects the discovered scopes gets one more attempt without them, like Codex, as long as the server wasn't changed meanwhile
 	if in.Error != "" {
 		if (in.Error == "invalid_scope" || in.Error == "invalid_request") && pending.ScopesDiscovered {
 			s, err := m.queries.GetServer(ctx, mcpserversdb.GetServerParams{WorkspaceID: p.WorkspaceID, ID: in.ID})
-			if err == nil {
+			if err == nil && pending.startedFor(s) {
 				authURL, err := m.beginLogin(ctx, p.WorkspaceID, p.UserID, s, true)
 				if err == nil {
 					return &redirectOutput{Status: http.StatusFound, Location: authURL}, nil
@@ -232,33 +243,38 @@ func (m *Module) callback(ctx context.Context, in *callbackInput) (*redirectOutp
 		return back("The authorization server refused the login (" + message + ")")
 	}
 
-	// Exchange the code, then store the login encrypted
+	// Exchange the code, then store the login encrypted, as long as the server kept the URL and client it was started for
 	creds, err := m.manager.FinishOAuthLogin(ctx, pending.OAuthLogin, in.State, in.Code, in.Iss)
 	if err != nil {
 		slog.InfoContext(ctx, "MCP OAuth login failed", slog.String("server", in.ID), slog.Any("error", err))
 		return back("Failed to finish the login: " + err.Error())
 	}
-	if err := m.saveLogin(ctx, p.WorkspaceID, in.ID, creds); err != nil {
+	saved, err := m.saveLogin(ctx, p.WorkspaceID, in.ID, pending, creds)
+	if err != nil {
 		return nil, err
+	}
+	if !saved {
+		return back("The server's URL or OAuth client changed during the login, start it again")
 	}
 	return back("")
 }
 
-// saveLogin stores a new login, replacing the previous one
-func (m *Module) saveLogin(ctx context.Context, workspaceID, serverID string, creds mcp.OAuthCredentials) error {
+// saveLogin stores a new login, replacing the previous one, and reports false when the server no longer has the settings the login was started for
+func (m *Module) saveLogin(ctx context.Context, workspaceID, serverID string, pending pendingLogin, creds mcp.OAuthCredentials) (bool, error) {
 	sealed, err := m.sealCredentials(creds)
 	if err != nil {
-		return err
+		return false, err
 	}
-	err = m.queries.SaveOAuthLogin(ctx, mcpserversdb.SaveOAuthLoginParams{
+	n, err := m.queries.SaveOAuthLogin(ctx, mcpserversdb.SaveOAuthLoginParams{
 		WorkspaceID: workspaceID, ID: serverID, OauthCredentials: sealed, OauthKeyID: new(crypto.KeyIDV1),
 		OauthExpiresAt: nonZero(creds.ExpiresAt), OauthRefreshable: creds.RefreshToken != "", OauthLoggedInAt: new(database.Now()),
+		Url: &pending.ServerURL, OauthConfig: pending.OAuthConfig,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to store the OAuth login: %w", err)
+		return false, fmt.Errorf("failed to store the OAuth login: %w", err)
 	}
 	m.forgetTokens(serverID)
-	return nil
+	return n > 0, nil
 }
 
 // logout drops a server's OAuth login, like codex mcp logout
