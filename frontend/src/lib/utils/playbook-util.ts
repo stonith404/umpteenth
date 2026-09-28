@@ -34,8 +34,9 @@ const learningKindLabels: Record<string, string> = {
 };
 
 // A learning's kind in sentence case, e.g. `Edge case` for `edge_case`
+// Kinds are free-form, so a kind like `constructor` must not resolve to an inherited property
 export function learningKindLabel(kind: string) {
-	return learningKindLabels[kind] ?? humanize(kind);
+	return Object.hasOwn(learningKindLabels, kind) ? learningKindLabels[kind] : humanize(kind);
 }
 
 // One comparable part of a playbook, e.g. the Dockerfile or one toolkit script
@@ -181,10 +182,19 @@ export function versionChanges(
 		if (section.before !== section.after) sections.set(section.key, section);
 	}
 
-	// Each proposal becomes a change, and an applied one takes the diff of the part it edited
+	// Only intermediate content could tell apart several applied proposals to one part, so their combined diff stays a change of its own
+	const appliedPerKey = new Map<string, number>();
+	for (const op of ops) {
+		if (op.status !== 'applied') continue;
+		const key = opSectionKey(op);
+		appliedPerKey.set(key, (appliedPerKey.get(key) ?? 0) + 1);
+	}
+
+	// Each proposal becomes a change, and an applied one takes the diff of the part it edited when it is the only one editing it
 	const changes: PlaybookChange[] = ops.map((op, i) => {
 		const key = opSectionKey(op);
-		const section = op.status === 'applied' ? sections.get(key) : undefined;
+		const section =
+			op.status === 'applied' && appliedPerKey.get(key) === 1 ? sections.get(key) : undefined;
 		if (section) sections.delete(key);
 		return { key: `op:${i}`, label: opLabel(op), kind: sectionKind(key), op, section };
 	});
