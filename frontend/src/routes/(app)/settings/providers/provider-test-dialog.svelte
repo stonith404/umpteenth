@@ -21,7 +21,9 @@
 	// Null while the models load
 	let models = $state.raw<Model[] | null>(null);
 	let modelId = $state('');
-	let result = $state.raw<ProviderTestResult | null>(null);
+	// A result belongs to the model it tested, so picking another model hides it instead of passing it off as that one's
+	let tested = $state.raw<{ modelId: string; result: ProviderTestResult } | null>(null);
+	const result = $derived(tested?.modelId === modelId ? tested.result : null);
 	let testing = $state(false);
 	// Opening or closing the dialog and every new request make the responses of earlier ones stale
 	let requestSeq = 0;
@@ -34,7 +36,7 @@
 	});
 
 	async function loadModels(current: Provider, seq: number) {
-		result = null;
+		tested = null;
 		testing = false;
 		models = null;
 		modelId = '';
@@ -54,16 +56,17 @@
 	async function runTest() {
 		if (!provider || !modelId) return;
 		const seq = ++requestSeq;
+		const testedModelId = modelId;
 		testing = true;
-		result = null;
-		const response = await tryCatch(providerService.test(provider.id, modelId));
+		tested = null;
+		const response = await tryCatch(providerService.test(provider.id, testedModelId));
 		if (seq !== requestSeq) return;
 		testing = false;
 		if (response.error) {
 			apiErrorToast(response.error, 'Failed to test the provider');
 			return;
 		}
-		result = response.data;
+		tested = { modelId: testedModelId, result: response.data };
 	}
 </script>
 
