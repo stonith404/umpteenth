@@ -12,6 +12,9 @@ export default class ProviderService extends APIService {
 	list = (query?: QueryOf<'list-providers'>) =>
 		this.unwrap(this.api.GET('/api/providers', { params: { query } }));
 
+	listAll = () =>
+		this.listAllPages((page, pageSize) => this.list({ page, pageSize, sort: 'name' }));
+
 	create = (body: ProviderCreate) => this.unwrap(this.api.POST('/api/providers', { body }));
 
 	update = (id: string, body: ProviderUpdate) =>
