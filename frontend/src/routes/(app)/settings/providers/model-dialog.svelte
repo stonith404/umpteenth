@@ -63,7 +63,9 @@
 			? catalog.find((c) => c.model === model.model)
 			: undefined
 	);
-	const locked = $derived(!!catalogEntry && followCatalog);
+	// A model that follows the catalog stays locked while the catalog loads or when it fails to, so a save can't opt it out by accident
+	const canFollow = $derived(!!catalogEntry || !!model?.followCatalog);
+	const locked = $derived(canFollow && followCatalog);
 
 	function emptyCaps(): Record<Capability, boolean> {
 		return {
@@ -296,7 +298,7 @@
 						</Field.Field>
 					</div>
 				{/if}
-				{#if catalogEntry}
+				{#if canFollow}
 					<Field.Field orientation="horizontal">
 						<Switch
 							id="model-follow-catalog"
