@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   version:
+    # A manual dispatch can pick any branch, and only reviewed code from main may be published as the next images
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
