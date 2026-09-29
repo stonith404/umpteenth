@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -187,6 +188,33 @@ func TestKillAfterExitIsNoop(t *testing.T) {
 	<-done
 	require.NoError(t, os.WriteFile(pidfile, []byte(strings.TrimSpace(stdout.String())+"\n"), 0o600))
 	require.NoError(t, killRecorded(pidfile, defaultKillGrace))
+}
+
+func TestWriteExclusiveNeverFollowsSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target")
+	require.NoError(t, os.WriteFile(target, []byte("keep"), 0o600))
+
+	// A symlink at the pid file's path counts as an existing file rather than being written through
+	planted := filepath.Join(dir, "planted.pid")
+	require.NoError(t, os.Symlink(target, planted))
+	assert.ErrorIs(t, writeExclusive(planted, "123"), fs.ErrExist)
+
+	// A symlink at a temporary name derived from the pid file is ignored too
+	pidfile := filepath.Join(dir, "exec.pid")
+	require.NoError(t, os.Symlink(target, pidfile+"."+strconv.Itoa(os.Getpid())+".tmp"))
+	require.NoError(t, writeExclusive(pidfile, "123"))
+	data, err := os.ReadFile(pidfile) // #nosec G304 -- test file in a temp dir
+	require.NoError(t, err)
+	assert.Equal(t, "123\n", string(data))
+
+	// The target is untouched and no temporary file is left behind
+	data, err = os.ReadFile(target) // #nosec G304 -- test file in a temp dir
+	require.NoError(t, err)
+	assert.Equal(t, "keep", string(data))
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 4)
 }
 
 func TestTerminateGroupRejectsDangerousGroups(t *testing.T) {

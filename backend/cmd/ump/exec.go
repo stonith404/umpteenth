@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -263,8 +264,10 @@ func shim(opts shimOptions, stdin io.Reader, stdout, stderr io.Writer) int {
 	}()
 
 	// Register the group; a kill that arrived first left a marker, so the command is cancelled right away
+	registered := false
 	if opts.Pidfile != "" {
 		err := writeExclusive(opts.Pidfile, strconv.Itoa(pgid))
+		registered = err == nil
 		switch {
 		case errors.Is(err, fs.ErrExist):
 			go func() { _ = terminateGroup(pgid, opts.Grace) }()
@@ -293,8 +296,9 @@ func shim(opts shimOptions, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 
 	// Leave the OOM marker for the adapter, otherwise clean up so the run directory does not grow
+	// Only a pid file this shim created is written to, since one that was there first may be a symlink another user planted
 	if opts.Pidfile != "" {
-		if oom {
+		if oom && registered {
 			_ = os.WriteFile(opts.Pidfile, []byte(markerOOM+"\n"), 0o600)
 		} else {
 			_ = os.Remove(opts.Pidfile)
@@ -388,13 +392,18 @@ func terminateGroup(pgid int, grace time.Duration) error {
 
 // writeExclusive atomically creates path with content and fails with fs.ErrExist when it already exists
 // Linking a complete temporary file means readers never observe a half-written pid file
+// The temporary file gets a random name and is created exclusively, since every user can plant a symlink at a name they can predict in the run directory
 func writeExclusive(path, content string) error {
-	tmp := fmt.Sprintf("%s.%d.tmp", path, os.Getpid())
-	if err := os.WriteFile(tmp, []byte(content+"\n"), 0o600); err != nil {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
 		return err
 	}
-	defer func() { _ = os.Remove(tmp) }()
-	return os.Link(tmp, path)
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	_, writeErr := tmp.WriteString(content + "\n")
+	if err := errors.Join(writeErr, tmp.Close()); err != nil {
+		return err
+	}
+	return os.Link(tmp.Name(), path)
 }
 
 // readOOMKills returns the cgroup's oom_kill counter, or false when no cgroup memory controller is visible
