@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/database"
 	"github.com/stonith404/umpteenth/backend/internal/providers/providersdb"
 	"github.com/stonith404/umpteenth/backend/internal/testutil"
@@ -39,4 +40,20 @@ func TestDeletedModelsLeaveTheDefaultModels(t *testing.T) {
 	}
 	require.NoError(t, rows.Err())
 	require.Equal(t, []string{"agentModelId", "defaultImage"}, keys)
+}
+
+// allowAllEgress is an egress guard that lets every URL through
+type allowAllEgress struct{}
+
+func (allowAllEgress) CheckURL(context.Context, string, string) error { return nil }
+
+func TestBaseURLMustNotCarryCredentials(t *testing.T) {
+	m := &Module{deps: Dependencies{Egress: allowAllEgress{}}}
+	require.NoError(t, m.checkBaseURL(context.Background(), "https://proxy.example/v1"))
+	for _, baseURL := range []string{"https://user:secret@proxy.example/v1", "https://token@proxy.example/v1"} {
+		err := m.checkBaseURL(context.Background(), baseURL)
+		appErr, ok := apperror.As(err)
+		require.True(t, ok, baseURL)
+		require.Equal(t, apperror.CodeValidationFailed, appErr.Code(), baseURL)
+	}
 }

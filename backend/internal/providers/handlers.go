@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -95,7 +96,7 @@ func (m *Module) createProvider(ctx context.Context, in *createProviderInput) (*
 		return nil, apperror.InvalidField("kind", "unsupported", "is not available in this build")
 	}
 	if b.BaseURL != "" {
-		if err := m.deps.Egress.CheckURL(ctx, "baseUrl", b.BaseURL); err != nil {
+		if err := m.checkBaseURL(ctx, b.BaseURL); err != nil {
 			return nil, err
 		}
 	}
@@ -112,6 +113,15 @@ func (m *Module) createProvider(ctx context.Context, in *createProviderInput) (*
 		return nil, err
 	}
 	return out, nil
+}
+
+// checkBaseURL rejects a base URL the host must not call, or one that carries credentials, since every workspace member can read it
+func (m *Module) checkBaseURL(ctx context.Context, baseURL string) error {
+	// Credentials belong in the API key, which is stored encrypted and never returned
+	if u, err := url.Parse(baseURL); err == nil && u.User != nil {
+		return apperror.InvalidField("baseUrl", "credentials", "must not contain credentials, set the API key instead")
+	}
+	return m.deps.Egress.CheckURL(ctx, "baseUrl", baseURL)
 }
 
 type updateProviderInput struct {
@@ -143,7 +153,7 @@ func (m *Module) updateProvider(ctx context.Context, in *updateProviderInput) (*
 	if in.Body.BaseURL != nil {
 		baseURL = nonEmpty(*in.Body.BaseURL)
 		if baseURL != nil {
-			if err := m.deps.Egress.CheckURL(ctx, "baseUrl", *baseURL); err != nil {
+			if err := m.checkBaseURL(ctx, *baseURL); err != nil {
 				return nil, err
 			}
 		}
