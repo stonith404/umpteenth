@@ -68,11 +68,7 @@ func serveAsset(w http.ResponseWriter, r *http.Request, root fs.FS, p string) bo
 	w.Header().Add("Vary", "Accept-Encoding")
 
 	// Prefer the precompressed sidecars SvelteKit generates
-	accept := r.Header.Get("Accept-Encoding")
-	for _, enc := range []struct{ name, ext string }{{"br", ".br"}, {"gzip", ".gz"}} {
-		if !strings.Contains(accept, enc.name) {
-			continue
-		}
+	for _, enc := range acceptedCodings(r.Header.Values("Accept-Encoding")) {
 		if data, err := fs.ReadFile(root, p+enc.ext); err == nil {
 			w.Header().Set("Content-Encoding", enc.name)
 			_, _ = w.Write(data)
