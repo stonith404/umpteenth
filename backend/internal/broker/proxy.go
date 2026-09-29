@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -138,25 +137,24 @@ func (b *Broker) tunnel(w http.ResponseWriter, r *http.Request, grant *runner.Pr
 	relay(client, buffered, upstream)
 }
 
-// relay copies bytes both ways between a client and its upstream until the upstream is done
+// relay copies bytes both ways between a client and its upstream until either side is done
 // Bytes the client sent before the tunnel was set up are already buffered in from and go first
 func relay(client net.Conn, from io.Reader, upstream net.Conn) {
-	var wg sync.WaitGroup
-	wg.Go(func() {
+	done := make(chan struct{}, 2)
+	go func() {
 		_, _ = io.Copy(upstream, from)
-		closeWrite(upstream)
-	})
-	_, _ = io.Copy(client, upstream)
+		done <- struct{}{}
+	}()
+	go func() {
+		_, _ = io.Copy(client, upstream)
+		done <- struct{}{}
+	}()
 
-	// The upstream is done, so the client side is closed too, which also ends the copy above instead of it waiting on a client that may never speak again
+	// Once one direction ends, both connections close, which also ends the other copy, since a peer that half-closes and goes silent or stops reading would otherwise hold it forever
+	<-done
 	_ = client.Close()
-	wg.Wait()
-}
-
-func closeWrite(c net.Conn) {
-	if tcp, ok := c.(interface{ CloseWrite() error }); ok {
-		_ = tcp.CloseWrite()
-	}
+	_ = upstream.Close()
+	<-done
 }
 
 // forward sends a plain HTTP request on to the target and copies the response back

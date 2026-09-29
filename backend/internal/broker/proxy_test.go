@@ -340,3 +340,52 @@ func TestProxyTunnelEndsWhenTheUpstreamCloses(t *testing.T) {
 	require.Eventually(t, func() bool { return runtime.NumGoroutine() < before+10 }, 3*time.Second, 50*time.Millisecond,
 		"goroutines went from %d to %d", before, runtime.NumGoroutine())
 }
+
+// stalledUpstream never reads what it is sent and stops sending once eof is closed, like a server that half-closes and then ignores the connection
+type stalledUpstream struct {
+	net.Conn
+	eof chan struct{}
+}
+
+func (u stalledUpstream) Read([]byte) (int, error) {
+	<-u.eof
+	return 0, io.EOF
+}
+
+func TestRelayEndsWhenEitherSideIsDone(t *testing.T) {
+	relayed := func(client, upstream net.Conn) <-chan struct{} {
+		done := make(chan struct{})
+		go func() {
+			relay(client, client, upstream)
+			close(done)
+		}()
+		return done
+	}
+	requireDone := func(done <-chan struct{}) {
+		t.Helper()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Fatal("the relay still holds the tunnel open")
+		}
+	}
+
+	// A sandbox that hangs up ends the tunnel, even though the upstream stays connected and silent
+	client, sandboxEnd := net.Pipe()
+	upstream, serverEnd := net.Pipe()
+	t.Cleanup(func() { _ = serverEnd.Close() })
+	done := relayed(client, upstream)
+	_ = sandboxEnd.Close()
+	requireDone(done)
+
+	// An upstream that stopped sending ends the tunnel, even while a write to it hangs since it never reads
+	client, sandboxEnd = net.Pipe()
+	upstream, serverEnd = net.Pipe()
+	t.Cleanup(func() { _ = sandboxEnd.Close(); _ = serverEnd.Close() })
+	eof := make(chan struct{})
+	done = relayed(client, stalledUpstream{Conn: upstream, eof: eof})
+	_, err := sandboxEnd.Write([]byte("request"))
+	require.NoError(t, err)
+	close(eof)
+	requireDone(done)
+}
