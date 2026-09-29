@@ -115,13 +115,17 @@ func (s *podSandbox) Archive(ctx context.Context, dir string, max int64) (io.Rea
 		return nil, fmt.Errorf("invalid sandbox path %q", dir)
 	}
 
+	// ump reads as the agent, so a symlink or hard link the agent swaps in while the archive runs only reaches files it could read itself
+	uid := strconv.Itoa(s.agentUser.UID())
+	cmd := []string{bootstrapUmp, "files", "archive", "--max", strconv.FormatInt(max, 10), "--user", uid + ":" + uid, dir}
+
 	// The stream runs until the caller closes the reader, and ends with the error ump reported
 	streamCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	pr, pw := io.Pipe()
 	go func() {
 		stderr := &cappedBuffer{max: maxFilesStderr}
 		limited := &limitWriter{w: pw, max: max}
-		code, err := s.run(streamCtx, []string{bootstrapUmp, "files", "archive", "--max", strconv.FormatInt(max, 10), dir}, nil, limited, stderr)
+		code, err := s.run(streamCtx, cmd, nil, limited, stderr)
 		switch {
 		case limited.exceeded:
 			err = fmt.Errorf("%w: archive is larger than %d bytes", sandbox.ErrOutputTooLarge, max)

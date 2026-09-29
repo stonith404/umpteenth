@@ -40,7 +40,7 @@ func (e *filesError) Error() string { return e.err.Error() }
 // runFiles dispatches ump files put, read and archive, which the Kubernetes adapter runs as root because its API can only exec
 func runFiles(args []string) int {
 	if len(args) == 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "Usage: ump files put | read --max bytes <path> | archive --max bytes <dir>")
+		_, _ = fmt.Fprintln(os.Stderr, "Usage: ump files put | read --max bytes [--user uid[:gid]] <path> | archive --max bytes [--user uid[:gid]] <dir>")
 		return 2
 	}
 	var err error
@@ -50,9 +50,23 @@ func runFiles(args []string) int {
 	case "read", "archive":
 		flags := flag.NewFlagSet("ump files "+args[0], flag.ContinueOnError)
 		limit := flags.Int64("max", 0, "fail once more than this many bytes were produced")
+		user := flags.String("user", "", "read as this uid[:gid] instead of root")
 		if flags.Parse(args[1:]) != nil || flags.NArg() != 1 || *limit <= 0 {
-			_, _ = fmt.Fprintf(os.Stderr, "Usage: ump files %s --max bytes <path>\n", args[0])
+			_, _ = fmt.Fprintf(os.Stderr, "Usage: ump files %s --max bytes [--user uid[:gid]] <path>\n", args[0])
 			return 2
+		}
+
+		// Switching users before touching the path makes the kernel check every step of the read, which no check of ours could do without a race
+		if *user != "" {
+			cred, err := parseUser(*user)
+			if err != nil {
+				errorf("files", "%v", err)
+				return 2
+			}
+			if err := switchUser(cred); err != nil {
+				errorf("files", "%v", err)
+				return 1
+			}
 		}
 		out := bufio.NewWriter(os.Stdout)
 		if args[0] == "read" {
@@ -240,7 +254,7 @@ func archiveDir(w io.Writer, dir string, limit int64) error {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
-		f, err := os.Open(p) // #nosec G304 G122 -- ump runs as root in a sandbox that belongs to one run, so a symlink swapped in mid-walk reaches nothing its processes couldn't
+		f, err := os.Open(p) // #nosec G304 G122 -- the adapter archives as the agent, so a symlink swapped in mid-walk reaches nothing the agent couldn't read itself
 		if err != nil {
 			return err
 		}
@@ -251,6 +265,25 @@ func archiveDir(w io.Writer, dir string, limit int64) error {
 		return err
 	}
 	return tw.Close()
+}
+
+// switchUser makes the process run as another user for good, which only root can do
+func switchUser(cred *syscall.Credential) error {
+	if int(cred.Uid) == os.Geteuid() && int(cred.Gid) == os.Getegid() {
+		return nil
+	}
+
+	// The groups go first and the uid last, since giving up root's uid takes away the right to change the others
+	if err := syscall.Setgroups([]int{}); err != nil {
+		return fmt.Errorf("failed to drop the supplementary groups: %w", err)
+	}
+	if err := syscall.Setgid(int(cred.Gid)); err != nil {
+		return fmt.Errorf("failed to switch to gid %d: %w", cred.Gid, err)
+	}
+	if err := syscall.Setuid(int(cred.Uid)); err != nil {
+		return fmt.Errorf("failed to switch to uid %d: %w", cred.Uid, err)
+	}
+	return nil
 }
 
 // limitedWriter fails with the too-large exit code once more than limit bytes were written

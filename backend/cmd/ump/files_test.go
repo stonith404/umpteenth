@@ -10,7 +10,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,6 +121,20 @@ func TestArchiveDirIsRelativeAndLimited(t *testing.T) {
 		require.True(t, ok, "want exit code %d, got %v", want, err)
 		assert.Equal(t, want, fe.code)
 	}
+}
+
+func TestFilesSwitchUserBeforeReading(t *testing.T) {
+	// Switching to the current user changes nothing, while switching away needs root
+	current, err := parseUser(strconv.Itoa(os.Geteuid()) + ":" + strconv.Itoa(os.Getegid()))
+	require.NoError(t, err)
+	require.NoError(t, switchUser(current))
+	if os.Geteuid() != 0 {
+		other := &syscall.Credential{Uid: current.Uid + 1, Gid: current.Gid}
+		assert.Error(t, switchUser(other))
+	}
+
+	// A user that isn't numeric is a usage error, reported before anything is read
+	assert.Equal(t, 2, run([]string{"files", "archive", "--max", "10", "--user", "agent", t.TempDir()}, io.Discard, io.Discard))
 }
 
 func TestReadEnvHeaderLeavesTheRestForTheCommand(t *testing.T) {
