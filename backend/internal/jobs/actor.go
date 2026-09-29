@@ -223,13 +223,9 @@ func (a *jobActor) reschedule(ctx context.Context) error {
 		return err
 	}
 
-	// Drop the pending alarm first; a new one is set below if the job still has a schedule
-	// An alarm that survives a failed delete is ignored when it fires, since it is no longer the pending one
-	if state.Alarm != "" {
-		_ = a.client.DeleteAlarm(ctx, state.Alarm)
-		state.Alarm = ""
-	}
-
+	// The new alarm is armed before the pending one is dropped, so a failure in between leaves the job with its old schedule rather than none
+	previous := state.Alarm
+	state.Alarm = ""
 	var nextAt *int64
 	if job.ArchivedAt == nil && deref(job.Cron) != "" {
 		next, err := nextRun(*job.Cron, deref(job.Timezone), time.Now())
@@ -250,6 +246,12 @@ func (a *jobActor) reschedule(ctx context.Context) error {
 	err = a.save(ctx, state)
 	if err != nil {
 		return err
+	}
+
+	// An alarm for the same occurrence has the same name and was just replaced, so only an alarm for another occurrence is dropped
+	// An alarm that survives a failed delete is ignored when it fires, since it is no longer the pending one
+	if previous != "" && previous != state.Alarm {
+		_ = a.client.DeleteAlarm(ctx, previous)
 	}
 
 	// The next run time only feeds the UI, so failing to store it must not undo the armed schedule

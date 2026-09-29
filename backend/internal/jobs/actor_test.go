@@ -367,6 +367,63 @@ func TestScheduleSurvivesATransientErrorWhileRearming(t *testing.T) {
 	require.Len(t, queue.Submitted(), 1)
 }
 
+// alarmRecorder passes alarm calls through to the actor client and records deletes, and can fail arming like a provider that is briefly unreachable
+type alarmRecorder struct {
+	actor.Client[actorState]
+	failSet bool
+	deleted []string
+}
+
+func (r *alarmRecorder) SetAlarm(ctx context.Context, name string, props actor.AlarmProperties) error {
+	if r.failSet {
+		return errors.New("provider unavailable")
+	}
+	return r.Client.SetAlarm(ctx, name, props)
+}
+
+func (r *alarmRecorder) DeleteAlarm(ctx context.Context, name string) error {
+	r.deleted = append(r.deleted, name)
+	return r.Client.DeleteAlarm(ctx, name)
+}
+
+func TestRescheduleKeepsThePendingAlarmUntilTheNewOneIsArmed(t *testing.T) {
+	m, _, db := newTestModule(t)
+	ctx := t.Context()
+	wid := testutil.SeedWorkspace(t, db)
+	jobID := testutil.SeedJob(t, db, wid, ConcurrencySkip)
+	testutil.Exec(t, db, "UPDATE jobs SET cron = '0 0 1 1 *' WHERE id = $1", jobID)
+
+	a := m.newActor(jobID, m.deps.Actors.Service()).(*jobActor)
+	rec := &alarmRecorder{Client: a.client}
+	a.client = rec
+	pending := func() string {
+		state, err := a.client.GetState(ctx)
+		require.NoError(t, err)
+		return state.Alarm
+	}
+	require.NoError(t, a.reschedule(ctx))
+	first := pending()
+	require.NotEmpty(t, first)
+
+	// Saving the job without changing its schedule re-arms the same occurrence in place instead of deleting it
+	require.NoError(t, a.reschedule(ctx))
+	require.Equal(t, first, pending())
+	require.Empty(t, rec.deleted)
+
+	// A new schedule that can't be armed leaves the pending alarm in place, so the job keeps running on its old schedule
+	testutil.Exec(t, db, "UPDATE jobs SET cron = '0 0 1 7 *' WHERE id = $1", jobID)
+	rec.failSet = true
+	require.Error(t, a.reschedule(ctx))
+	require.Equal(t, first, pending())
+	require.Empty(t, rec.deleted)
+
+	// Once arming works, the new alarm replaces the pending one
+	rec.failSet = false
+	require.NoError(t, a.reschedule(ctx))
+	require.NotEqual(t, first, pending())
+	require.Equal(t, []string{first}, rec.deleted)
+}
+
 func TestUpdateDetectsAConcurrentWrite(t *testing.T) {
 	m, _, db := newTestModule(t)
 	wid := testutil.SeedWorkspace(t, db)
