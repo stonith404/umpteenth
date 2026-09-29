@@ -48,6 +48,8 @@ type LiveRun struct {
 	wroteState bool
 	// requests holds a slot for each broker request the run has in flight, and is made with the first one
 	requests chan struct{}
+	// pendingRequests counts the broker requests in flight and the ones waiting for a slot
+	pendingRequests int
 	// cost accumulates LLM spend from ump llm calls, in micro-USD
 	cost  int64
 	usage llm.Usage
@@ -99,7 +101,12 @@ const (
 	maxFailure     = 2000
 	// maxBrokerRequests bounds the broker requests a run has in flight at once, since each one can hold a request body and a state value in the control plane's memory
 	maxBrokerRequests = 8
+	// maxWaitingBrokerRequests bounds the broker requests that wait for one of those slots, since each one holds a connection and a goroutine meanwhile
+	maxWaitingBrokerRequests = 64
 )
+
+// ErrTooManyRequests reports that a run has so many broker requests waiting already that another one is turned away
+var ErrTooManyRequests = errors.New("too many broker requests")
 
 // MaxBrokerEvents bounds the broker calls a run puts on its timeline, since each one is a database row and a sandbox can send requests without end
 const MaxBrokerEvents = 1000
@@ -219,18 +226,33 @@ func (l *LiveRun) FirstStateWrite() bool {
 }
 
 // AcquireRequest reserves one of the run's concurrent broker requests, waiting while the run has too many in flight
+// It returns ErrTooManyRequests at once when too many requests wait already
 func (l *LiveRun) AcquireRequest(ctx context.Context) (release func(), err error) {
 	l.mu.Lock()
 	if l.requests == nil {
 		l.requests = make(chan struct{}, maxBrokerRequests)
 	}
+	if l.pendingRequests >= maxBrokerRequests+maxWaitingBrokerRequests {
+		l.mu.Unlock()
+		return nil, ErrTooManyRequests
+	}
+	l.pendingRequests++
 	slots := l.requests
 	l.mu.Unlock()
 
+	done := func() {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		l.pendingRequests--
+	}
 	select {
 	case slots <- struct{}{}:
-		return func() { <-slots }, nil
+		return func() {
+			<-slots
+			done()
+		}, nil
 	case <-ctx.Done():
+		done()
 		return nil, ctx.Err()
 	}
 }

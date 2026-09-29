@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -129,6 +130,48 @@ func TestAcquireRequestBoundsRequestsInFlight(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the waiting request never got its turn")
 	}
+}
+
+func TestAcquireRequestTurnsAwayRequestsOnceTooManyWait(t *testing.T) {
+	live := &runner.LiveRun{}
+
+	// fill sends requests that hold on until ctx ends, each in its own goroutine like a broker handler, and returns how many the run took before it turned one away
+	fill := func(ctx context.Context, wg *sync.WaitGroup) int {
+		for accepted := 0; ; accepted++ {
+			require.Less(t, accepted, 1000, "the requests a run holds or queues are bounded")
+			refused := make(chan error, 1)
+			wg.Go(func() {
+				release, err := live.AcquireRequest(ctx)
+				if err != nil {
+					refused <- err
+					return
+				}
+				<-ctx.Done()
+				release()
+			})
+			select {
+			case err := <-refused:
+				require.ErrorIs(t, err, runner.ErrTooManyRequests)
+				return accepted
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
+	}
+
+	// Requests queue up beyond the ones in flight, and the run turns the next one away at once instead of letting it wait too
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	first := fill(ctx, &wg)
+	cancel()
+	wg.Wait()
+
+	// Requests that gave up waiting leave the queue, so the next batch gets as far as the first
+	ctx, cancel = context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+		wg.Wait()
+	})
+	assert.Equal(t, first, fill(ctx, &wg))
 }
 
 func TestRecordActionReportsWhetherTheActionWasNoted(t *testing.T) {

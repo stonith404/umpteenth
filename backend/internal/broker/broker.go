@@ -103,9 +103,12 @@ func (b *Broker) auth(next func(w http.ResponseWriter, r *http.Request, live *ru
 		}
 
 		// Each request can hold its body and what it reads in the control plane's memory, so a sandbox's requests beyond a few wait for their turn
-		// A client that gave up while waiting has nobody left to answer
+		// Past a bounded queue they are turned away, and a client that gave up while waiting has nobody left to answer
 		release, err := live.AcquireRequest(r.Context())
-		if err != nil {
+		if errors.Is(err, runner.ErrTooManyRequests) {
+			httpserver.WriteHTTPError(w, r, apperror.RateLimited(time.Second))
+			return
+		} else if err != nil {
 			return
 		}
 		defer release()
