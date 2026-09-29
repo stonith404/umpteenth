@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
 	"strconv"
@@ -64,7 +66,7 @@ func serve(cmd *cobra.Command, _ []string) error {
 }
 
 func healthcheck(cmd *cobra.Command, _ []string) error {
-	// The server's configuration tells which port to probe
+	// The server's configuration tells which address to probe
 	cfg, err := config.Load(configFile)
 	if err != nil {
 		return err
@@ -72,7 +74,7 @@ func healthcheck(cmd *cobra.Command, _ []string) error {
 
 	ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+strconv.Itoa(cfg.Server.Port)+"/healthz", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthcheckURL(cfg), nil)
 	if err != nil {
 		return err
 	}
@@ -85,6 +87,17 @@ func healthcheck(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unhealthy: status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// healthcheckURL is where the server answers health checks, on loopback when it listens on every interface and on its configured host otherwise
+func healthcheckURL(cfg *config.Config) string {
+	// Go listens dual-stack on a wildcard address, so IPv4 loopback reaches it for both 0.0.0.0 and ::
+	host := cfg.Server.Host
+	ip, err := netip.ParseAddr(host)
+	if host == "" || (err == nil && ip.IsUnspecified()) {
+		host = "127.0.0.1"
+	}
+	return "http://" + net.JoinHostPort(host, strconv.Itoa(cfg.Server.Port)) + "/healthz"
 }
 
 func openapi(cmd *cobra.Command, _ []string) error {
