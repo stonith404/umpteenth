@@ -500,3 +500,28 @@ func TestStreamStopsAtTheAnswerLimit(t *testing.T) {
 	_, err = p.Stream(context.Background(), llm.Request{Model: "gpt-4.1", Messages: []llm.Message{userText("Hi")}}, nil)
 	require.ErrorIs(t, err, llm.ErrAnswerTooLarge)
 }
+
+func TestStreamStopsAtTheToolCallLimit(t *testing.T) {
+	// One chunk holds far more tiny calls than any model makes, well within the answer limit
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		calls := make([]string, 0, 1000)
+		for i := range 1000 {
+			calls = append(calls, fmt.Sprintf(`{"index":%d,"id":"c%d","type":"function","function":{"name":"read_file","arguments":"{}"}}`, i, i))
+		}
+		_, _ = io.WriteString(w, `data: {"id":"c","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"delta":{"tool_calls":[`+strings.Join(calls, ",")+`]},"finish_reason":"tool_calls"}]}`+"\n\n")
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	t.Cleanup(srv.Close)
+	p, err := New(llm.Config{BaseURL: srv.URL + "/v1"})
+	require.NoError(t, err)
+
+	announced := 0
+	_, err = p.Stream(context.Background(), llm.Request{Model: "gpt-4.1", Messages: []llm.Message{userText("Hi")}}, func(d llm.Delta) {
+		if d.Type == llm.DeltaToolCall {
+			announced++
+		}
+	})
+	require.ErrorIs(t, err, llm.ErrTooManyToolCalls)
+	assert.Equal(t, llm.MaxToolCalls, announced, "calls past the limit are not announced")
+}

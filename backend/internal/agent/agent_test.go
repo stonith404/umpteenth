@@ -157,6 +157,21 @@ func TestReadOnlyToolsRunInParallelAndResultsKeepOrder(t *testing.T) {
 	}
 }
 
+func TestTooManyToolCallsFailTheRun(t *testing.T) {
+	reader := &slowTool{name: "reader", readOnly: true}
+	calls := make([]fake.ScriptedToolCall, llm.MaxToolCalls+1)
+	for i := range calls {
+		calls[i] = fake.ScriptedToolCall{Name: "reader"}
+	}
+	p := fake.New()
+	p.Enqueue(fake.ScriptedResponse{ToolCalls: calls})
+
+	out := Run(context.Background(), Config{Provider: p, Model: "m", Tools: []Tool{reader, FinishTool()}, Observer: nopObserver{}}, userMsg("go"))
+	require.Equal(t, StatusFailed, out.Status)
+	require.Contains(t, out.Reason, "tool calls")
+	require.Zero(t, reader.maxSeen.Load(), "no call runs")
+}
+
 func TestBudgetsStopTheRun(t *testing.T) {
 	p := fake.New()
 	for range 5 {

@@ -58,7 +58,7 @@ func (p *Provider) Stream(ctx context.Context, req llm.Request, onDelta func(llm
 	stream := p.client.Messages.NewStreaming(ctx, params)
 	defer func() { _ = stream.Close() }()
 	var msg anthropic.Message
-	size := 0
+	size, calls := 0, 0
 	for stream.Next() {
 		event := stream.Current()
 
@@ -66,6 +66,13 @@ func (p *Provider) Stream(ctx context.Context, req llm.Request, onDelta func(llm
 		size += answerBytes(event)
 		if size > llm.MaxAnswerBytes {
 			return nil, fmt.Errorf("anthropic: %w", llm.ErrAnswerTooLarge)
+		}
+		// Every tool call becomes a live event and a goroutine, so the answer also stops at more calls than any model makes
+		if event.Type == "content_block_start" && event.ContentBlock.Type == "tool_use" {
+			calls++
+			if calls > llm.MaxToolCalls {
+				return nil, fmt.Errorf("anthropic: %w", llm.ErrTooManyToolCalls)
+			}
 		}
 		err := msg.Accumulate(event)
 		if err != nil {

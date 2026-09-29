@@ -197,6 +197,12 @@ func Run(ctx context.Context, cfg Config, messages []llm.Message) Outcome {
 			out.Status, out.Reason = StatusFailed, fmt.Sprintf("the model's answer of %d MiB is larger than the %d MiB one turn may add to the conversation", chars>>20, llm.MaxAnswerBytes>>20)
 			return out
 		}
+
+		// Every call of a turn runs at once when they are read-only, so their number is bounded whatever the provider streamed
+		if n := len(resp.Message.ToolCalls()); n > llm.MaxToolCalls {
+			out.Status, out.Reason = StatusFailed, fmt.Sprintf("the model's answer makes %d tool calls, more than the %d one turn may run", n, llm.MaxToolCalls)
+			return out
+		}
 		out.Messages = append(out.Messages, resp.Message)
 
 		if resp.Stop == llm.StopRefusal {

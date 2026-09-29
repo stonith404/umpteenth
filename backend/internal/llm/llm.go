@@ -248,6 +248,13 @@ const MaxAnswerBytes = 4 << 20
 // ErrAnswerTooLarge is returned for an answer that passes MaxAnswerBytes
 var ErrAnswerTooLarge = errors.New("the answer is larger than any model writes in one call")
 
+// MaxToolCalls bounds the tool calls of one answer, several times what models make in parallel
+// Adapters stop reading a stream that passes it, since tiny calls well within MaxAnswerBytes would otherwise each become a live event and a goroutine
+const MaxToolCalls = 128
+
+// ErrTooManyToolCalls is returned for an answer that makes more than MaxToolCalls tool calls
+var ErrTooManyToolCalls = errors.New("the answer makes more tool calls than any model makes in one call")
+
 // MaxListedModels bounds the models one server's list may hold, over ten times what the largest routers serve
 // Adapters refuse a longer list before decoding its entries, since tiny entries well within the response limit would otherwise take a gigabyte of memory
 const MaxListedModels = 5_000

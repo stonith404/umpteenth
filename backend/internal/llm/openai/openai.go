@@ -94,6 +94,9 @@ func (p *Provider) Stream(ctx context.Context, req llm.Request, onDelta func(llm
 		if acc.size > llm.MaxAnswerBytes {
 			return nil, fmt.Errorf("openai: %w", llm.ErrAnswerTooLarge)
 		}
+		if acc.tooManyCalls {
+			return nil, fmt.Errorf("openai: %w", llm.ErrTooManyToolCalls)
+		}
 	}
 	if err := stream.Err(); err != nil {
 		return nil, mapError(err)
@@ -133,6 +136,8 @@ type accumulator struct {
 	hasUsage  bool
 	// size is how many bytes of text, reasoning, refusal and tool arguments the answer holds so far
 	size int
+	// tooManyCalls is set once the answer starts a call past llm.MaxToolCalls
+	tooManyCalls bool
 }
 
 func newAccumulator(onDelta func(llm.Delta)) *accumulator {
@@ -191,6 +196,11 @@ func (a *accumulator) add(chunk openai.ChatCompletionChunk) {
 func (a *accumulator) addToolCall(tc openai.ChatCompletionChunkChoiceDeltaToolCall) {
 	state, ok := a.byIndex[tc.Index]
 	if !ok || (tc.ID != "" && state.id != "" && tc.ID != state.id) {
+		// The answer is refused past the limit, so a call beyond it is neither kept nor announced, even when one chunk holds many
+		if len(a.calls) >= llm.MaxToolCalls {
+			a.tooManyCalls = true
+			return
+		}
 		state = &toolCallState{id: tc.ID}
 		a.byIndex[tc.Index] = state
 		a.calls = append(a.calls, state)

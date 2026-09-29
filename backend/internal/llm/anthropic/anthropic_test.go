@@ -548,3 +548,27 @@ func TestStreamStopsAtTheAnswerLimit(t *testing.T) {
 	_, err = p.Stream(context.Background(), llm.Request{Model: "claude-opus-5-5", Messages: []llm.Message{userText("Hi")}}, nil)
 	require.ErrorIs(t, err, llm.ErrAnswerTooLarge)
 }
+
+func TestStreamStopsAtTheToolCallLimit(t *testing.T) {
+	// Far more tiny tool calls than any model makes, well within the answer limit
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+		_, _ = io.WriteString(w, "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"m\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"claude-opus-5-5\", \"content\": [], \"usage\": {\"input_tokens\": 1, \"output_tokens\": 1}}}\n\n")
+		for i := range 1000 {
+			_, _ = fmt.Fprintf(w, "event: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": %d, \"content_block\": {\"type\": \"tool_use\", \"id\": \"t%d\", \"name\": \"read_file\", \"input\": {}}}\n\n", i, i)
+			_, _ = fmt.Fprintf(w, "event: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": %d}\n\n", i)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	p, err := New(llm.Config{APIKey: "test-key", BaseURL: srv.URL})
+	require.NoError(t, err)
+
+	announced := 0
+	_, err = p.Stream(context.Background(), llm.Request{Model: "claude-opus-5-5", Messages: []llm.Message{userText("Hi")}}, func(d llm.Delta) {
+		if d.Type == llm.DeltaToolCall {
+			announced++
+		}
+	})
+	require.ErrorIs(t, err, llm.ErrTooManyToolCalls)
+	assert.Equal(t, llm.MaxToolCalls, announced, "calls past the limit are not announced")
+}
