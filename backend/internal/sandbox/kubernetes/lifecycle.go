@@ -117,6 +117,7 @@ func (s *podSandbox) waitReady(ctx context.Context) error {
 		}
 		if containerRunning(pod) {
 			// Installing ump is the last thing ump init does, so a working exec means the layout is complete
+			// Nothing but ump init has run in the sandbox yet, so running the installed copy as root is still safe here
 			res, err := s.run(ctx, []string{sandbox.UmpBinary, "help"}, nil, nil, nil)
 			if err == nil && res == 0 {
 				return nil
@@ -228,7 +229,7 @@ func (a *Adapter) podSpec(name string, spec sandbox.Spec) *corev1.Pod {
 	annotations := map[string]string{annotationRun: spec.RunID}
 
 	// ump init is PID 1, installs the layout and ends the sandbox when the TTL is reached, while the pod's deadline is the backstop
-	command := []string{bootstrapDir + "/ump", "init", "--install"}
+	command := []string{bootstrapUmp, "init", "--install"}
 	if sandbox.Proxied(spec.Network) {
 		command = append(command, "--proxied")
 	}
@@ -283,7 +284,7 @@ func (a *Adapter) podSpec(name string, spec sandbox.Spec) *corev1.Pod {
 				Name:            "ump",
 				Image:           a.cfg.BootstrapImage,
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command:         []string{sandbox.UmpBinary, "install", bootstrapDir + "/ump"},
+				Command:         []string{sandbox.UmpBinary, "install", bootstrapUmp},
 				VolumeMounts:    []corev1.VolumeMount{{Name: "ump", MountPath: bootstrapDir}},
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("10m"), corev1.ResourceMemory: resource.MustParse("16Mi")},

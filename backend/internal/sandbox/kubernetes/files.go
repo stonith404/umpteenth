@@ -69,7 +69,7 @@ func (s *podSandbox) PutFiles(ctx context.Context, files []sandbox.File) error {
 
 	// ump runs as root, which the pod keeps just the capabilities for
 	stderr := &cappedBuffer{max: maxFilesStderr}
-	code, err := s.run(ctx, []string{sandbox.UmpBinary, "files", "put"}, &buf, io.Discard, stderr)
+	code, err := s.run(ctx, []string{bootstrapUmp, "files", "put"}, &buf, io.Discard, stderr)
 	if err != nil {
 		return s.translate(ctx, fmt.Errorf("failed to write files: %w", err))
 	}
@@ -91,7 +91,7 @@ func (s *podSandbox) ReadFile(ctx context.Context, p string, max int64) ([]byte,
 
 	out := &cappedBuffer{max: int(max) + 1}
 	stderr := &cappedBuffer{max: maxFilesStderr}
-	code, err := s.run(ctx, []string{sandbox.UmpBinary, "files", "read", "--max", strconv.FormatInt(max, 10), p}, nil, out, stderr)
+	code, err := s.run(ctx, []string{bootstrapUmp, "files", "read", "--max", strconv.FormatInt(max, 10), p}, nil, out, stderr)
 	if err != nil {
 		return nil, s.translate(ctx, fmt.Errorf("failed to read %s: %w", p, err))
 	}
@@ -121,7 +121,7 @@ func (s *podSandbox) Archive(ctx context.Context, dir string, max int64) (io.Rea
 	go func() {
 		stderr := &cappedBuffer{max: maxFilesStderr}
 		limited := &limitWriter{w: pw, max: max}
-		code, err := s.run(streamCtx, []string{sandbox.UmpBinary, "files", "archive", "--max", strconv.FormatInt(max, 10), dir}, nil, limited, stderr)
+		code, err := s.run(streamCtx, []string{bootstrapUmp, "files", "archive", "--max", strconv.FormatInt(max, 10), dir}, nil, limited, stderr)
 		switch {
 		case limited.exceeded:
 			err = fmt.Errorf("%w: archive is larger than %d bytes", sandbox.ErrOutputTooLarge, max)

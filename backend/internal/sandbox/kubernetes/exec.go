@@ -140,7 +140,7 @@ func (s *podSandbox) shimCommand(req sandbox.ExecRequest) ([]string, *execHandle
 
 	h := &execHandle{pidfile: path.Join(runDir, randomID(12)+".pid")}
 	uid := strconv.Itoa(user.UID())
-	cmd := append([]string{sandbox.UmpBinary, "exec", "--pidfile", h.pidfile, "--user", uid + ":" + uid, "--workdir", workDir, "--env-stdin", "--"}, req.Cmd...)
+	cmd := append([]string{bootstrapUmp, "exec", "--pidfile", h.pidfile, "--user", uid + ":" + uid, "--workdir", workDir, "--env-stdin", "--"}, req.Cmd...)
 	return cmd, h, append(header, '\n'), nil
 }
 
@@ -186,7 +186,7 @@ func (s *podSandbox) killExec(h *execHandle) {
 	ctx, cancel := context.WithTimeout(context.Background(), killTimeout)
 	defer cancel()
 	var out bytes.Buffer
-	code, err := s.run(ctx, []string{sandbox.UmpBinary, "exec", "--kill", h.pidfile}, nil, &out, &out)
+	code, err := s.run(ctx, []string{bootstrapUmp, "exec", "--kill", h.pidfile}, nil, &out, &out)
 	if err != nil || code != 0 {
 		s.a.log.WarnContext(ctx, "The kill exec reported a problem", "sandbox", s.name, "code", code, "output", strings.TrimSpace(out.String()), "error", err)
 	}

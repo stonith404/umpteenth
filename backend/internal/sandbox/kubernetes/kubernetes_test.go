@@ -78,6 +78,18 @@ func TestPodSpecOfRootAndUnrestrictedSandboxes(t *testing.T) {
 	assert.NotContains(t, pod.Spec.Containers[0].Command, "--proxied")
 }
 
+func TestRootExecsRunTheReadOnlyUmp(t *testing.T) {
+	// The sandbox mounts the bootstrap copy read-only, so the agent can't replace what root runs
+	a := testAdapter(t, Config{})
+	pod := a.podSpec("ump-run-3", sandbox.Spec{RunID: "run-3", Image: "debian", AgentUser: sandbox.UserAgent, Network: sandbox.NetworkNone})
+	assert.Equal(t, []corev1.VolumeMount{{Name: "ump", MountPath: bootstrapDir, ReadOnly: true}}, pod.Spec.Containers[0].VolumeMounts)
+
+	// The shim runs as root, so it comes from that volume rather than from the image's /usr/local/bin
+	cmd, _, _, err := (&podSandbox{a: a, agentUser: sandbox.UserAgent}).shimCommand(sandbox.ExecRequest{Cmd: []string{"true"}})
+	require.NoError(t, err)
+	assert.Equal(t, bootstrapUmp, cmd[0])
+}
+
 func TestSandboxEnvPointsAtThePodIP(t *testing.T) {
 	a := testAdapter(t, Config{})
 	env := envMap(sandbox.BrokerEnv(sandbox.Spec{RunID: "r", Network: sandbox.NetworkInternet, Broker: sandbox.BrokerAccess{Token: "tok"}}, a.brokerAddr(), nil))

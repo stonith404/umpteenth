@@ -2,6 +2,7 @@
 //
 // Design notes:
 //   - An init container copies the ump CLI from the Umpteenth image into a shared volume, and the sandbox runs `ump init --install` as PID 1, which puts ump at /usr/local/bin and creates the layout before anything runs, so any OCI image works
+//   - The adapter's own execs run as root and use the copy on that read-only volume, since an image may let the agent replace /usr/local/bin/ump
 //   - Every command goes through the API server's exec, which has no user, working directory or environment, so the `ump exec` shim takes them as flags and the environment as a JSON line on stdin, keeping secrets off the command line
 //   - Files travel as tar streams through `ump files`, since the API has no file copy of its own and images need no tar
 //   - The broker is the executing replica's pod IP (sandbox.broker_host), and NetworkPolicies the Helm chart installs keep sandboxes off everything else; a test sandbox proves at startup that the cluster enforces them
@@ -68,6 +69,8 @@ const (
 	sandboxContainer = "sandbox"
 	// bootstrapDir is where the init container leaves the ump CLI for the sandbox to install
 	bootstrapDir = "/opt/umpteenth"
+	// bootstrapUmp is the ump CLI on that volume, which the sandbox mounts read-only, so the adapter's root execs run it rather than a copy the agent could replace
+	bootstrapUmp = bootstrapDir + "/ump"
 	// runDir holds the exec shim's pid files; it lives outside /ump so the agent user cannot swap it out
 	runDir = "/run/ump"
 	// podPrefix starts the name of every sandbox pod
