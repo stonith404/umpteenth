@@ -67,7 +67,14 @@ func Operation(id, method, path string, tags ...string) huma.Operation {
 // Register adds an operation with middlewares, keeping module route tables compact
 func Register[I, O any](api huma.API, op huma.Operation, mws huma.Middlewares, handler func(context.Context, *I) (*O, error)) {
 	op.Middlewares = append(op.Middlewares, mws...)
-	huma.Register(api, op, handler)
+	huma.Register(api, op, func(ctx context.Context, input *I) (*O, error) {
+		out, err := handler(ctx, input)
+		if err != nil {
+			// Huma writes a returned status error as is, bypassing NewErrorWithContext, so the cause is logged and the request ID attached here
+			return nil, responseError(ctx, err)
+		}
+		return out, nil
+	})
 }
 
 // RequestIDMiddleware assigns every request an ID that shows up in logs and error bodies

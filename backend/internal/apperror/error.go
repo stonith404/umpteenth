@@ -133,10 +133,12 @@ func (e *Error) WithRetryAfter(retryAfter time.Duration) *Error {
 	return e
 }
 
-// WithRequestID attaches the request ID so clients can report it
+// WithRequestID returns a copy tagged with the request ID so clients can report it
+// It copies because a package-level error value is returned to many requests at once
 func (e *Error) WithRequestID(id string) *Error {
-	e.requestID = id
-	return e
+	tagged := *e
+	tagged.requestID = id
+	return &tagged
 }
 
 // Body is the JSON shape of every error response
