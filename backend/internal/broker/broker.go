@@ -560,6 +560,8 @@ func (b *Broker) fail(_ http.ResponseWriter, r *http.Request, live *runner.LiveR
 		return nil, err
 	}
 	live.Fail(req.Reason)
-	slog.InfoContext(r.Context(), "Run reported failure through the broker", slog.String("run", live.Run.ID), slog.String("reason", req.Reason))
+
+	// The reason can be megabytes and a sandbox may report failures without end, so the log only gets its start
+	slog.InfoContext(r.Context(), "Run reported failure through the broker", slog.String("run", live.Run.ID), slog.String("reason", clip(req.Reason)))
 	return okResponse{OK: true}, nil
 }

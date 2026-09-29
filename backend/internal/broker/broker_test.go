@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -238,6 +239,38 @@ func TestBrokerRequestsOfARunTakeTurns(t *testing.T) {
 		answered++
 	}
 	assert.Equal(t, inFlight+2, answered)
+}
+
+// lockedBuffer collects log lines that the server's goroutines write while the test reads them
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func TestFailureReportsLogOnlyTheStartOfTheReason(t *testing.T) {
+	h := newBrokerHarness(t, nil)
+	logs := &lockedBuffer{}
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	// A megabyte of reason is kept in part as the run's error, and the host's log gets no more than that either
+	status, _ := h.call(t, http.MethodPost, "/v1/fail", `{"reason":"`+strings.Repeat("x", 1<<20)+`"}`)
+	require.Equal(t, http.StatusOK, status)
+	assert.Contains(t, logs.String(), "Run reported failure")
+	assert.NotContains(t, logs.String(), strings.Repeat("x", 1000))
 }
 
 func TestBrokerResponsesAreNotHTMLEscaped(t *testing.T) {
