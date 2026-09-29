@@ -32,10 +32,12 @@ func runGrant(live *LiveRun) *ProxyGrant {
 }
 
 // FirstHost reports whether the egress proxy connects to a host for the first time under this grant, so the timeline shows each host once
+// The timeline takes no more broker calls than the run's limit, so the grant remembers one host past it at most, whose call still notes that later ones are left out
+// A sandbox making up names without end would otherwise fill memory with them
 func (g *ProxyGrant) FirstHost(host string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.hosts[host] {
+	if g.hosts[host] || len(g.hosts) > MaxBrokerEvents {
 		return false
 	}
 	if g.hosts == nil {

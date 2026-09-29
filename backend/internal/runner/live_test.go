@@ -66,6 +66,19 @@ func TestAcquireConnBoundsOpenProxyConnections(t *testing.T) {
 	require.True(t, ok)
 }
 
+func TestFirstHostRemembersABoundedNumberOfHosts(t *testing.T) {
+	grant := &runner.ProxyGrant{}
+	require.True(t, grant.FirstHost("a.example.com"))
+	require.False(t, grant.FirstHost("a.example.com"))
+
+	// Past the timeline's limit of broker calls no new host is remembered or recorded, however many names a sandbox makes up
+	for i := range runner.MaxBrokerEvents * 2 {
+		grant.FirstHost(fmt.Sprintf("h%d.example.com", i))
+	}
+	assert.False(t, grant.FirstHost("new.example.com"))
+	assert.False(t, grant.FirstHost("a.example.com"))
+}
+
 func TestProxyGrantsLastUntilRevoked(t *testing.T) {
 	registry := runner.NewRegistry()
 	grant := &runner.ProxyGrant{}
