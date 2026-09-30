@@ -5,6 +5,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import UserService from '$lib/services/user-service';
 	import { apiErrorToast } from '$lib/utils/error-util';
+	import { clearNewJobDrafts } from '$lib/utils/job-util';
 	import { tryCatch } from '$lib/utils/try-catch-util';
 	import { DOCS_URL } from '$lib/navigation';
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
@@ -31,6 +32,7 @@
 			apiErrorToast(result.error, 'Failed to sign out');
 			return;
 		}
+		clearNewJobDrafts();
 		await goto('/login', { invalidateAll: true });
 	}
 </script>

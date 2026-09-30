@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { NEW_JOB_DRAFT_KEY } from '$lib/utils/job-util';
+	import { newJobDraftKey } from '$lib/utils/job-util';
 	import { goto } from '$app/navigation';
 	import { isApiError } from '$lib/api/api-error';
 	import type { JobIOField, JobQuestion, JobSpec } from '$lib/api/types';
@@ -52,7 +52,7 @@
 	const jobService = new JobService();
 
 	// The description survives a reload, since writing a good one takes a while
-	const DRAFT_KEY = NEW_JOB_DRAFT_KEY;
+	const DRAFT_KEY = newJobDraftKey(data.user);
 
 	const examples = [
 		{

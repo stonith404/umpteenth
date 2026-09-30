@@ -1,9 +1,24 @@
-import type { Job, JobListItem, JobSpec } from '$lib/api/types';
+import type { Job, JobListItem, JobSpec, User } from '$lib/api/types';
 import { describeCron } from '$lib/utils/cron-util';
 
+const NEW_JOB_DRAFT_PREFIX = 'umpteenth:new-job-draft:';
+
 // The unsubmitted description of the new-job page, kept per browser tab
-// It belongs to the workspace it was written in, so switching workspaces clears it
-export const NEW_JOB_DRAFT_KEY = 'umpteenth:new-job-draft';
+// Its key names the user and the workspace it was written in, so another account signing in to the tab or a workspace switched in another tab never sees it
+export function newJobDraftKey(user: Pick<User, 'id' | 'workspaceId'>) {
+	return `${NEW_JOB_DRAFT_PREFIX}${user.id}:${user.workspaceId}`;
+}
+
+// Forgets every new-job draft of the tab, e.g. when signing out
+export function clearNewJobDrafts() {
+	try {
+		for (const key of Object.keys(sessionStorage)) {
+			if (key.startsWith(NEW_JOB_DRAFT_PREFIX)) sessionStorage.removeItem(key);
+		}
+	} catch {
+		// Storage can be unavailable, e.g. in private windows, and then there is no draft either
+	}
+}
 
 // Explains the mode of a job with graduation turned off, next to its mode in the jobs list and the job header
 export const GRADUATION_OFF_NOTE = 'Graduation is off, so every run uses the agent';

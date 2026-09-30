@@ -1,6 +1,6 @@
 import { goto } from '$app/navigation';
 import type { User, WorkspaceRole } from '$lib/api/types';
-import { NEW_JOB_DRAFT_KEY } from '$lib/utils/job-util';
+import { clearNewJobDrafts } from '$lib/utils/job-util';
 import { resetWorkspaceEvents } from '$lib/utils/workspace-events';
 
 const roleRanks: Record<WorkspaceRole, number> = { member: 1, admin: 2, owner: 3 };
@@ -29,11 +29,7 @@ export function workspaceInitial(name: string) {
 // Leaves everything of the previous workspace behind once the session moved to another one
 // The page may show something that only existed in the previous workspace, so it starts over on the dashboard
 export async function enterWorkspace() {
-	try {
-		sessionStorage.removeItem(NEW_JOB_DRAFT_KEY);
-	} catch {
-		// Storage can be unavailable, e.g. in private windows, and then there is no draft either
-	}
+	clearNewJobDrafts();
 	resetWorkspaceEvents();
 	await goto('/', { invalidateAll: true });
 }
