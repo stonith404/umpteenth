@@ -69,16 +69,16 @@
 				.filter((f) => f.name.trim())
 				.map((f) => ({ ...f, name: f.name.trim(), description: f.description?.trim() }));
 
-		await jobService.update(job.id, {
-			spec: cleanSpec({
-				...job.spec,
+		await jobService.updateSpec(job.id, (spec) =>
+			cleanSpec({
+				...spec,
 				goal: values.goal,
 				successCriteria: clean(values.successCriteria),
 				inputs: cleanFields(values.inputs),
 				outputs: cleanFields(values.outputs),
 				sideEffects: clean(values.sideEffects)
 			})
-		});
+		);
 		await invalidate('app:job');
 	}
 </script>

@@ -6,6 +6,7 @@ import type {
 	JobRunNow,
 	JobSecret,
 	JobServer,
+	JobSpec,
 	JobStatsRange,
 	QueryOf
 } from '$lib/api/types';
@@ -21,6 +22,17 @@ export default class JobService extends APIService {
 	// The backend merges the patch into the job: omitted fields keep their value, and an empty string clears an optional text field
 	update = (id: string, body: JobPatch) =>
 		this.unwrap(this.api.PATCH('/api/jobs/{id}', { params: { path: { id } }, body }));
+
+	// The spec is saved as a whole, so a card that edits part of it starts from the stored spec instead of the one its page loaded
+	// Edits another tab or member saved to the rest of the spec meanwhile then stay
+	updateSpec = async (
+		id: string,
+		change: (spec: JobSpec) => JobSpec,
+		body: Omit<JobPatch, 'spec'> = {}
+	) => {
+		const latest = await this.get(id);
+		return this.update(id, { ...body, spec: change(latest.spec) });
+	};
 
 	delete = (id: string) =>
 		this.unwrap(this.api.DELETE('/api/jobs/{id}', { params: { path: { id } } }));

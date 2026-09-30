@@ -48,9 +48,8 @@
 	// The spec repeats the name as its title, so it goes along with the new name
 	// A rebuilt spec takes as long as a compile, so saving a changed instruction takes that long too
 	async function save(values: { name: string; instruction: string; modelId: string }) {
-		await jobService.update(job.id, {
+		await jobService.updateSpec(job.id, (spec) => cleanSpec({ ...spec, title: values.name }), {
 			...values,
-			spec: cleanSpec({ ...job.spec, title: values.name }),
 			rebuildSpec
 		});
 		await invalidate('app:job');

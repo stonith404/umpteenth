@@ -7,6 +7,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import JobService from '$lib/services/job-service';
 	import { createForm } from '$lib/utils/form-util';
+	import { mergeListChanges } from '$lib/utils/job-util';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { z } from 'zod/v4';
@@ -30,9 +31,11 @@
 
 	const jobService = new JobService();
 
+	const pick = ({ secretId, envName }: JobSecret) => ({ secretId, envName });
+
 	const form = createForm(
 		z.object({ mappings: z.array(z.object({ secretId: z.string(), envName: z.string().trim() })) }),
-		{ mappings: initial.map(({ secretId, envName }) => ({ secretId, envName })) }
+		{ mappings: initial.map(pick) }
 	);
 	const inputs = form.inputs;
 	const mappings = $derived($inputs.mappings.value);
@@ -64,7 +67,20 @@
 		$inputs.mappings.value = mappings.filter((m) => m.secretId || m.envName.trim());
 		showErrors = errors.some((e) => e !== null);
 		if (showErrors) return;
-		await form.submit((values) => jobService.setSecrets(jobId, values.mappings));
+		await form.submit(save);
+	}
+
+	// The mappings as the card last loaded or saved them, which tells the card's own changes apart from ones saved elsewhere meanwhile
+	let saved = initial.map(pick);
+
+	// Saving replaces every mapping, so the card's changes are applied to the stored mappings rather than to the ones it loaded
+	async function save(values: { mappings: { secretId: string; envName: string }[] }) {
+		const stored = (await jobService.getSecrets(jobId)).map(pick);
+		await jobService.setSecrets(
+			jobId,
+			mergeListChanges(saved, values.mappings, stored, (m) => m.envName)
+		);
+		saved = values.mappings;
 	}
 
 	function add() {

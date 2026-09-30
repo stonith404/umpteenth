@@ -47,15 +47,15 @@
 	// Removing the schedule clears the timezone as well, and the spec repeats the schedule, so it goes along with it
 	async function save({ cron, timezone, concurrency }: z.infer<typeof formSchema>) {
 		timezone = cron ? timezone || 'UTC' : '';
-		const compiled = job.spec.schedule;
-		const human = compiled?.cron === cron ? compiled.human : (describeCron(cron) ?? '');
-		const schedule = cron ? { cron, timezone, human } : undefined;
-		await jobService.update(job.id, {
-			cron,
-			timezone,
-			concurrency,
-			spec: cleanSpec({ ...job.spec, schedule })
-		});
+		await jobService.updateSpec(
+			job.id,
+			(spec) => {
+				const compiled = spec.schedule;
+				const human = compiled?.cron === cron ? compiled.human : (describeCron(cron) ?? '');
+				return cleanSpec({ ...spec, schedule: cron ? { cron, timezone, human } : undefined });
+			},
+			{ cron, timezone, concurrency }
+		);
 		await invalidate('app:job');
 	}
 

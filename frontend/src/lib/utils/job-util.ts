@@ -79,6 +79,28 @@ export function cleanSpec(spec: JobSpec): JobSpec {
 	return schedule && schedule.cron.trim() ? { ...rest, schedule } : rest;
 }
 
+// Applies what changed between base and mine onto theirs, matching items by key, for lists the API only saves as a whole
+// Items added or changed in mine win and items removed from mine go, while whatever someone else saved meanwhile stays as theirs has it
+export function mergeListChanges<T>(
+	base: T[],
+	mine: T[],
+	theirs: T[],
+	key: (item: T) => string
+): T[] {
+	const same = (a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
+	const baseByKey = new Map(base.map((item) => [key(item), item]));
+	const mineByKey = new Map(mine.map((item) => [key(item), item]));
+	const merged = new Map(theirs.map((item) => [key(item), item]));
+	for (const k of baseByKey.keys()) {
+		if (!mineByKey.has(k)) merged.delete(k);
+	}
+	for (const [k, item] of mineByKey) {
+		const before = baseByKey.get(k);
+		if (!before || !same(before, item)) merged.set(k, item);
+	}
+	return [...merged.values()];
+}
+
 // An empty spec for jobs defined by hand when the compile step is unavailable
 export function emptySpec(): JobSpec {
 	return {

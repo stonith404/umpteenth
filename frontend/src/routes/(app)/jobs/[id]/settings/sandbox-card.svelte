@@ -86,15 +86,18 @@
 	// The spec says what the job needs, and an allow-list job does reach the internet
 	async function save(values: z.infer<typeof formSchema>) {
 		const { image, network, allowedDomains, allowPrivateNetwork, runAsRoot, ...limits } = values;
-		await jobService.update(job.id, {
-			image,
-			network,
-			allowedDomains: allowedDomains.split('\n').filter(Boolean),
-			allowPrivateNetwork,
-			runAsRoot,
-			limits: Object.fromEntries(Object.entries(limits).filter(([, value]) => value != null)),
-			spec: cleanSpec({ ...job.spec, network: network === 'none' ? 'none' : 'internet' })
-		});
+		await jobService.updateSpec(
+			job.id,
+			(spec) => cleanSpec({ ...spec, network: network === 'none' ? 'none' : 'internet' }),
+			{
+				image,
+				network,
+				allowedDomains: allowedDomains.split('\n').filter(Boolean),
+				allowPrivateNetwork,
+				runAsRoot,
+				limits: Object.fromEntries(Object.entries(limits).filter(([, value]) => value != null))
+			}
+		);
 		await invalidate('app:job');
 	}
 

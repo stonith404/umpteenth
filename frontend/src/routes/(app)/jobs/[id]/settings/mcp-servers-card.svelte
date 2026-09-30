@@ -6,6 +6,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import JobService from '$lib/services/job-service';
 	import { createForm } from '$lib/utils/form-util';
+	import { mergeListChanges } from '$lib/utils/job-util';
 	import { transportLabel } from '$lib/utils/mcp-util';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import ServerIcon from '@lucide/svelte/icons/server';
@@ -29,13 +30,15 @@
 
 	const jobService = new JobService();
 
+	const pick = ({ serverId, allowedTools }: JobServer) => ({ serverId, allowedTools });
+
 	const form = createForm(
 		z.object({
 			attached: z.array(
 				z.object({ serverId: z.string(), allowedTools: z.array(z.string()).nullable() })
 			)
 		}),
-		{ attached: initial.map(({ serverId, allowedTools }) => ({ serverId, allowedTools })) }
+		{ attached: initial.map(pick) }
 	);
 	const inputs = form.inputs;
 	const attached = $derived($inputs.attached.value);
@@ -55,6 +58,19 @@
 	function remove(serverId: string) {
 		$inputs.attached.value = attached.filter((a) => a.serverId !== serverId);
 	}
+
+	// The attachments as the card last loaded or saved them, which tells the card's own changes apart from ones saved elsewhere meanwhile
+	let saved = initial.map(pick);
+
+	// Saving replaces every attachment, so the card's changes are applied to the stored attachments rather than to the ones it loaded
+	async function save(values: { attached: JobServer[] }) {
+		const stored = (await jobService.getMcpServers(jobId)).map(pick);
+		await jobService.setMcpServers(
+			jobId,
+			mergeListChanges(saved, values.attached, stored, (a) => a.serverId)
+		);
+		saved = values.attached;
+	}
 </script>
 
 <FormCard
@@ -62,7 +78,7 @@
 	description="The job can call the tools of attached servers. Limit a server to some tools to keep the agent focused and safe."
 	dirty={form.isDirty()}
 	saving={form.saving}
-	onsubmit={() => form.submit((values) => jobService.setMcpServers(jobId, values.attached))}
+	onsubmit={() => form.submit(save)}
 >
 	<div class="flex flex-col gap-4">
 		{#if serversError}
