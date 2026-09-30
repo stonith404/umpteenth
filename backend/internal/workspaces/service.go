@@ -460,8 +460,6 @@ func (m *Module) Switch(ctx context.Context, workspaceID, userID string) error {
 type InviteResult struct {
 	// Token is the secret of an invite link, which is only ever shown here
 	Token string
-	// MemberAdded is set when the email address belonged to a user, who joined right away
-	MemberAdded bool
 }
 
 // Invite invites someone to the workspace, through a link when email is empty or else through their email address
@@ -489,26 +487,20 @@ func (m *Module) Invite(ctx context.Context, workspaceID, createdBy, email strin
 		return InviteResult{Token: token}, nil
 	}
 
-	// An address that belongs to exactly one verified user adds them right away, and otherwise the invite waits for a sign-in with it
 	email = normalizeEmail(email)
 	parsed, err := mail.ParseAddress(email)
 	if err != nil || parsed.Address != email {
 		return InviteResult{}, apperror.InvalidField("email", "invalid", "must be an email address")
 	}
-	users, err := m.queries.FindVerifiedUsersByEmail(ctx, &email)
+	members, err := m.queries.CountMembersWithEmail(ctx, workspacesdb.CountMembersWithEmailParams{WorkspaceID: workspaceID, Email: &email})
 	if err != nil {
-		return InviteResult{}, fmt.Errorf("failed to look up the invited user: %w", err)
+		return InviteResult{}, fmt.Errorf("failed to look up the invited address: %w", err)
 	}
-	if len(users) == 1 {
-		n, err := m.queries.AddMember(ctx, workspacesdb.AddMemberParams{WorkspaceID: workspaceID, UserID: users[0], Role: string(role), CreatedAt: now})
-		if err != nil {
-			return InviteResult{}, fmt.Errorf("failed to add member: %w", err)
-		}
-		if n == 0 {
-			return InviteResult{}, apperror.Conflict("That person is already a member of this workspace")
-		}
-		return InviteResult{MemberAdded: true}, nil
+	if members > 0 {
+		return InviteResult{}, apperror.Conflict("That person is already a member of this workspace")
 	}
+
+	// The invite waits for a sign-in with the address even when it belongs to someone with an account, since adding them right away would tell anyone who can make a workspace which addresses have one
 	err = m.queries.UpsertEmailInvite(ctx, workspacesdb.UpsertEmailInviteParams{
 		ID: database.NewID(), WorkspaceID: workspaceID, Role: string(role), Email: &email, CreatedBy: &createdBy, CreatedAt: now, ExpiresAt: expiresAt,
 	})

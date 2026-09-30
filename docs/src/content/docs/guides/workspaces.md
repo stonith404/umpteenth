@@ -41,7 +41,7 @@ With workspaces on, admins invite people under **Settings → Members** with **I
 The **Invite to workspace** dialog offers two kinds of invite:
 
 - **By email**: enter an **Email** and click **Invite**.
-  Someone who signed in before with that address joins right away, and anyone else joins the next time they sign in with it.
+  The person joins the next time they sign in with that address, even if they have an account already, so an invite never reveals who has one.
 - **Invite link**: click **Create link**.
   Umpteenth shows the link once, and it works for whoever joins with it first.
 

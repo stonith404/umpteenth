@@ -206,9 +206,8 @@ func TestEmailInvitesWaitForAVerifiedSignIn(t *testing.T) {
 	signIn(t, m, owner, "", "/")
 
 	// An address nobody signed in with yet waits, and inviting it again refreshes the invite
-	res, err := m.Invite(t.Context(), DefaultID, owner, "New@Example.com ", principal.RoleMember, time.Hour)
+	_, err := m.Invite(t.Context(), DefaultID, owner, "New@Example.com ", principal.RoleMember, time.Hour)
 	require.NoError(t, err)
-	require.False(t, res.MemberAdded)
 	_, err = m.Invite(t.Context(), DefaultID, owner, "new@example.com", principal.RoleAdmin, time.Hour)
 	require.NoError(t, err)
 	invites, err := m.queries.ListInvites(t.Context(), DefaultID)
@@ -240,25 +239,28 @@ func TestEmailInvitesWaitForAVerifiedSignIn(t *testing.T) {
 	require.NotEqual(t, DefaultID, wid)
 }
 
-func TestInvitingAKnownVerifiedAddressAddsThePersonRightAway(t *testing.T) {
+func TestInvitingAnAddressWithAnAccountWaitsForItsNextSignIn(t *testing.T) {
 	m, db, _ := newTestModule(t, true)
 	owner := seedUser(t, db, "Owner", "owner@example.com")
 	signIn(t, m, owner, "", "/")
 	known := seedUser(t, db, "Known", "known@example.com")
+	home, _ := signIn(t, m, known, "known@example.com", "/")
 
+	// Inviting someone with an account answers like inviting an address nobody has, so it can't tell who has one, and adds nobody yet
 	res, err := m.Invite(t.Context(), DefaultID, owner, "KNOWN@example.com", principal.RoleMember, time.Hour)
 	require.NoError(t, err)
-	require.True(t, res.MemberAdded)
+	unknown, err := m.Invite(t.Context(), DefaultID, owner, "unknown@example.com", principal.RoleMember, time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, unknown, res)
+	_, err = m.Access(t.Context(), DefaultID, known)
+	requireCode(t, err, apperror.CodeNotSignedIn)
+
+	// Their next verified sign-in joins them, and inviting a member again is refused
+	wid, _ := signIn(t, m, known, "known@example.com", "/")
+	require.Equal(t, home, wid)
 	require.Equal(t, principal.RoleMember, roleOf(t, m, DefaultID, known))
 	_, err = m.Invite(t.Context(), DefaultID, owner, "known@example.com", principal.RoleMember, time.Hour)
 	requireCode(t, err, apperror.CodeConflict)
-
-	// Two accounts with the same address are ambiguous, so the invite waits for a sign-in instead
-	seedUser(t, db, "Twin", "twin@example.com")
-	seedUser(t, db, "Twin", "twin@example.com")
-	res, err = m.Invite(t.Context(), DefaultID, owner, "twin@example.com", principal.RoleMember, time.Hour)
-	require.NoError(t, err)
-	require.False(t, res.MemberAdded)
 
 	// Nothing but an address and the admin or member role is accepted
 	_, err = m.Invite(t.Context(), DefaultID, owner, "not an address", principal.RoleMember, time.Hour)
@@ -386,13 +388,10 @@ func TestAnEmailInviteDoesntMoveSomeoneWhoHasAWorkspace(t *testing.T) {
 	attacker := seedUser(t, db, "Attacker", "attacker@example.com")
 	attackerWorkspace, _ := signIn(t, m, attacker, "", "/")
 
-	// A second account with the same address, such as one through another sign-in provider, keeps the invite waiting for a sign-in
-	seedUser(t, db, "Victim elsewhere", "victim@example.com")
-	res, err := m.Invite(t.Context(), attackerWorkspace, attacker, "victim@example.com", principal.RoleMember, time.Hour)
+	_, err := m.Invite(t.Context(), attackerWorkspace, attacker, "victim@example.com", principal.RoleMember, time.Hour)
 	require.NoError(t, err)
-	require.False(t, res.MemberAdded)
 
-	// Like an invite that adds a known user right away, picking it up at a sign-in leaves the user in the workspace they were in
+	// Picking up the invite at a sign-in leaves the user in the workspace they were in
 	wid, _ := signIn(t, m, victim, "victim@example.com", "/")
 	require.Equal(t, home, wid, "the sign-in moved the session into the inviting workspace")
 	require.Equal(t, principal.RoleMember, roleOf(t, m, attackerWorkspace, victim))

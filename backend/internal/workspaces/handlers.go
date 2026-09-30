@@ -244,7 +244,7 @@ func (m *Module) listInvites(ctx context.Context, _ *struct{}) (*listInvitesOutp
 
 type createInviteInput struct {
 	Body struct {
-		Email         string         `json:"email,omitempty" maxLength:"320" doc:"Invites this address, whose owner joins at once when they have signed in before; omit it for an invite link"`
+		Email         string         `json:"email,omitempty" maxLength:"320" doc:"Invites this address, whose owner joins the next time they sign in with it verified; omit it for an invite link"`
 		Role          principal.Role `json:"role" enum:"admin,member"`
 		ExpiresInDays int            `json:"expiresInDays" minimum:"1" maximum:"30" default:"7"`
 	}
@@ -252,8 +252,7 @@ type createInviteInput struct {
 
 type createInviteOutput struct {
 	Body struct {
-		MemberAdded bool   `json:"memberAdded" doc:"Whether the address belonged to a user, who joined right away"`
-		URL         string `json:"url,omitempty" doc:"The invite link, shown once"`
+		URL string `json:"url,omitempty" doc:"The invite link, shown once"`
 	}
 }
 
@@ -269,7 +268,6 @@ func (m *Module) createInvite(ctx context.Context, in *createInviteInput) (*crea
 	}
 
 	out := &createInviteOutput{}
-	out.Body.MemberAdded = res.MemberAdded
 	if res.Token != "" {
 		out.Body.URL = m.appURL + InvitePath + res.Token
 	}

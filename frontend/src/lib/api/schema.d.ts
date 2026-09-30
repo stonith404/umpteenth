@@ -1386,7 +1386,7 @@ export interface components {
 			value: string;
 		};
 		CreateInviteInputBody: {
-			/** @description Invites this address, whose owner joins at once when they have signed in before; omit it for an invite link */
+			/** @description Invites this address, whose owner joins the next time they sign in with it verified; omit it for an invite link */
 			email?: string;
 			/**
 			 * Format: int64
@@ -1397,8 +1397,6 @@ export interface components {
 			role: 'admin' | 'member';
 		};
 		CreateInviteOutputBody: {
-			/** @description Whether the address belonged to a user, who joined right away */
-			memberAdded: boolean;
 			/** @description The invite link, shown once */
 			url?: string;
 		};

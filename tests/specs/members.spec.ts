@@ -27,13 +27,13 @@ async function openInviteDialog(page: Page) {
 	return page.getByRole('dialog', { name: 'Invite to workspace' });
 }
 
-// Invites an address through the API and reports whether its owner joined right away
+// Invites an address through the API, which always leaves an invite waiting for the next sign-in with it, and returns the answer
 async function inviteEmail(request: APIRequestContext, email: string) {
 	const response = await request.post('/api/workspace/invites', {
 		data: { email, role: 'member', expiresInDays: 7 }
 	});
 	expect(response.ok()).toBeTruthy();
-	return ((await response.json()) as { memberAdded: boolean }).memberAdded;
+	return response.json();
 }
 
 // The user ID of the only member whose name or address matches the search
@@ -205,9 +205,10 @@ test('A member who leaves lands in the workspace they already had instead of a n
 	page,
 	browser
 }, testInfo) => {
-	// Carol has a workspace of her own and is added to the default one
+	// Carol has a workspace of her own and joins the default one at her next sign-in
 	const carol = await authUtil.pageAs(browser, testInfo, accounts.carol);
-	expect(await inviteEmail(page.request, 'carol@example.com')).toBe(true);
+	await inviteEmail(page.request, 'carol@example.com');
+	await authUtil.signInAs(carol, accounts.carol);
 	await carol.goto('/');
 	await workspaceSwitcher(carol).click();
 	await carol.getByRole('menuitem', { name: 'Default' }).click();
@@ -240,7 +241,7 @@ test('A member who leaves lands in the workspace they already had instead of a n
 
 test('Inviting the same address again replaces its pending invite', async ({ page }) => {
 	// Carol, who never signed in, has an invite as a member
-	expect(await inviteEmail(page.request, 'carol@example.com')).toBe(false);
+	await inviteEmail(page.request, 'carol@example.com');
 	await page.goto('/settings/members');
 	const carolInvite = page
 		.getByRole('table', { name: 'Pending invites' })
@@ -267,7 +268,7 @@ test('Inviting the same address again replaces its pending invite', async ({ pag
 test('Revoked invites stop working', async ({ page, browser }, testInfo) => {
 	// The owner has an invite link out and has invited Carol, who never signed in
 	const invitePath = await createInviteLink(page.request);
-	expect(await inviteEmail(page.request, 'carol@example.com')).toBe(false);
+	await inviteEmail(page.request, 'carol@example.com');
 
 	// The owner revokes both, and the emptied list goes away
 	await page.goto('/settings/members');
@@ -338,41 +339,48 @@ test("An empty or malformed address never reaches the server, and doesn't block 
 	expect((await firstInvite).postDataJSON()).toEqual({ role: 'member', expiresInDays: 7 });
 });
 
-test('Inviting someone who signed in with a verified address adds them at once, while an unverified one only gets an invite', async ({
+test('Inviting someone who signed in before answers like any other address, and only their next verified sign-in joins them', async ({
 	page,
 	browser
 }, testInfo) => {
 	// Carol signed in before with a verified address, Dave with one his provider didn't vouch for
-	const carol = await authUtil.pageAs(browser, testInfo, accounts.carol);
-	const dave = await authUtil.pageAs(browser, testInfo, {
+	const daveAccount = {
 		subject: 'dave',
 		email: 'dave@example.com',
 		emailVerified: false,
 		name: 'Dave'
-	});
+	};
+	const carol = await authUtil.pageAs(browser, testInfo, accounts.carol);
+	const dave = await authUtil.pageAs(browser, testInfo, daveAccount);
 
-	// Carol's address adds her as an admin right away, without a pending invite
+	// Inviting Carol as an admin leaves an invite waiting instead of adding her, so nobody learns she has an account
 	await page.goto('/settings/members');
 	const dialog = await openInviteDialog(page);
 	await dialog.getByLabel('Email').fill('carol@example.com');
 	await dialog.getByRole('button', { name: 'Role', exact: true }).click();
 	await page.getByRole('option', { name: 'Admin' }).click();
 	await dialog.getByRole('button', { name: 'Invite', exact: true }).click();
-	await expect(page.getByText('Added carol@example.com to the workspace')).toBeVisible();
+	await expect(page.getByText('carol@example.com joins the next time they sign in')).toBeVisible();
 	await expect(
 		page
-			.getByRole('table', { name: 'Members' })
-			.getByRole('button', { name: 'Role of Carol', exact: true })
-	).toHaveText('Admin');
-	expect(await listInvites(page.request)).toEqual([]);
+			.getByRole('table', { name: 'Pending invites' })
+			.getByRole('row', { name: /carol@example\.com/ })
+	).toContainText('Admin');
+	await expect(
+		page.getByRole('table', { name: 'Members' }).getByRole('row', { name: /Carol/ })
+	).toBeHidden();
+	expect(await inviteEmail(page.request, 'dave@example.com')).toEqual(
+		await inviteEmail(page.request, 'nobody@example.com')
+	);
 
-	// Dave's address only gets an invite that waits for a verified sign-in, so he stays out
-	expect(await inviteEmail(page.request, 'dave@example.com')).toBe(false);
+	// Carol's next sign-in joins her, while Dave's unverified address keeps him out
+	await authUtil.signInAs(carol, accounts.carol);
+	await authUtil.signInAs(dave, daveAccount);
 	expect(await listWorkspaces(dave.request)).toEqual([
 		expect.objectContaining({ name: "Dave's workspace" })
 	]);
 
-	// Being added doesn't move Carol's session, but the workspace is hers to switch to as an admin
+	// Joining doesn't move Carol's session, but the workspace is hers to switch to as an admin
 	await carol.goto('/');
 	await expect(workspaceSwitcher(carol)).toContainText("Carol's workspace");
 	await workspaceSwitcher(carol).click();
@@ -554,7 +562,7 @@ test('An admin who makes themselves a member no longer sees the pending invites'
 }, testInfo) => {
 	// Bob joins as an admin, and Erin has an invite waiting
 	const bob = await joinWorkspace(browser, testInfo, page, accounts.bob, 'admin');
-	expect(await inviteEmail(page.request, 'erin@example.com')).toBe(false);
+	await inviteEmail(page.request, 'erin@example.com');
 
 	// Bob sees the pending invite while he is an admin
 	await bob.goto('/settings/members');

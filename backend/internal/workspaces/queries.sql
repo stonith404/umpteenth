@@ -40,9 +40,10 @@ UPDATE users SET last_login_at = last_login_at WHERE id = sqlc.arg(id);
 -- unscoped: users are instance-wide
 UPDATE users SET last_workspace_id = sqlc.arg(workspace_id) WHERE id = sqlc.arg(id);
 
--- name: FindVerifiedUsersByEmail :many
--- unscoped: users are instance-wide, and only an address the sign-in provider vouched for may join someone to a workspace
-SELECT id FROM users WHERE LOWER(email) = sqlc.arg(email) AND email_verified = TRUE AND disabled_at IS NULL LIMIT 2;
+-- name: CountMembersWithEmail :one
+-- Only members of the workspace count, whose addresses its member list shows anyway, so an invite never tells whether an address has an account elsewhere
+SELECT COUNT(*) FROM workspace_members m JOIN users u ON u.id = m.user_id
+WHERE m.workspace_id = sqlc.arg(workspace_id) AND LOWER(u.email) = sqlc.arg(email) AND u.email_verified = TRUE;
 
 -- name: AddMember :execrows
 -- A user who is a member already keeps their role, and the unique owner index makes a second owner a no-op instead of an error that would abort the transaction

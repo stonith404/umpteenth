@@ -71,13 +71,10 @@
 			return;
 		}
 
-		// An address that belongs to someone who signed in before adds them right away
+		// An email invite always waits for a sign-in, even from someone who signed in before
 		open = false;
 		if (result.data.url) {
 			onInvited(result.data.url);
-		} else if (result.data.memberAdded) {
-			toast.success(`Added ${data.email} to the workspace`);
-			onInvited(null);
 		} else {
 			toast.success(`${data.email} joins the next time they sign in`);
 			onInvited(null);
@@ -120,7 +117,7 @@
 						label="Email"
 						type="email"
 						placeholder="name@example.com"
-						description="They join the next time they sign in with this verified address, or right away if they have signed in before."
+						description="They join the next time they sign in with this verified address."
 						optional={false}
 						bind:input={$inputs.email}
 					/>

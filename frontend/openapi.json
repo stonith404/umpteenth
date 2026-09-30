@@ -556,7 +556,7 @@
 				"additionalProperties": false,
 				"properties": {
 					"email": {
-						"description": "Invites this address, whose owner joins at once when they have signed in before; omit it for an invite link",
+						"description": "Invites this address, whose owner joins the next time they sign in with it verified; omit it for an invite link",
 						"maxLength": 320,
 						"type": "string"
 					},
@@ -578,16 +578,11 @@
 			"CreateInviteOutputBody": {
 				"additionalProperties": false,
 				"properties": {
-					"memberAdded": {
-						"description": "Whether the address belonged to a user, who joined right away",
-						"type": "boolean"
-					},
 					"url": {
 						"description": "The invite link, shown once",
 						"type": "string"
 					}
 				},
-				"required": ["memberAdded"],
 				"type": "object"
 			},
 			"CreateModelInputBody": {

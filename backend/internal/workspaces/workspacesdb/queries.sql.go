@@ -58,6 +58,24 @@ func (q *Queries) ClaimOwnerless(ctx context.Context, arg ClaimOwnerlessParams) 
 	return result.RowsAffected()
 }
 
+const countMembersWithEmail = `-- name: CountMembersWithEmail :one
+SELECT COUNT(*) FROM workspace_members m JOIN users u ON u.id = m.user_id
+WHERE m.workspace_id = $1 AND LOWER(u.email) = $2 AND u.email_verified = TRUE
+`
+
+type CountMembersWithEmailParams struct {
+	WorkspaceID string
+	Email       *string
+}
+
+// Only members of the workspace count, whose addresses its member list shows anyway, so an invite never tells whether an address has an account elsewhere
+func (q *Queries) CountMembersWithEmail(ctx context.Context, arg CountMembersWithEmailParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countMembersWithEmail, arg.WorkspaceID, arg.Email)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUserMemberships = `-- name: CountUserMemberships :one
 SELECT COUNT(*) FROM workspace_members WHERE user_id = $1
 `
@@ -183,34 +201,6 @@ type EnsureWorkspaceIfNoneParams struct {
 func (q *Queries) EnsureWorkspaceIfNone(ctx context.Context, arg EnsureWorkspaceIfNoneParams) error {
 	_, err := q.db.ExecContext(ctx, ensureWorkspaceIfNone, arg.ID, arg.Name, arg.CreatedAt)
 	return err
-}
-
-const findVerifiedUsersByEmail = `-- name: FindVerifiedUsersByEmail :many
-SELECT id FROM users WHERE LOWER(email) = $1 AND email_verified = TRUE AND disabled_at IS NULL LIMIT 2
-`
-
-// unscoped: users are instance-wide, and only an address the sign-in provider vouched for may join someone to a workspace
-func (q *Queries) FindVerifiedUsersByEmail(ctx context.Context, email *string) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, findVerifiedUsersByEmail, email)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []string{}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getAccess = `-- name: GetAccess :one
