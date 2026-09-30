@@ -4,7 +4,6 @@ package runs
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -88,6 +87,8 @@ func New(deps Dependencies) (*Module, error) {
 	// The run queue is a Francis taskpool, so queued runs survive restarts and spread across replicas
 	pool, err := taskpool.New("runs",
 		taskpool.WithHandler(m.handleTask),
+		// A replica without a sandbox adapter has no runner, and declining a run hands it to a replica that has one without spending an attempt
+		taskpool.WithAccept(func(context.Context, taskpool.Task) bool { return m.runner != nil }),
 		taskpool.WithConcurrency(deps.MaxConcurrentRuns),
 		taskpool.WithMaxAttempts(3),
 		taskpool.WithLogger(slog.Default().With("scope", "runs")),
@@ -148,10 +149,6 @@ func (m *Module) handleTask(ctx context.Context, task taskpool.Task) error {
 	err := task.Decode(&t)
 	if err != nil {
 		return fmt.Errorf("invalid run task: %w", err)
-	}
-	// A replica without a sandbox adapter has no runner, and the error has the pool retry the task, possibly on a replica that has one
-	if m.runner == nil {
-		return errors.New("this replica has no sandbox adapter to execute runs")
 	}
 	return m.runner.Execute(ctx, t.RunID)
 }
