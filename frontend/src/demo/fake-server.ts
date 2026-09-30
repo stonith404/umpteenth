@@ -281,9 +281,15 @@ class Playback {
 			};
 		}
 		if (this.status === 'cancelled') {
+			// A stopped run only counts the work it did before the stop, and a run stopped in the queue never started
 			const finishedAt = this.#finishedAt ?? clock.now();
+			const started = this.emitted.some(
+				(e) => e.type === 'run.status' && (e.payload as { status: string }).status !== 'cancelled'
+			);
 			return {
 				...base,
+				startedAt: started ? base.startedAt : null,
+				msQueue: started ? base.msQueue : null,
 				finishedAt,
 				msTotal: finishedAt - base.queuedAt,
 				summary: null,
@@ -293,6 +299,8 @@ class Playback {
 				reflectionOps: [],
 				reflectionSummary: null,
 				reflectionVersion: null,
+				reflectionCost: 0,
+				reflectionTokens: 0,
 				...this.#totalsSoFar()
 			};
 		}
@@ -314,23 +322,37 @@ class Playback {
 		};
 	}
 
+	// The run's totals from the events it emitted so far, like the runner adds them up when a run ends early
 	#totalsSoFar() {
-		let cost = 0;
-		let turns = 0;
-		let tokIn = 0;
-		let tokOut = 0;
+		const totals = {
+			cost: 0,
+			turns: 0,
+			tokIn: 0,
+			tokOut: 0,
+			tokCacheRead: 0,
+			tokCacheWrite: 0,
+			msLlm: 0,
+			msTools: 0,
+			msProvision: null as number | null
+		};
 		for (const event of this.emitted) {
+			if (event.type === 'sandbox.create') totals.msProvision = event.ms;
+			if (event.type === 'tool.result') totals.msTools += event.ms ?? 0;
 			if (event.type !== 'llm.call') continue;
 			const payload = event.payload as {
 				cost?: number;
-				usage?: { input?: number; output?: number };
+				latencyMs?: number;
+				usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
 			};
-			cost += payload.cost ?? 0;
-			tokIn += payload.usage?.input ?? 0;
-			tokOut += payload.usage?.output ?? 0;
-			turns++;
+			totals.cost += payload.cost ?? 0;
+			totals.tokIn += payload.usage?.input ?? 0;
+			totals.tokOut += payload.usage?.output ?? 0;
+			totals.tokCacheRead += payload.usage?.cacheRead ?? 0;
+			totals.tokCacheWrite += payload.usage?.cacheWrite ?? 0;
+			totals.msLlm += payload.latencyMs ?? 0;
+			totals.turns++;
 		}
-		return { cost, turns, tokIn, tokOut };
+		return totals;
 	}
 
 	summary(): Run {
