@@ -43,6 +43,8 @@ const (
 	staleAfter = buildTimeout + 10*time.Minute
 	// builderCapability is what replicas that can build images advertise to the build taskpool
 	builderCapability = "builder"
+	// maxUnfinishedBuilds is how many builds of one job rebuilds and playbook saves may keep queued or building at once
+	maxUnfinishedBuilds = 3
 )
 
 // JobChecker verifies a job belongs to the caller's workspace, since images are scoped through their job
@@ -130,7 +132,7 @@ func (m *Module) EnsureBuild(ctx context.Context, jobID, dockerfile string) erro
 	hash := playbook.HashDockerfile(dockerfile)
 	latest, err := m.queries.LatestImageForHash(ctx, imagesdb.LatestImageForHashParams{JobID: jobID, DockerfileHash: hash})
 	if database.IsNotFound(err) {
-		_, err = m.queueBuild(ctx, jobID, dockerfile)
+		_, err = m.requestBuild(ctx, jobID, dockerfile)
 		return err
 	} else if err != nil {
 		return err
@@ -139,7 +141,7 @@ func (m *Module) EnsureBuild(ctx context.Context, jobID, dockerfile string) erro
 	switch {
 	case latest.Status == StatusFailed:
 		// A failed build is retried with a new image, so its log and error stay visible
-		_, err = m.queueBuild(ctx, jobID, dockerfile)
+		_, err = m.requestBuild(ctx, jobID, dockerfile)
 		return err
 	case latest.Status != StatusReady && isStale(latest, database.Now()):
 		// An unfinished build that stopped making progress lost its task, so it is submitted again

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/database"
 	"github.com/stonith404/umpteenth/backend/internal/images/imagesdb"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
@@ -180,6 +182,63 @@ func TestEnsureBuildRequeuesAStaleBuild(t *testing.T) {
 	testutil.Exec(t, h.db, "UPDATE images SET created_at = $1 WHERE id = $2", database.Now()-staleAfter.Milliseconds()-60_000, fresh.ID)
 	require.NoError(t, h.m.EnsureBuild(context.Background(), h.jobID, testDockerfile))
 	require.Eventually(t, func() bool { return h.status(t, fresh.ID) == StatusReady }, 20*time.Second, 100*time.Millisecond)
+}
+
+// holdBuilds keeps every build running until the test ends, so requested builds stay unfinished
+func (h *harness) holdBuilds(t *testing.T) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	h.builder.OnBuild(func(sandbox.BuildSpec) error {
+		<-release
+		return nil
+	})
+}
+
+// Rebuilds and playbook saves anyone can repeat must not pile up builds in the queue every workspace shares
+func TestRequestBuildReusesAndLimitsUnfinishedBuilds(t *testing.T) {
+	h := newHarness(t)
+	h.holdBuilds(t)
+	ctx := context.Background()
+
+	// Asking again for a Dockerfile whose build is unfinished returns that build
+	first, err := h.m.requestBuild(ctx, h.jobID, testDockerfile)
+	require.NoError(t, err)
+	again, err := h.m.requestBuild(ctx, h.jobID, testDockerfile)
+	require.NoError(t, err)
+	assert.Equal(t, first, again)
+
+	// Other Dockerfiles queue builds of their own up to the limit
+	for i := range maxUnfinishedBuilds - 1 {
+		_, err := h.m.requestBuild(ctx, h.jobID, fmt.Sprintf("%sRUN echo %d\n", testDockerfile, i))
+		require.NoError(t, err)
+	}
+	_, err = h.m.requestBuild(ctx, h.jobID, testDockerfile+"RUN echo one too many\n")
+	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited), "got %v", err)
+
+	// A build that lost its task holds no place, so it doesn't block new ones
+	require.Eventually(t, func() bool { return h.status(t, first) == StatusBuilding }, 10*time.Second, 20*time.Millisecond)
+	testutil.Exec(t, h.db, "UPDATE images SET created_at = $1, started_at = $1 WHERE id = $2", database.Now()-staleAfter.Milliseconds()-60_000, first)
+	_, err = h.m.requestBuild(ctx, h.jobID, testDockerfile+"RUN echo now there is room\n")
+	require.NoError(t, err)
+}
+
+func TestRequestBuildLimitHoldsForConcurrentRequests(t *testing.T) {
+	h := newHarness(t)
+	h.holdBuilds(t)
+
+	var wg sync.WaitGroup
+	for i := range 10 {
+		wg.Go(func() {
+			_, _ = h.m.requestBuild(context.Background(), h.jobID, fmt.Sprintf("%sRUN echo %d\n", testDockerfile, i))
+		})
+	}
+	wg.Wait()
+
+	// The shared-cache test database refuses a busy writer instead of letting it wait, so fewer requests may get through, but never more
+	var rows int
+	require.NoError(t, h.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM images WHERE job_id = $1", h.jobID).Scan(&rows))
+	assert.Positive(t, rows)
+	assert.LessOrEqual(t, rows, maxUnfinishedBuilds)
 }
 
 // A replica without a builder must leave build tasks to replicas with one, since running one would panic on the missing builder

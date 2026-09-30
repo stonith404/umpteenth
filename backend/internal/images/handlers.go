@@ -72,7 +72,7 @@ type imageIDOutput struct {
 	}
 }
 
-// rebuild builds the current Dockerfile again, re-resolving the base image to pick up updates
+// rebuild builds the current Dockerfile again, re-resolving the base image to pick up updates, or returns the build of it that is still in progress
 func (m *Module) rebuild(ctx context.Context, in *rebuildInput) (*imageIDOutput, error) {
 	err := m.deps.Jobs.JobExists(ctx, principal.WorkspaceID(ctx), in.ID)
 	if err != nil {
@@ -88,7 +88,7 @@ func (m *Module) rebuild(ctx context.Context, in *rebuildInput) (*imageIDOutput,
 	if strings.TrimSpace(dockerfile) == "" {
 		return nil, apperror.Unsupported("The job has no Dockerfile")
 	}
-	id, err := m.queueBuild(ctx, in.ID, dockerfile)
+	id, err := m.requestBuild(ctx, in.ID, dockerfile)
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"regexp"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/builtin/taskpool"
 
+	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/database"
 	"github.com/stonith404/umpteenth/backend/internal/images/imagesdb"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
@@ -28,17 +30,72 @@ func (m *Module) queueBuild(ctx context.Context, jobID, dockerfile string) (stri
 	if err != nil {
 		return "", fmt.Errorf("failed to create image: %w", err)
 	}
+	err = m.submit(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
 
+// requestBuild queues a build that a rebuild or a playbook save asks for, which anyone in the workspace can repeat at will
+// It returns the unfinished build of the same Dockerfile instead of queueing another, and refuses more than maxUnfinishedBuilds of one job, so nobody floods the build queue all replicas share
+func (m *Module) requestBuild(ctx context.Context, jobID, dockerfile string) (string, error) {
+	hash := playbook.HashDockerfile(dockerfile)
+	id := database.NewID()
+	reused := false
+	err := m.deps.DB.InTx(ctx, func(tx *database.Tx) error {
+		q := imagesdb.New(tx)
+
+		// Concurrent requests of one job take turns, so each one counts the builds the others queued
+		err := q.LockJobBuilds(ctx, jobID)
+		if err != nil {
+			return err
+		}
+
+		// A build of the same Dockerfile that is still making progress already does what was asked
+		now := database.Now()
+		latest, err := q.LatestImageForHash(ctx, imagesdb.LatestImageForHashParams{JobID: jobID, DockerfileHash: hash})
+		if err == nil && (latest.Status == StatusQueued || latest.Status == StatusBuilding) && !isStale(latest, now) {
+			id, reused = latest.ID, true
+			return nil
+		} else if err != nil && !database.IsNotFound(err) {
+			return err
+		}
+
+		// Stale builds lost their task and hold no place in the queue, so they don't count
+		unfinished, err := q.CountUnfinishedBuilds(ctx, imagesdb.CountUnfinishedBuildsParams{JobID: jobID, Since: new(now - staleAfter.Milliseconds())})
+		if err != nil {
+			return err
+		}
+		if unfinished >= maxUnfinishedBuilds {
+			return apperror.New(apperror.CodeRateLimited, http.StatusTooManyRequests, fmt.Sprintf("The job already has %d image builds in progress, try again once one of them finished", maxUnfinishedBuilds))
+		}
+		return q.CreateImage(ctx, imagesdb.CreateImageParams{ID: id, JobID: jobID, DockerfileHash: hash, Dockerfile: dockerfile, CreatedAt: now})
+	})
+	if err != nil {
+		return "", err
+	}
+	if !reused {
+		err = m.submit(ctx, id)
+		if err != nil {
+			return "", err
+		}
+	}
+	return id, nil
+}
+
+// submit submits the build task of a new image row
+func (m *Module) submit(ctx context.Context, id string) error {
 	// A row without a build task would stay queued, so it is removed and the next caller queues a fresh build
-	_, err = m.pool.Submit(ctx, buildTask{ImageID: id}, taskpool.WithTaskKey(id), taskpool.WithRequiredCapability(builderCapability))
+	_, err := m.pool.Submit(ctx, buildTask{ImageID: id}, taskpool.WithTaskKey(id), taskpool.WithRequiredCapability(builderCapability))
 	if err != nil {
 		delErr := m.queries.DeleteImage(context.WithoutCancel(ctx), id)
 		if delErr != nil {
 			slog.WarnContext(ctx, "Failed to remove an image whose build could not be queued", slog.String("image", id), slog.Any("error", delErr))
 		}
-		return "", fmt.Errorf("failed to queue image build: %w", err)
+		return fmt.Errorf("failed to queue image build: %w", err)
 	}
-	return id, nil
+	return nil
 }
 
 // requeue submits the build task of an unfinished image again

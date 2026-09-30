@@ -9,6 +9,23 @@ import (
 	"context"
 )
 
+const countUnfinishedBuilds = `-- name: CountUnfinishedBuilds :one
+SELECT COUNT(*) FROM images
+WHERE job_id = $1 AND status IN ('queued', 'building') AND COALESCE(started_at, created_at) > $2
+`
+
+type CountUnfinishedBuildsParams struct {
+	JobID string
+	Since *int64
+}
+
+func (q *Queries) CountUnfinishedBuilds(ctx context.Context, arg CountUnfinishedBuildsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUnfinishedBuilds, arg.JobID, arg.Since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createImage = `-- name: CreateImage :exec
 INSERT INTO images (id, job_id, dockerfile_hash, dockerfile, status, created_at)
 VALUES ($1, $2, $3, $4, 'queued', $5)
@@ -196,6 +213,17 @@ func (q *Queries) ListImagesForGC(ctx context.Context) ([]ListImagesForGCRow, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockJobBuilds = `-- name: LockJobBuilds :exec
+UPDATE jobs SET updated_at = updated_at WHERE id = $1
+`
+
+// unscoped: callers pass a job they already reached through its workspace
+// Rewriting a column with itself locks the job's row, so concurrent build requests of one job take turns and see each other's builds
+func (q *Queries) LockJobBuilds(ctx context.Context, jobID string) error {
+	_, err := q.db.ExecContext(ctx, lockJobBuilds, jobID)
+	return err
 }
 
 const markBuilding = `-- name: MarkBuilding :exec

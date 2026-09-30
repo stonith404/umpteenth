@@ -11,6 +11,15 @@ SELECT * FROM images WHERE job_id = sqlc.arg(job_id) AND dockerfile_hash = sqlc.
 -- name: LatestReadyImageForHash :one
 SELECT * FROM images WHERE job_id = sqlc.arg(job_id) AND dockerfile_hash = sqlc.arg(dockerfile_hash) AND status = 'ready' ORDER BY created_at DESC, id DESC LIMIT 1;
 
+-- name: LockJobBuilds :exec
+-- unscoped: callers pass a job they already reached through its workspace
+-- Rewriting a column with itself locks the job's row, so concurrent build requests of one job take turns and see each other's builds
+UPDATE jobs SET updated_at = updated_at WHERE id = sqlc.arg(job_id);
+
+-- name: CountUnfinishedBuilds :one
+SELECT COUNT(*) FROM images
+WHERE job_id = sqlc.arg(job_id) AND status IN ('queued', 'building') AND COALESCE(started_at, created_at) > sqlc.arg(since);
+
 -- name: MarkBuilding :exec
 UPDATE images SET status = 'building', started_at = sqlc.arg(started_at), base_digest = sqlc.narg(base_digest), log_key = sqlc.narg(log_key)
 WHERE id = sqlc.arg(id) AND status IN ('queued', 'building');
