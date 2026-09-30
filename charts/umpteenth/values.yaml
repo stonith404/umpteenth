@@ -49,7 +49,7 @@ persistence:
   storageClass: ""
   accessModes: [ReadWriteOnce]
 
-# Rendered into /app/config.yml, e.g. the sign-in providers; see config.example.yml for every option
+# Rendered into /app/config.yml, e.g. the sign-in providers; see https://umpteenth.dev/deployment/configuration for every option
 # Environment variables win over it, so options the chart sets through values can't be changed here
 config: {}
   # auth:

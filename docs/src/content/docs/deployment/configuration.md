@@ -18,6 +18,7 @@ app:
 ```
 
 To sign in at all, you also need a provider under `auth.providers`, which [Sign-in](../sign-in/) sets up.
+For a commented starting point, copy [`config.example.yml`](https://github.com/stonith404/umpteenth/blob/main/config.example.yml) from the repository, which holds these options and a sample of each provider type.
 Create the file before the first start, or Docker creates an empty directory named `config.yml` in its place, and Umpteenth stops with `app.encryption_key (APP_ENCRYPTION_KEY) is required`.
 
 Restart Umpteenth after an edit to the file:
@@ -85,7 +86,6 @@ From then on the workspace keeps its own value, and edits to the option leave it
 ## Options
 
 Each row shows the option's path in `config.yml` above its environment variable.
-[`config.example.yml`](https://github.com/stonith404/umpteenth/blob/main/config.example.yml) in the repository holds every option in one commented file.
 
 ### App
 

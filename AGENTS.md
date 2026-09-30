@@ -21,7 +21,7 @@ Setup and test commands for humans are in `CONTRIBUTING.md`.
 - Backend unit tests: `make test` in `backend/`.
 - `backend/internal/config/config.go` is the config schema (`yaml` and `default` tags).
   Refer to options by YAML path and never hardcode env var names, which are derived from it (`server.port` → `SERVER_PORT`).
-  Add every new option to `config.example.yml`, which a test checks.
+  Document every new option on the docs' Configuration page, and add it to `config.example.yml` only if most installs set it, marked `# Required` or `# Recommended to change`.
 - Every route declares its access rule with `httpserver.Restrict` and must be added to `internal/bootstrap/access_test.go`.
 - `workspaces.enabled` is off by default, so everyone shares `workspaces.DefaultID`; turn it on to test the switcher, invites and the admin area.
 

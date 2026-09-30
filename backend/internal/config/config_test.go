@@ -6,13 +6,11 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.yaml.in/yaml/v3"
 )
 
 // writeFile creates a file in a temporary directory and returns its path
@@ -216,63 +214,17 @@ func TestDatabaseProviderRecognizesPostgresURLs(t *testing.T) {
 	assert.Equal(t, DbProviderPostgres, Database{ConnectionString: "postgresql://db/umpteenth"}.Provider())
 }
 
-func TestExampleFileDocumentsEveryOptionWithItsDefault(t *testing.T) {
+func TestExampleFileShowsValidOptionsWithTheirDefaults(t *testing.T) {
 	const example = "../../../config.example.yml"
 
-	// Every option of the schema appears in the example, so admins can discover it there
-	content, err := os.ReadFile(example)
-	require.NoError(t, err)
-	var doc yaml.Node
-	require.NoError(t, yaml.Unmarshal(content, &doc))
-	documented := map[string]bool{}
-	var walk func(n *yaml.Node, prefix string)
-	walk = func(n *yaml.Node, prefix string) {
-		for i := 0; i+1 < len(n.Content); i += 2 {
-			key := prefix + n.Content[i].Value
-			documented[key] = true
-			if n.Content[i+1].Kind == yaml.MappingNode {
-				walk(n.Content[i+1], key+".")
-			}
-		}
-	}
-	walk(doc.Content[0], "")
-	s := newSchema(&Config{})
-	for _, o := range s.options {
-		assert.True(t, documented[o.key], "%s is missing from config.example.yml", o.key)
-	}
-
-	// A collection is documented by example sections that together show every option a section has
-	for _, c := range s.collections {
-		ids := map[string]bool{}
-		for key := range documented {
-			if rest, ok := strings.CutPrefix(key, c.key+"."); ok {
-				id, _, _ := strings.Cut(rest, ".")
-				ids[id] = true
-			}
-		}
-		require.NotEmpty(t, ids, "%s has no example section in config.example.yml", c.key)
-		for _, o := range c.template().options {
-			found := false
-			for id := range ids {
-				found = found || documented[c.key+"."+id+"."+o.key]
-			}
-			assert.True(t, found, "%s.<id>.%s is missing from config.example.yml", c.key, o.key)
-		}
-	}
-
-	// The values shown are the defaults, apart from the example sign-in providers
+	// The example only holds known options, and the values it shows are the defaults apart from the example sign-in providers
 	cfg := Default()
 	require.NoError(t, newSchema(cfg).applyFile(example))
 	want := Default()
 	want.Auth.Providers = map[string]*AuthProvider{
-		"pocket-id": {Type: "oidc", Name: "Pocket ID", ClientID: "umpteenth", Issuer: "https://id.example.com", AllowedGroups: []string{}, AdminGroups: []string{}},
-		"github":    {Type: "github", Name: "GitHub", AllowedUsers: []string{"octocat"}, AllowedOrganizations: []string{}, AdminUsers: []string{}, AdminOrganizations: []string{}},
+		"pocket-id": {Type: "oidc", Name: "Pocket ID", ClientID: "umpteenth", Issuer: "https://id.example.com", AllowedGroups: []string{}},
+		"github":    {Type: "github", Name: "GitHub", AllowedUsers: []string{"octocat"}},
 	}
-	want.Sandbox.Docker.DNS = []string{}
-	want.Sandbox.Kubernetes.NodeSelector = []string{}
-	want.Sandbox.Kubernetes.Tolerations = []string{}
-	want.Sandbox.Kubernetes.ClusterRanges = []string{}
-	want.Network.BlockedTargets = []string{}
 	assert.Equal(t, want, cfg)
 }
 
