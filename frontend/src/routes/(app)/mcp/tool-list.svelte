@@ -5,8 +5,12 @@
 	import * as Collapsible from '$lib/components/ui/collapsible';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import WrenchIcon from '@lucide/svelte/icons/wrench';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let { tools }: { tools: McpToolInfo[] } = $props();
+
+	// A server can list hundreds of tools, so a schema's editor is only created once its row is first opened
+	const opened = new SvelteSet<string>();
 
 	// Only schemas with parameters are worth expanding
 	function hasParameters(schema: unknown) {
@@ -20,7 +24,7 @@
 	<ul class="flex flex-col gap-2" aria-label="Tools">
 		{#each tools as tool (tool.name)}
 			<li class="rounded-lg border">
-				<Collapsible.Root>
+				<Collapsible.Root onOpenChange={(open) => open && opened.add(tool.name)}>
 					<Collapsible.Trigger disabled={!hasParameters(tool.inputSchema)}>
 						{#snippet child({ props })}
 							<button {...props} class="group flex w-full items-start gap-3 px-3 py-2.5 text-left">
@@ -47,15 +51,17 @@
 						{/snippet}
 					</Collapsible.Trigger>
 					<Collapsible.Content>
-						<div class="px-3 pb-3">
-							<CodeEditor
-								value={JSON.stringify(tool.inputSchema, null, 2)}
-								language="json"
-								readonly
-								label="Input schema of {tool.name}"
-								class="h-auto max-h-72"
-							/>
-						</div>
+						{#if opened.has(tool.name)}
+							<div class="px-3 pb-3">
+								<CodeEditor
+									value={JSON.stringify(tool.inputSchema, null, 2)}
+									language="json"
+									readonly
+									label="Input schema of {tool.name}"
+									class="h-auto max-h-72"
+								/>
+							</div>
+						{/if}
 					</Collapsible.Content>
 				</Collapsible.Root>
 			</li>
