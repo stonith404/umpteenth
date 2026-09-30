@@ -215,21 +215,29 @@ func (a *Adapter) connectBroker(ctx context.Context, runNet string) (netip.Addr,
 
 	err := a.cli.NetworkConnect(ctx, runNet, endpoint, &network.EndpointSettings{Aliases: []string{brokerAlias}})
 
-	// Connecting twice fails, which is fine when the endpoint is already there
+	// Connecting twice fails, which is fine when the endpoint is already there, so the inspection has the last word whether or not the connect succeeded
 	info, inspectErr := a.cli.NetworkInspect(ctx, runNet, network.InspectOptions{})
 	joined, ok := info.Containers[endpoint]
-	if err != nil && (inspectErr != nil || !ok) {
+	switch {
+	case err != nil && (inspectErr != nil || !ok):
 		return netip.Addr{}, fmt.Errorf("failed to connect the broker to %s: %w", runNet, err)
+	case inspectErr != nil:
+		return netip.Addr{}, fmt.Errorf("failed to inspect %s after connecting the broker: %w", runNet, inspectErr)
+	case !ok:
+		return netip.Addr{}, fmt.Errorf("the broker is missing from %s after connecting it", runNet)
 	}
 
-	// An address the engine reports in an unexpected shape only costs the /etc/hosts entry, not the sandbox
+	// The server refuses everything but the broker on this replica's address, and gVisor needs the address in /etc/hosts, so both fail without one, while a relay under another runtime is reached by its alias
 	var addr netip.Addr
-	if prefix, parseErr := netip.ParsePrefix(joined.IPv4Address); ok && parseErr == nil {
+	if prefix, parseErr := netip.ParsePrefix(joined.IPv4Address); parseErr == nil {
 		addr = prefix.Addr()
+	}
+	if !addr.IsValid() && (containerMode || a.gvisor()) {
+		return netip.Addr{}, fmt.Errorf("the engine reports no address of the broker on %s", runNet)
 	}
 
 	// In container mode this replica now has an address sandboxes can reach, which only the broker may answer on
-	if containerMode && addr.IsValid() {
+	if containerMode {
 		a.markSandboxFacing(runNet, addr)
 	}
 	return addr, nil

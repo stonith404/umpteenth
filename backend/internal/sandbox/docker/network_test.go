@@ -3,13 +3,19 @@
 package docker
 
 import (
+	"encoding/json"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInContainerRangeLeavesGatewaysToTheHost(t *testing.T) {
@@ -54,4 +60,51 @@ func TestReusableNetworkRequiresTheSameRun(t *testing.T) {
 	// Networks of another run or installation are never taken over
 	assert.False(t, reusableNetwork(existing(map[string]string{labelInstance: "inst", labelRun: "run-2"}), labels))
 	assert.False(t, reusableNetwork(existing(map[string]string{labelInstance: "other", labelRun: "run-1"}), labels))
+}
+
+// brokerEngine accepts every broker connect and answers the inspection after it with the given status and endpoints
+func brokerEngine(t *testing.T, inspectStatus int, endpoints map[string]network.EndpointResource) *client.Client {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /{version}/networks/{id}/connect", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("GET /{version}/networks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if inspectStatus != http.StatusOK {
+			http.Error(w, `{"message":"engine hiccup"}`, inspectStatus)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(network.Inspect{Name: r.PathValue("id"), Containers: endpoints})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cli, err := client.NewClientWithOpts(client.WithHost("tcp://"+strings.TrimPrefix(srv.URL, "http://")), client.WithVersion("1.47"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cli.Close() })
+	return cli
+}
+
+func TestConnectBrokerMarksTheReplicaAddress(t *testing.T) {
+	a := &Adapter{cfg: Config{Runtime: defaultRuntime}, selfID: "self", cli: brokerEngine(t, http.StatusOK, map[string]network.EndpointResource{"self": {IPv4Address: "172.30.0.2/16"}})}
+	addr, err := a.connectBroker(t.Context(), "ump-run-1")
+	require.NoError(t, err)
+	assert.Equal(t, netip.MustParseAddr("172.30.0.2"), addr)
+	assert.True(t, a.SandboxFacing(addr))
+}
+
+// A successful connect alone leaves the server without the address it refuses everything but the broker on
+func TestConnectBrokerFailsWithoutTheReplicaAddress(t *testing.T) {
+	cases := map[string]*client.Client{
+		"inspection fails": brokerEngine(t, http.StatusInternalServerError, nil),
+		"endpoint missing": brokerEngine(t, http.StatusOK, map[string]network.EndpointResource{}),
+		"address missing":  brokerEngine(t, http.StatusOK, map[string]network.EndpointResource{"self": {}}),
+	}
+	for name, cli := range cases {
+		t.Run(name, func(t *testing.T) {
+			a := &Adapter{cfg: Config{Runtime: defaultRuntime}, selfID: "self", cli: cli}
+			_, err := a.connectBroker(t.Context(), "ump-run-1")
+			require.Error(t, err)
+		})
+	}
 }
