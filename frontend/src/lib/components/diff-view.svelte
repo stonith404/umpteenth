@@ -13,9 +13,16 @@
 		showStats?: boolean;
 	} = $props();
 
+	// A playbook can hold hundreds of thousands of lines, and every shown line is a table row, so the view stops after this many
+	const MAX_ROWS = 2000;
+
 	const lines = $derived(diffLines(before, after));
 	const hunks = $derived(collapseUnchanged(lines));
 	const stats = $derived(diffStats(lines));
+	const shown = $derived(hunks.slice(0, MAX_ROWS));
+	const notShown = $derived(
+		hunks.slice(MAX_ROWS).reduce((n, line) => n + (line.type === 'gap' ? line.count : 1), 0)
+	);
 </script>
 
 <div data-slot="diff-view" class="bg-muted/30 dark:bg-input/20 overflow-hidden rounded-lg border">
@@ -28,7 +35,7 @@
 	<div class="max-h-128 overflow-auto">
 		<table class="w-full border-collapse font-mono text-xs leading-5">
 			<tbody>
-				{#each hunks as line, i (i)}
+				{#each shown as line, i (i)}
 					{#if line.type === 'gap'}
 						<tr class="bg-muted/60 text-muted-foreground">
 							<td colspan="3" class="px-3 py-0.5 text-center select-none">
@@ -71,6 +78,11 @@
 				{/each}
 			</tbody>
 		</table>
+		{#if notShown > 0}
+			<p class="text-muted-foreground border-t px-3 py-2 text-center text-xs">
+				{notShown} more {notShown === 1 ? 'line' : 'lines'} not shown
+			</p>
+		{/if}
 		{#if lines.length === 0}
 			<p class="text-muted-foreground px-3 py-4 text-center text-xs">Empty</p>
 		{/if}
