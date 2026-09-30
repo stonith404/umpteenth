@@ -26,8 +26,9 @@ const (
 )
 
 // sessionClaims is the signed content of the session cookie
-// Sessions are stateless so any replica can serve any request
+// Every replica can verify the claims on its own, and the session ID ties them to a row in the database that signing out deletes
 type sessionClaims struct {
+	SessionID   string `json:"sid"`
 	UserID      string `json:"uid"`
 	WorkspaceID string `json:"wid"`
 	// Provider is the ID of the sign-in provider the user signed in with, which the login page remembers as the last one used
@@ -92,13 +93,13 @@ func (c *cookieCodec) expired(name, path string) http.Cookie {
 	return http.Cookie{Name: name, Value: "", Path: path, MaxAge: -1, HttpOnly: true, Secure: c.secure, SameSite: http.SameSiteLaxMode}
 }
 
-// sessionCookie creates a signed session cookie for the user in the workspace that ends at expiresAt
-func (c *cookieCodec) sessionCookie(userID, workspaceID, providerID string, expiresAt time.Time) (http.Cookie, error) {
-	value, err := c.encode(kindSession, sessionClaims{UserID: userID, WorkspaceID: workspaceID, Provider: providerID, ExpiresAt: expiresAt.Unix()})
+// sessionCookie creates a signed session cookie carrying the claims, which the browser keeps until they expire
+func (c *cookieCodec) sessionCookie(claims sessionClaims) (http.Cookie, error) {
+	value, err := c.encode(kindSession, claims)
 	if err != nil {
 		return http.Cookie{}, err
 	}
-	return c.cookie(SessionCookieName, value, "/", time.Until(expiresAt)), nil
+	return c.cookie(SessionCookieName, value, "/", time.Until(time.Unix(claims.ExpiresAt, 0))), nil
 }
 
 // parseSession verifies a session cookie value and checks its expiry
@@ -111,8 +112,8 @@ func (c *cookieCodec) parseSession(value string) (sessionClaims, error) {
 	if time.Now().Unix() > claims.ExpiresAt {
 		return sessionClaims{}, errors.New("session expired")
 	}
-	if claims.UserID == "" || claims.WorkspaceID == "" {
-		return sessionClaims{}, errors.New("session names no user or workspace")
+	if claims.SessionID == "" || claims.UserID == "" || claims.WorkspaceID == "" {
+		return sessionClaims{}, errors.New("session names no session, user or workspace")
 	}
 	return claims, nil
 }

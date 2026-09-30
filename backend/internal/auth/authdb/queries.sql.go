@@ -29,6 +29,75 @@ func (q *Queries) ClaimGitHubName(ctx context.Context, arg ClaimGitHubNameParams
 	return value, err
 }
 
+const createSession = `-- name: CreateSession :exec
+INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)
+`
+
+type CreateSessionParams struct {
+	TokenHash string
+	UserID    string
+	CreatedAt int64
+	ExpiresAt int64
+}
+
+// unscoped: sessions belong to users, who are instance-wide
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
+	_, err := q.db.ExecContext(ctx, createSession,
+		arg.TokenHash,
+		arg.UserID,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const deleteExpiredSessions = `-- name: DeleteExpiredSessions :exec
+DELETE FROM sessions WHERE expires_at <= $1
+`
+
+// unscoped: sessions belong to users, who are instance-wide
+func (q *Queries) DeleteExpiredSessions(ctx context.Context, now int64) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredSessions, now)
+	return err
+}
+
+const deleteSession = `-- name: DeleteSession :exec
+DELETE FROM sessions WHERE token_hash = $1
+`
+
+// unscoped: sessions belong to users, who are instance-wide
+func (q *Queries) DeleteSession(ctx context.Context, tokenHash string) error {
+	_, err := q.db.ExecContext(ctx, deleteSession, tokenHash)
+	return err
+}
+
+const deleteUserSessions = `-- name: DeleteUserSessions :exec
+DELETE FROM sessions WHERE user_id = $1
+`
+
+// unscoped: sessions belong to users, who are instance-wide
+func (q *Queries) DeleteUserSessions(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, deleteUserSessions, userID)
+	return err
+}
+
+const getSessionUser = `-- name: GetSessionUser :one
+SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > $2
+`
+
+type GetSessionUserParams struct {
+	TokenHash string
+	Now       int64
+}
+
+// unscoped: sessions belong to users, who are instance-wide
+func (q *Queries) GetSessionUser(ctx context.Context, arg GetSessionUserParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSessionUser, arg.TokenHash, arg.Now)
+	var user_id string
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, issuer, subject, email, email_verified, name, picture, is_admin, disabled_at, last_workspace_id, created_at, last_login_at FROM users WHERE id = $1
 `

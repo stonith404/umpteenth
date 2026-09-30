@@ -42,6 +42,8 @@ type Principal struct {
 	LoginProvider string
 	// SessionExpiresAt is when a browser session ends in Unix seconds, which a session moved to another workspace keeps
 	SessionExpiresAt int64
+	// SessionID identifies a browser session, which a session moved to another workspace keeps so that signing out still ends it
+	SessionID string
 	// Role is what the caller may do in the workspace
 	Role Role
 	// InstanceAdmin is set for browser sessions of instance admins, who manage every user and workspace

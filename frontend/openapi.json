@@ -4286,6 +4286,15 @@
 		"/api/auth/logout": {
 			"post": {
 				"operationId": "logout",
+				"parameters": [
+					{
+						"in": "cookie",
+						"name": "umpteenth_session",
+						"schema": {
+							"$ref": "#/components/schemas/Cookie"
+						}
+					}
+				],
 				"responses": {
 					"204": {
 						"description": "No Content",

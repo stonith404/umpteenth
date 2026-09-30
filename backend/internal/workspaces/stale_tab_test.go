@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -28,9 +27,9 @@ const workspaceHeader = "X-Umpteenth-Workspace"
 // plainSessions stands in for the auth module with readable cookies that name the user and the workspace, like the real session claims do
 type plainSessions struct{ m *Module }
 
-func (s plainSessions) SessionCookie(userID, workspaceID, _ string, _ time.Time) (http.Cookie, error) {
+func (s plainSessions) SessionCookie(p principal.Principal, workspaceID string) (http.Cookie, error) {
 	// #nosec G124 -- the test server speaks plain HTTP, where a Secure cookie would never be sent back
-	return http.Cookie{Name: "session", Value: userID + "." + workspaceID, Path: "/"}, nil
+	return http.Cookie{Name: "session", Value: p.UserID + "." + workspaceID, Path: "/"}, nil
 }
 
 func (s plainSessions) VerifySession(ctx context.Context, value string) (principal.Principal, error) {
@@ -66,7 +65,7 @@ func newBrowser(t *testing.T, m *Module, userID, workspaceID string) *tabs {
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
 	u, _ := url.Parse(srv.URL)
-	cookie, _ := sessions.SessionCookie(userID, workspaceID, "", time.Now().Add(time.Hour))
+	cookie, _ := sessions.SessionCookie(principal.Principal{UserID: userID}, workspaceID)
 	jar.SetCookies(u, []*http.Cookie{&cookie})
 	return &tabs{t: t, base: srv.URL, client: &http.Client{Jar: jar}}
 }

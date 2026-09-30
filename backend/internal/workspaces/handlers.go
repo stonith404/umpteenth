@@ -63,8 +63,8 @@ func (m *Module) sessionIn(ctx context.Context, p principal.Principal, workspace
 	if err != nil {
 		return nil, err
 	}
-	// The new session ends when the one it replaces does, since only a sign-in through the provider may start a new lifetime
-	cookie, err := m.sessions.SessionCookie(p.UserID, workspaceID, p.LoginProvider, time.Unix(p.SessionExpiresAt, 0))
+	// The session keeps its end, since only a sign-in through the provider may start a new lifetime
+	cookie, err := m.sessions.SessionCookie(p, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -469,7 +469,7 @@ func (m *Module) deleteAny(ctx context.Context, in *workspaceIDInput) (*deleteAn
 	if err != nil {
 		return nil, err
 	}
-	cookie, err := m.sessions.SessionCookie(p.UserID, next, p.LoginProvider, time.Unix(p.SessionExpiresAt, 0))
+	cookie, err := m.sessions.SessionCookie(p, next)
 	if err != nil {
 		return nil, err
 	}

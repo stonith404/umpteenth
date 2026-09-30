@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -22,8 +21,8 @@ const DefaultID = "00000000-0000-7000-8000-000000000001"
 
 // Sessions issues session cookies, which the auth module owns
 type Sessions interface {
-	// SessionCookie issues a session for the user in the workspace that ends at expiresAt, remembering the sign-in provider they signed in with
-	SessionCookie(userID, workspaceID, providerID string, expiresAt time.Time) (http.Cookie, error)
+	// SessionCookie moves the caller's session into another workspace, keeping the session's ID, sign-in provider and end
+	SessionCookie(p principal.Principal, workspaceID string) (http.Cookie, error)
 }
 
 // Seeder fills a new workspace, which only test builds use to give it the fake model

@@ -2820,7 +2820,9 @@ export interface operations {
 			query?: never;
 			header?: never;
 			path?: never;
-			cookie?: never;
+			cookie?: {
+				umpteenth_session?: components['schemas']['Cookie'];
+			};
 		};
 		requestBody?: never;
 		responses: {

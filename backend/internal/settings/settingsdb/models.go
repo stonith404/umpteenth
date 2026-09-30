@@ -251,6 +251,13 @@ type Secret struct {
 	UpdatedAt   int64
 }
 
+type Session struct {
+	TokenHash string
+	UserID    string
+	CreatedAt int64
+	ExpiresAt int64
+}
+
 type Setting struct {
 	WorkspaceID string
 	Key         string

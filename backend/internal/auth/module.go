@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -105,9 +104,9 @@ func (m *Module) VerifySession(ctx context.Context, value string) (principal.Pri
 	return m.service.VerifySession(ctx, value)
 }
 
-// SessionCookie issues a session for the user in the workspace that ends at expiresAt, used when a user switches workspaces
-func (m *Module) SessionCookie(userID, workspaceID, providerID string, expiresAt time.Time) (http.Cookie, error) {
-	return m.service.SessionCookie(userID, workspaceID, providerID, expiresAt)
+// SessionCookie moves the caller's session into another workspace, used when a user switches workspaces
+func (m *Module) SessionCookie(p principal.Principal, workspaceID string) (http.Cookie, error) {
+	return m.service.SessionCookie(p, workspaceID)
 }
 
 // TestAccount is an account the e2e test endpoints sign in as without a sign-in provider

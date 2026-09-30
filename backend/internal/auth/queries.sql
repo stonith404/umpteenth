@@ -20,3 +20,23 @@ UPDATE users SET disabled_at = sqlc.narg(disabled_at) WHERE id = sqlc.arg(id);
 INSERT INTO kv (key, value) VALUES (sqlc.arg(key), sqlc.arg(value))
 ON CONFLICT (key) DO UPDATE SET value = kv.value
 RETURNING value;
+
+-- name: CreateSession :exec
+-- unscoped: sessions belong to users, who are instance-wide
+INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (sqlc.arg(token_hash), sqlc.arg(user_id), sqlc.arg(created_at), sqlc.arg(expires_at));
+
+-- name: GetSessionUser :one
+-- unscoped: sessions belong to users, who are instance-wide
+SELECT user_id FROM sessions WHERE token_hash = sqlc.arg(token_hash) AND expires_at > sqlc.arg(now);
+
+-- name: DeleteSession :exec
+-- unscoped: sessions belong to users, who are instance-wide
+DELETE FROM sessions WHERE token_hash = sqlc.arg(token_hash);
+
+-- name: DeleteUserSessions :exec
+-- unscoped: sessions belong to users, who are instance-wide
+DELETE FROM sessions WHERE user_id = sqlc.arg(user_id);
+
+-- name: DeleteExpiredSessions :exec
+-- unscoped: sessions belong to users, who are instance-wide
+DELETE FROM sessions WHERE expires_at <= sqlc.arg(now);

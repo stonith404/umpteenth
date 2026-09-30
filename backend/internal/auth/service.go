@@ -163,11 +163,31 @@ func (s *Service) signIn(ctx context.Context, account identity, providerID, redi
 	if err != nil {
 		return http.Cookie{}, "", err
 	}
-	cookie, err := s.SessionCookie(user.ID, workspaceID, providerID, time.Now().Add(sessionTTL))
+	cookie, err := s.startSession(ctx, user.ID, workspaceID, providerID)
 	if err != nil {
 		return http.Cookie{}, "", err
 	}
 	return cookie, redirect, nil
+}
+
+// startSession records a new session of the user and issues its cookie for the workspace
+func (s *Service) startSession(ctx context.Context, userID, workspaceID, providerID string) (http.Cookie, error) {
+	now := database.Now()
+	expiresAt := time.Now().Add(sessionTTL)
+
+	// Sessions that ran out go whenever a new one starts, which keeps the table to the ones that still work
+	err := s.queries.DeleteExpiredSessions(ctx, now)
+	if err != nil {
+		return http.Cookie{}, fmt.Errorf("failed to delete expired sessions: %w", err)
+	}
+
+	// Only the hash of the session ID is stored, so the table alone can't be turned into cookies
+	id := crypto.RandomToken(32)
+	err = s.queries.CreateSession(ctx, authdb.CreateSessionParams{TokenHash: crypto.HashToken(id), UserID: userID, CreatedAt: now, ExpiresAt: expiresAt.UnixMilli()})
+	if err != nil {
+		return http.Cookie{}, fmt.Errorf("failed to create session: %w", err)
+	}
+	return s.codec.sessionCookie(sessionClaims{SessionID: id, UserID: userID, WorkspaceID: workspaceID, Provider: providerID, ExpiresAt: expiresAt.Unix()})
 }
 
 // UpsertUser records a login of the account
@@ -189,9 +209,24 @@ func (s *Service) UpsertUser(ctx context.Context, account identity) (authdb.User
 	return user, nil
 }
 
-// SessionCookie issues a session for the user in the workspace that ends at expiresAt, remembering the sign-in provider they signed in with
-func (s *Service) SessionCookie(userID, workspaceID, providerID string, expiresAt time.Time) (http.Cookie, error) {
-	return s.codec.sessionCookie(userID, workspaceID, providerID, expiresAt)
+// SessionCookie moves the caller's session into another workspace
+// The new cookie keeps the session's ID, sign-in provider and end, since only a sign-in through the provider may start a new session
+func (s *Service) SessionCookie(p principal.Principal, workspaceID string) (http.Cookie, error) {
+	return s.codec.sessionCookie(sessionClaims{SessionID: p.SessionID, UserID: p.UserID, WorkspaceID: workspaceID, Provider: p.LoginProvider, ExpiresAt: p.SessionExpiresAt})
+}
+
+// Logout ends the session of the cookie, so a copy of it stops working as well
+func (s *Service) Logout(ctx context.Context, value string) error {
+	// A cookie that doesn't verify names no session to end, and an expired one still does
+	var claims sessionClaims
+	decodeErr := s.codec.decode(kindSession, value, &claims)
+	if decodeErr == nil && claims.SessionID != "" {
+		err := s.queries.DeleteSession(ctx, crypto.HashToken(claims.SessionID))
+		if err != nil {
+			return fmt.Errorf("failed to end session: %w", err)
+		}
+	}
+	return nil
 }
 
 // LogoutCookies returns the cookies that clear the session
@@ -200,12 +235,21 @@ func (s *Service) LogoutCookies() []http.Cookie {
 }
 
 // VerifySession turns a session cookie value into a principal
-// The cookie only names the user and workspace, and the database decides on every request what the user may still do there
+// The cookie only names the session, user and workspace, and the database decides on every request whether the session still exists and what the user may still do there
 func (s *Service) VerifySession(ctx context.Context, value string) (principal.Principal, error) {
 	claims, err := s.codec.parseSession(value)
 	if err != nil {
 		return principal.Principal{}, apperror.NotSignedIn()
 	}
+
+	// Signing out and deactivating the user delete the session, which ends every copy of its cookie
+	owner, err := s.queries.GetSessionUser(ctx, authdb.GetSessionUserParams{TokenHash: crypto.HashToken(claims.SessionID), Now: database.Now()})
+	if database.IsNotFound(err) || (err == nil && owner != claims.UserID) {
+		return principal.Principal{}, apperror.NotSignedIn()
+	} else if err != nil {
+		return principal.Principal{}, fmt.Errorf("failed to load session: %w", err)
+	}
+
 	access, err := s.workspaces.Access(ctx, claims.WorkspaceID, claims.UserID)
 	if err != nil {
 		return principal.Principal{}, err
@@ -215,6 +259,7 @@ func (s *Service) VerifySession(ctx context.Context, value string) (principal.Pr
 		WorkspaceID:      claims.WorkspaceID,
 		LoginProvider:    claims.Provider,
 		SessionExpiresAt: claims.ExpiresAt,
+		SessionID:        claims.SessionID,
 		Role:             access.Role,
 		InstanceAdmin:    access.InstanceAdmin,
 	}, nil

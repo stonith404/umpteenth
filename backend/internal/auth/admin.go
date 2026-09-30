@@ -83,6 +83,14 @@ func (h *handler) updateUser(ctx context.Context, in *updateUserInput) (*struct{
 	if n == 0 {
 		return nil, apperror.NotFound("User")
 	}
+
+	// Deactivating ends the user's sessions for good, so reactivating them later doesn't bring back a copied cookie
+	if in.Body.Deactivated {
+		err = h.service.queries.DeleteUserSessions(ctx, in.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to end the user's sessions: %w", err)
+		}
+	}
 	return nil, nil
 }
 

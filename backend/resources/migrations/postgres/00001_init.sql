@@ -31,6 +31,16 @@ CREATE TABLE users (
   UNIQUE (issuer, subject)
 );
 
+-- A browser session is on record under the hash of the random ID its signed cookie carries, so signing out or deactivating the user ends it on every replica
+CREATE TABLE sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at BIGINT NOT NULL,
+  expires_at BIGINT NOT NULL
+);
+CREATE INDEX sessions_user ON sessions (user_id);
+CREATE INDEX sessions_expires ON sessions (expires_at);
+
 CREATE TABLE workspace_members (
   workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -83,11 +83,19 @@ func (h *handler) callback(ctx context.Context, in *callbackInput) (*redirectOut
 	return &redirectOutput{Status: http.StatusFound, Location: redirect, SetCookie: []http.Cookie{cookie, clearLogin}}, nil
 }
 
+type logoutInput struct {
+	Session http.Cookie `cookie:"umpteenth_session"`
+}
+
 type logoutOutput struct {
 	SetCookie []http.Cookie `header:"Set-Cookie"`
 }
 
-func (h *handler) logout(_ context.Context, _ *struct{}) (*logoutOutput, error) {
+func (h *handler) logout(ctx context.Context, in *logoutInput) (*logoutOutput, error) {
+	err := h.service.Logout(ctx, in.Session.Value)
+	if err != nil {
+		return nil, err
+	}
 	return &logoutOutput{SetCookie: h.service.LogoutCookies()}, nil
 }
 

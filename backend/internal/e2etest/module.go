@@ -40,7 +40,7 @@ type Dependencies struct {
 var resetTables = []string{
 	"run_events", "images", "playbook_versions", "job_state", "job_secrets", "job_mcp_servers",
 	"api_tokens", "runs", "jobs", "mcp_servers", "secrets", "settings", "models", "providers",
-	"blobs", "workspace_invites", "workspace_members", "users", "workspaces",
+	"blobs", "workspace_invites", "workspace_members", "sessions", "users", "workspaces",
 }
 
 func Register(api huma.API, deps Dependencies) {
