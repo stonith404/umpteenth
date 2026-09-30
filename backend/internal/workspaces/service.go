@@ -588,16 +588,24 @@ func accept(ctx context.Context, q *workspacesdb.Queries, token, userID string, 
 	if inv.ExpiresAt <= now {
 		return "", apperror.Conflict("This invite has expired, ask for a new one")
 	}
+	_, err = q.GetMemberRole(ctx, workspacesdb.GetMemberRoleParams{WorkspaceID: inv.WorkspaceID, UserID: userID})
+	if err == nil {
+		return inv.WorkspaceID, nil
+	} else if !database.IsNotFound(err) {
+		return "", fmt.Errorf("failed to load membership: %w", err)
+	}
 
-	n, err := q.AddMember(ctx, workspacesdb.AddMemberParams{WorkspaceID: inv.WorkspaceID, UserID: userID, Role: inv.Role, CreatedAt: now})
+	// The link is used up before anyone joins with it, and only the acceptance whose delete removed it may join, since others may have read it at the same time
+	n, err := q.DeleteInvite(ctx, workspacesdb.DeleteInviteParams{WorkspaceID: inv.WorkspaceID, ID: inv.ID})
+	if err != nil {
+		return "", fmt.Errorf("failed to use up invite: %w", err)
+	}
+	if n == 0 {
+		return "", apperror.NotFound("Invite")
+	}
+	_, err = q.AddMember(ctx, workspacesdb.AddMemberParams{WorkspaceID: inv.WorkspaceID, UserID: userID, Role: inv.Role, CreatedAt: now})
 	if err != nil {
 		return "", fmt.Errorf("failed to join workspace: %w", err)
-	}
-	if n > 0 {
-		_, err = q.DeleteInvite(ctx, workspacesdb.DeleteInviteParams{WorkspaceID: inv.WorkspaceID, ID: inv.ID})
-		if err != nil {
-			return "", fmt.Errorf("failed to use up invite: %w", err)
-		}
 	}
 	return inv.WorkspaceID, nil
 }

@@ -148,34 +148,48 @@ func TestTheDefaultWorkspaceOnlyComesBackWithWorkspacesOff(t *testing.T) {
 	require.True(t, defaultExists())
 }
 
-func TestConcurrentFirstSignInsLeaveOneOwner(t *testing.T) {
-	// An in-memory SQLite database fails fast on locks instead of waiting like a real one, so SQLite runs this on a file
+// newRaceDatabase returns a database for tests of concurrent requests
+// An in-memory SQLite database fails fast on locks instead of waiting like a real one, so SQLite runs these on a file
+func newRaceDatabase(t *testing.T) *database.DB {
+	t.Helper()
 	db := testutil.NewDatabaseForTest(t)
-	if db.Engine() == database.EngineSQLite {
-		var err error
-		db, err = database.Open(t.Context(), database.EngineSQLite, filepath.Join(t.TempDir(), "test.db"))
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = db.Close() })
-		require.NoError(t, database.Migrate(t.Context(), db))
+	if db.Engine() != database.EngineSQLite {
+		return db
 	}
-	m, db, _ := newTestModuleOn(t, db, true)
+	db, err := database.Open(t.Context(), database.EngineSQLite, filepath.Join(t.TempDir(), "test.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	require.NoError(t, database.Migrate(t.Context(), db))
+	return db
+}
+
+// race runs every function at once and returns their errors
+func race(fns ...func() error) []error {
+	var wg sync.WaitGroup
+	errs := make([]error, len(fns))
+	for i, fn := range fns {
+		wg.Go(func() { errs[i] = fn() })
+	}
+	wg.Wait()
+	return errs
+}
+
+func TestConcurrentFirstSignInsLeaveOneOwner(t *testing.T) {
+	m, db, _ := newTestModuleOn(t, newRaceDatabase(t), true)
 	users := make([]string, 6)
 	for i := range users {
 		users[i] = seedUser(t, db, "User", "")
 	}
 
 	// Everyone races for the ownerless default workspace, and each loser gets a personal workspace
-	var wg sync.WaitGroup
-	errs := make(chan error, len(users))
-	for _, u := range users {
-		wg.Go(func() {
+	fns := make([]func() error, len(users))
+	for i, u := range users {
+		fns[i] = func() error {
 			_, _, err := m.ResolveLogin(context.Background(), LoginInfo{UserID: u})
-			errs <- err
-		})
+			return err
+		}
 	}
-	wg.Wait()
-	close(errs)
-	for err := range errs {
+	for _, err := range race(fns...) {
 		require.NoError(t, err)
 	}
 
@@ -290,6 +304,37 @@ func TestInviteLinksAreUsedOnce(t *testing.T) {
 	require.True(t, preview.Expired)
 	_, err = m.AcceptInvite(t.Context(), res.Token, latecomer)
 	requireCode(t, err, apperror.CodeConflict)
+}
+
+func TestAnInviteLinkAcceptedByManyAtOnceLetsOneJoin(t *testing.T) {
+	m, db, _ := newTestModuleOn(t, newRaceDatabase(t), true)
+	owner := seedUser(t, db, "Owner", "owner@example.com")
+	signIn(t, m, owner, "", "/")
+	res, err := m.Invite(t.Context(), DefaultID, owner, "", principal.RoleMember, time.Hour)
+	require.NoError(t, err)
+
+	// Everyone the link was passed on to accepts it at the same moment, some of them as part of their first sign-in
+	fns := make([]func() error, 8)
+	for i := range fns {
+		user := seedUser(t, db, "Joiner", "")
+		fns[i] = func() error {
+			if i%2 == 0 {
+				_, _, err := m.ResolveLogin(context.Background(), LoginInfo{UserID: user, Redirect: InvitePath + res.Token})
+				return err
+			}
+			_, err := m.AcceptInvite(context.Background(), res.Token, user)
+			return err
+		}
+	}
+	for _, err := range race(fns...) {
+		if err != nil {
+			requireCode(t, err, apperror.CodeNotFound)
+		}
+	}
+
+	var members int64
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM workspace_members WHERE workspace_id = $1", DefaultID).Scan(&members))
+	require.EqualValues(t, 2, members, "the link let more than one person join")
 }
 
 func TestASignInFromAnInviteLinkJoinsThatWorkspace(t *testing.T) {
