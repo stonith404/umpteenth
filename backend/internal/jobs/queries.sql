@@ -61,7 +61,9 @@ SELECT key, value FROM job_state WHERE job_id = sqlc.arg(job_id);
 DELETE FROM job_state WHERE job_id = sqlc.arg(job_id) AND key = sqlc.arg(key);
 
 -- name: ListActiveRunsForJob :many
-SELECT id, status FROM runs WHERE workspace_id = sqlc.arg(workspace_id) AND job_id = sqlc.arg(job_id) AND status IN ('queued', 'provisioning', 'running', 'verifying');
+-- In the order the runs were created, so the job actor can queue runs its state lost in the order they were triggered
+SELECT id, status FROM runs WHERE workspace_id = sqlc.arg(workspace_id) AND job_id = sqlc.arg(job_id) AND status IN ('queued', 'provisioning', 'running', 'verifying')
+ORDER BY number;
 
 -- name: GetLastRun :one
 SELECT id, number, status, queued_at FROM runs

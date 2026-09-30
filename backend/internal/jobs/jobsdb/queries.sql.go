@@ -246,6 +246,7 @@ func (q *Queries) GetState(ctx context.Context, arg GetStateParams) (GetStateRow
 
 const listActiveRunsForJob = `-- name: ListActiveRunsForJob :many
 SELECT id, status FROM runs WHERE workspace_id = $1 AND job_id = $2 AND status IN ('queued', 'provisioning', 'running', 'verifying')
+ORDER BY number
 `
 
 type ListActiveRunsForJobParams struct {
@@ -258,6 +259,7 @@ type ListActiveRunsForJobRow struct {
 	Status string
 }
 
+// In the order the runs were created, so the job actor can queue runs its state lost in the order they were triggered
 func (q *Queries) ListActiveRunsForJob(ctx context.Context, arg ListActiveRunsForJobParams) ([]ListActiveRunsForJobRow, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveRunsForJob, arg.WorkspaceID, arg.JobID)
 	if err != nil {

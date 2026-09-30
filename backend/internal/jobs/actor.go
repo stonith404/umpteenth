@@ -100,9 +100,14 @@ func (a *jobActor) load(ctx context.Context) (job jobsdb.Job, state actorState, 
 	state.Queue = slices.DeleteFunc(slices.Clone(state.Queue), func(id string) bool { return status[id] != runner.StatusQueued })
 
 	// Runs the state doesn't know about count as active, which errs on the side of never running twice
-	for id := range status {
-		if !slices.Contains(state.Active, id) && !slices.Contains(state.Queue, id) {
-			state.Active = append(state.Active, id)
+	// Under the queue policy one that hasn't started joins the queue instead, since a save that failed after creating a run can leave behind one that was meant to wait
+	for _, r := range live {
+		switch {
+		case slices.Contains(state.Active, r.ID) || slices.Contains(state.Queue, r.ID):
+		case job.Concurrency == ConcurrencyQueue && r.Status == runner.StatusQueued:
+			state.Queue = append(state.Queue, r.ID)
+		default:
+			state.Active = append(state.Active, r.ID)
 		}
 	}
 	for _, id := range state.Active {

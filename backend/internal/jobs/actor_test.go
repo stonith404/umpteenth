@@ -226,6 +226,36 @@ func TestLostActorStateStillPreventsDoubleRuns(t *testing.T) {
 	require.Empty(t, queue.Submitted())
 }
 
+func TestQueuePolicyQueuesARunTheStateMissed(t *testing.T) {
+	m, queue, db := newTestModule(t)
+	ctx := t.Context()
+	wid := testutil.SeedWorkspace(t, db)
+	jobID := testutil.SeedJob(t, db, wid, ConcurrencyQueue)
+
+	a, err := m.Trigger(ctx, wid, jobID, runs.TriggerRequest{Trigger: runs.TriggerManual})
+	require.NoError(t, err)
+
+	// A trigger created a run behind the active one, but saving the actor state failed before it was queued
+	testutil.Exec(t, db, "UPDATE jobs SET run_counter = run_counter + 1 WHERE id = $1", jobID)
+	orphan := database.NewID()
+	testutil.Exec(t, db, `INSERT INTO runs (id, workspace_id, job_id, number, status, mode, trigger, playbook_version, queued_at) VALUES ($1, $2, $3, 2, 'queued', 'explore', 'manual', 0, $4)`,
+		orphan, wid, jobID, database.Now())
+
+	// The next trigger queues that run instead of starting it next to the active one, and waits behind it
+	c, err := m.Trigger(ctx, wid, jobID, runs.TriggerRequest{Trigger: runs.TriggerManual})
+	require.NoError(t, err)
+	require.Equal(t, runner.StatusQueued, c.Status)
+	require.Equal(t, []string{a.RunID}, queue.Submitted())
+
+	// The runs start one at a time, in the order they were triggered
+	finishRun(t, db, a.RunID)
+	m.RunFinished(ctx, runner.Run{ID: a.RunID, JobID: jobID}, runner.Final{})
+	require.Equal(t, []string{a.RunID, orphan}, queue.Submitted())
+	finishRun(t, db, orphan)
+	m.RunFinished(ctx, runner.Run{ID: orphan, JobID: jobID}, runner.Final{})
+	require.Equal(t, []string{a.RunID, orphan, c.RunID}, queue.Submitted())
+}
+
 func TestScheduleArmsAlarmAndFiresRuns(t *testing.T) {
 	m, queue, db := newTestModule(t)
 	ctx := context.Background()
