@@ -21,6 +21,10 @@ INSERT INTO kv (key, value) VALUES (sqlc.arg(key), sqlc.arg(value))
 ON CONFLICT (key) DO UPDATE SET value = kv.value
 RETURNING value;
 
+-- name: GetGitHubClaim :one
+-- unscoped: an instance-wide key-value row whose key names a GitHub username or organization
+SELECT value FROM kv WHERE key = sqlc.arg(key);
+
 -- name: CreateSession :exec
 -- unscoped: sessions belong to users, who are instance-wide
 INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (sqlc.arg(token_hash), sqlc.arg(user_id), sqlc.arg(created_at), sqlc.arg(expires_at));

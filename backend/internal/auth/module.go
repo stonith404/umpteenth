@@ -104,6 +104,16 @@ func (m *Module) VerifySession(ctx context.Context, value string) (principal.Pri
 	return m.service.VerifySession(ctx, value)
 }
 
+// PinGitHubNames ties the usernames and organizations that GitHub providers list to the numeric IDs holding them now
+// It only logs what it can't look up, since those names are still tied at their first sign-in
+func (m *Module) PinGitHubNames(ctx context.Context) {
+	for _, p := range m.service.providers {
+		if gh, ok := p.provider.(*githubProvider); ok {
+			gh.pin(ctx)
+		}
+	}
+}
+
 // SessionCookie moves the caller's session into another workspace, used when a user switches workspaces
 func (m *Module) SessionCookie(p principal.Principal, workspaceID string) (http.Cookie, error) {
 	return m.service.SessionCookie(p, workspaceID)

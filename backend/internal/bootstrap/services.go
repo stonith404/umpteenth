@@ -136,6 +136,16 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 	svc.workspaces.SetSessions(svc.auth)
 	svc.apiTokens = apitokens.New(apitokens.Dependencies{DB: db, Roles: svc.workspaces})
 
+	// Listed GitHub names are tied to their holders in the background, so an unreachable GitHub doesn't hold up the start
+	// The service then waits for shutdown, since one that returns stops the others, and test instances skip it since they never sign in through GitHub
+	if !cfg.App.Env.IsTest() {
+		svc.background = append(svc.background, func(ctx context.Context) error {
+			svc.auth.PinGitHubNames(ctx)
+			<-ctx.Done()
+			return nil
+		})
+	}
+
 	// The sandbox adapter is chosen once per instance
 	svc.adapter, err = initSandboxAdapter(ctx, cfg, instanceID, hostID)
 	if err != nil {

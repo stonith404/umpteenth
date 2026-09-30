@@ -81,6 +81,18 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID string) error {
 	return err
 }
 
+const getGitHubClaim = `-- name: GetGitHubClaim :one
+SELECT value FROM kv WHERE key = $1
+`
+
+// unscoped: an instance-wide key-value row whose key names a GitHub username or organization
+func (q *Queries) GetGitHubClaim(ctx context.Context, key string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getGitHubClaim, key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
+}
+
 const getSessionUser = `-- name: GetSessionUser :one
 SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > $2
 `

@@ -29,6 +29,8 @@ type fakeGitHub struct {
 	Orgs map[string]string
 	// OrgIDs maps an organization name to the numeric ID of the organization that holds it, 1 when unset
 	OrgIDs map[string]int
+	// Holders maps a username or organization name to its public profile, which anyone can look up without signing in
+	Holders map[string]map[string]any
 	// scope is the scope the last authorization asked for
 	scope string
 	codes map[string]bool
@@ -36,11 +38,12 @@ type fakeGitHub struct {
 
 func newFakeGitHub(t *testing.T) *fakeGitHub {
 	f := &fakeGitHub{
-		User:   map[string]any{"id": 42, "login": "octocat", "name": "", "email": nil, "avatar_url": "https://avatars.example.com/42"},
-		Emails: []map[string]any{{"email": "old@example.com", "primary": false, "verified": true}, {"email": "octocat@example.com", "primary": true, "verified": true}},
-		Orgs:   map[string]string{},
-		OrgIDs: map[string]int{},
-		codes:  map[string]bool{},
+		User:    map[string]any{"id": 42, "login": "octocat", "name": "", "email": nil, "avatar_url": "https://avatars.example.com/42"},
+		Emails:  []map[string]any{{"email": "old@example.com", "primary": false, "verified": true}, {"email": "octocat@example.com", "primary": true, "verified": true}},
+		Orgs:    map[string]string{},
+		OrgIDs:  map[string]int{},
+		Holders: map[string]map[string]any{},
+		codes:   map[string]bool{},
 	}
 
 	mux := http.NewServeMux()
@@ -75,6 +78,16 @@ func newFakeGitHub(t *testing.T) *fakeGitHub {
 		}
 		writeJSON(w, map[string]any{"state": state, "organization": map[string]any{"login": r.PathValue("org"), "id": cmp.Or(f.OrgIDs[r.PathValue("org")], 1)}})
 	}))
+	mux.HandleFunc("GET /users/{name}", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		holder, ok := f.Holders[r.PathValue("name")]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		writeJSON(w, holder)
+	})
 	f.Server = httptest.NewServer(mux)
 	t.Cleanup(f.Close)
 	return f
@@ -230,4 +243,38 @@ func TestGitHubRefusesMembersOfAnOrganizationRegisteredUnderAListedName(t *testi
 	f.OrgIDs["acme"] = 100
 	_, err = signIn(t, svc, "github", f)
 	require.NoError(t, err)
+}
+
+func TestGitHubTiesListedNamesToTheirHoldersOnStart(t *testing.T) {
+	f := newFakeGitHub(t)
+	svc := newGitHubTestService(t, f, ProviderConfig{AdminUsers: []string{"alice", "bob"}, AdminOrganizations: []string{"acme"}})
+
+	// On start, Alice's account and the acme organization hold their listed names, and nobody holds bob yet
+	f.Holders["alice"] = map[string]any{"login": "alice", "id": 42, "type": "User"}
+	f.Holders["acme"] = map[string]any{"login": "acme", "id": 100, "type": "Organization"}
+	svc.providers[0].provider.(*githubProvider).pin(t.Context())
+
+	// Both give up their names before anyone signed in, and someone else registers them
+	f.User["id"], f.User["login"] = 1337, "alice"
+	f.Orgs["acme"], f.OrgIDs["acme"] = "active", 666
+	attackerID, err := signIn(t, svc, "github", f)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), "account 1337 signed in as user %q under names others held on start: %v", attackerID, err)
+
+	// Alice's own account and members of the organization that held acme on start get in
+	f.User["id"] = 42
+	_, err = signIn(t, svc, "github", f)
+	require.NoError(t, err)
+	f.User["id"], f.User["login"] = 7, "carol"
+	f.OrgIDs["acme"] = 100
+	_, err = signIn(t, svc, "github", f)
+	require.NoError(t, err)
+
+	// A name nobody held on start is still tied at its first sign-in
+	f.User["id"], f.User["login"] = 8, "bob"
+	f.Orgs = map[string]string{}
+	_, err = signIn(t, svc, "github", f)
+	require.NoError(t, err)
+	f.User["id"] = 1337
+	_, err = signIn(t, svc, "github", f)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), "got %v", err)
 }

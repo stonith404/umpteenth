@@ -12,11 +12,13 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/oauth2"
 
 	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/auth/authdb"
+	"github.com/stonith404/umpteenth/backend/internal/database"
 )
 
 const (
@@ -179,10 +181,59 @@ func (p *githubProvider) memberOfAny(ctx context.Context, client *http.Client, o
 	return false, nil
 }
 
-// claim ties a listed name to the numeric ID of the account or organization that holds it the first time it lets someone in, and reports whether id is that one
+// pin ties every listed name nothing claimed yet to the account or organization holding it now, which every replica does once on start
+// Otherwise a name is only tied at its first sign-in, and one given up before that would go to whoever registers it next
+// A lookup that fails, such as over GitHub's rate limit, leaves the name to its first sign-in
+func (p *githubProvider) pin(ctx context.Context) {
+	lists := []struct {
+		kind, accountType string
+		names             []string
+	}{
+		{"users", "User", slices.Concat(p.cfg.AllowedUsers, p.cfg.AdminUsers)},
+		{"orgs", "Organization", slices.Concat(p.cfg.AllowedOrganizations, p.cfg.AdminOrganizations)},
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	for _, list := range lists {
+		for _, name := range list.names {
+			err := p.pinName(ctx, client, list.kind, list.accountType, name)
+			if err != nil {
+				slog.WarnContext(ctx, "Failed to look up a listed GitHub name, so its first sign-in ties it to its holder", slog.String("name", name), slog.Any("error", err))
+			}
+		}
+	}
+}
+
+// pinName ties the listed name to the numeric ID of its current holder unless it is tied already
+func (p *githubProvider) pinName(ctx context.Context, client *http.Client, kind, accountType, name string) error {
+	_, err := p.queries.GetGitHubClaim(ctx, p.claimKey(kind, name))
+	if err == nil {
+		return nil
+	} else if !database.IsNotFound(err) {
+		return err
+	}
+
+	// The public users endpoint answers for organizations as well and tells the two apart by type
+	var holder struct {
+		ID   int64  `json:"id"`
+		Type string `json:"type"`
+	}
+	found, err := p.get(ctx, client, "/users/"+url.PathEscape(name), &holder)
+	if err != nil || !found || holder.ID == 0 || holder.Type != accountType {
+		return err
+	}
+	_, err = p.claim(ctx, kind, name, holder.ID)
+	return err
+}
+
+// claimKey is the kv key that ties a listed name to the numeric ID holding it
+func (p *githubProvider) claimKey(kind, name string) string {
+	return "github-name/" + p.webURL + "/" + kind + "/" + strings.ToLower(name)
+}
+
+// claim ties a listed name to the numeric ID of the account or organization that holds it the first time it lets someone in, unless pin did at the start, and reports whether id is that one
 // GitHub gives a renamed account's or organization's old name to whoever registers it next, and the list still means the one that held it before
 func (p *githubProvider) claim(ctx context.Context, kind, name string, id int64) (bool, error) {
-	key := "github-name/" + p.webURL + "/" + kind + "/" + strings.ToLower(name)
+	key := p.claimKey(kind, name)
 	value := strconv.FormatInt(id, 10)
 	owner, err := p.queries.ClaimGitHubName(ctx, authdb.ClaimGitHubNameParams{Key: key, Value: value})
 	if err != nil {
