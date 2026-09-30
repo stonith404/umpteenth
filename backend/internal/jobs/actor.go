@@ -25,7 +25,13 @@ const (
 	methodReschedule   = "reschedule"
 	methodFireSchedule = "fireSchedule"
 	methodForget       = "forget"
+
+	// resumeAlarm gives the job another turn after a run failed to reach the task pool, since a job that is never triggered again would otherwise keep that run waiting forever
+	resumeAlarm = "resume"
 )
+
+// resumeRetryDelay is how long a job waits before retrying a turn that failed to start its waiting runs
+var resumeRetryDelay = 30 * time.Second
 
 // actorState is the durable state of one job actor
 type actorState struct {
@@ -58,7 +64,7 @@ func (a *jobActor) Invoke(ctx context.Context, method string, data actor.Envelop
 		}
 		return a.trigger(ctx, req)
 	case methodRunFinished:
-		return nil, a.runFinished(ctx)
+		return nil, a.resumeOrRetry(ctx)
 	case methodReschedule:
 		return nil, a.reschedule(ctx)
 	case methodFireSchedule:
@@ -71,6 +77,9 @@ func (a *jobActor) Invoke(ctx context.Context, method string, data actor.Envelop
 }
 
 func (a *jobActor) Alarm(ctx context.Context, name string, _ actor.Envelope) error {
+	if name == resumeAlarm {
+		return a.resumeOrRetry(ctx)
+	}
 	return a.fireSchedule(ctx, name)
 }
 
@@ -122,7 +131,7 @@ func (a *jobActor) load(ctx context.Context) (job jobsdb.Job, state actorState, 
 // Submitting is idempotent per run, so a run that is already waiting in the pool is not enqueued twice
 func (a *jobActor) resume(ctx context.Context, job jobsdb.Job, state *actorState, waiting []string) error {
 	for _, id := range waiting {
-		err := a.m.deps.Runs.Submit(ctx, id)
+		err := a.submit(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -137,9 +146,37 @@ func (a *jobActor) resume(ctx context.Context, job jobsdb.Job, state *actorState
 		if err != nil {
 			return err
 		}
-		return a.m.deps.Runs.Submit(ctx, next)
+		return a.submit(ctx, next)
 	}
 	return nil
+}
+
+// submit hands a run to the task pool, and arms the resume alarm when that fails, so the run is retried even if the job never gets another turn
+func (a *jobActor) submit(ctx context.Context, runID string) error {
+	err := a.m.deps.Runs.Submit(ctx, runID)
+	if err != nil {
+		armErr := a.retryLater(ctx)
+		if armErr != nil {
+			slog.ErrorContext(ctx, "Failed to arm the retry of a run submission", slog.String("job", a.id), slog.String("run", runID), slog.Any("error", armErr))
+		}
+	}
+	return err
+}
+
+// retryLater arms the resume alarm, and only moves a pending one later, since the turn it gives resubmits every run that has not started
+func (a *jobActor) retryLater(ctx context.Context) error {
+	return a.client.SetAlarm(ctx, resumeAlarm, actor.AlarmProperties{DueTime: time.Now().Add(resumeRetryDelay)})
+}
+
+// resumeOrRetry is the turn a finish notification or the resume alarm gives the job, which starts the runs that wait for a slot
+// A failed turn arms the resume alarm again instead of returning the error, since Francis gives up on a failing alarm after a few attempts
+func (a *jobActor) resumeOrRetry(ctx context.Context) error {
+	err := a.runFinished(ctx)
+	if err == nil || database.IsNotFound(err) {
+		return nil
+	}
+	slog.WarnContext(ctx, "Failed to start the waiting runs of a job, retrying later", slog.String("job", a.id), slog.Any("error", err))
+	return a.retryLater(ctx)
 }
 
 func (a *jobActor) save(ctx context.Context, state actorState) error {
@@ -197,7 +234,7 @@ func (a *jobActor) trigger(ctx context.Context, req runs.TriggerRequest) (runs.T
 		if err != nil {
 			return runs.TriggerResult{}, err
 		}
-		return runs.TriggerResult{RunID: id, Status: runner.StatusQueued}, a.m.deps.Runs.Submit(ctx, id)
+		return runs.TriggerResult{RunID: id, Status: runner.StatusQueued}, a.submit(ctx, id)
 	}
 }
 
@@ -279,6 +316,8 @@ func (a *jobActor) forget(ctx context.Context) error {
 	if state.Alarm != "" {
 		_ = a.client.DeleteAlarm(ctx, state.Alarm)
 	}
+	// A pending retry that fires before the job's row is deleted would write the state again
+	_ = a.client.DeleteAlarm(ctx, resumeAlarm)
 	return a.client.DeleteState(ctx)
 }
 

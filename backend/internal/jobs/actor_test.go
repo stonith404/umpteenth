@@ -156,6 +156,28 @@ func TestFailedSubmissionIsRetriedByTheNextTurn(t *testing.T) {
 	require.Len(t, queue.Submitted(), 1)
 }
 
+func TestFailedSubmissionIsRetriedWithoutAnotherTrigger(t *testing.T) {
+	delay := resumeRetryDelay
+	resumeRetryDelay = 10 * time.Millisecond
+	t.Cleanup(func() { resumeRetryDelay = delay })
+	m, queue, db := newTestModule(t)
+	ctx := t.Context()
+	wid := testutil.SeedWorkspace(t, db)
+	jobID := testutil.SeedJob(t, db, wid, ConcurrencyQueue)
+
+	// The task pool stays unreachable for the trigger and the first two retries
+	queue.failNext = 3
+	_, err := m.Trigger(ctx, wid, jobID, runs.TriggerRequest{Trigger: runs.TriggerManual})
+	require.Error(t, err)
+	require.Empty(t, queue.Submitted())
+
+	// The run still starts once the task pool is back, although nothing triggers the job again
+	require.Eventually(t, func() bool { return len(queue.Submitted()) == 1 }, 20*time.Second, 50*time.Millisecond)
+	var runID string
+	require.NoError(t, db.QueryRowContext(ctx, "SELECT id FROM runs WHERE job_id = $1", jobID).Scan(&runID))
+	require.Equal(t, []string{runID}, queue.Submitted())
+}
+
 func TestQueueRecoversFromALostFinishNotification(t *testing.T) {
 	m, queue, db := newTestModule(t)
 	ctx := context.Background()
