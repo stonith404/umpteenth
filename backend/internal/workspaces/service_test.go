@@ -431,6 +431,27 @@ func TestOwnershipOnlyChangesHands(t *testing.T) {
 	require.Equal(t, principal.RoleOwner, roleOf(t, m, next, owner))
 }
 
+func TestAHandoverRacingARoleChangeOrRemovalLeavesAnOwner(t *testing.T) {
+	m, db, _ := newTestModuleOn(t, newRaceDatabase(t), true)
+	owner := seedUser(t, db, "Owner", "owner@example.com")
+	successor := seedUser(t, db, "Successor", "successor@example.com")
+
+	// The owner hands over to an admin while another admin demotes or removes that admin, and whatever wins leaves exactly one owner
+	for range 20 {
+		wid := testutil.SeedWorkspace(t, db)
+		testutil.SeedMember(t, db, wid, owner, "owner")
+		testutil.SeedMember(t, db, wid, successor, "admin")
+		race(
+			func() error { return m.Transfer(context.Background(), wid, successor) },
+			func() error { return m.SetRole(context.Background(), wid, successor, principal.RoleMember) },
+			func() error { return m.Remove(context.Background(), wid, successor) },
+		)
+		var owners int64
+		require.NoError(t, db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM workspace_members WHERE workspace_id = $1 AND role = 'owner'", wid).Scan(&owners))
+		require.EqualValues(t, 1, owners, "the workspace was left without an owner")
+	}
+}
+
 func TestInstanceAdminsActAsOwnersEverywhereButNotThroughTokens(t *testing.T) {
 	m, db, _ := newTestModule(t, true)
 	owner := seedUser(t, db, "Owner", "owner@example.com")

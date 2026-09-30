@@ -60,14 +60,19 @@ ON CONFLICT DO NOTHING;
 -- name: GetMemberRole :one
 SELECT role FROM workspace_members WHERE workspace_id = sqlc.arg(workspace_id) AND user_id = sqlc.arg(user_id);
 
--- name: GetOwner :one
-SELECT user_id FROM workspace_members WHERE workspace_id = sqlc.arg(workspace_id) AND role = 'owner';
+-- name: DemoteOwner :exec
+UPDATE workspace_members SET role = 'admin' WHERE workspace_id = sqlc.arg(workspace_id) AND role = 'owner';
+
+-- name: PromoteToOwner :execrows
+UPDATE workspace_members SET role = 'owner' WHERE workspace_id = sqlc.arg(workspace_id) AND user_id = sqlc.arg(user_id);
 
 -- name: SetMemberRole :execrows
-UPDATE workspace_members SET role = sqlc.arg(role) WHERE workspace_id = sqlc.arg(workspace_id) AND user_id = sqlc.arg(user_id);
+-- The owner only changes through a handover, and leaving them out here rather than in a check before keeps a handover at the same time from being undone
+UPDATE workspace_members SET role = sqlc.arg(role) WHERE workspace_id = sqlc.arg(workspace_id) AND user_id = sqlc.arg(user_id) AND role <> 'owner';
 
 -- name: RemoveMember :execrows
-DELETE FROM workspace_members WHERE workspace_id = sqlc.arg(workspace_id) AND user_id = sqlc.arg(user_id);
+-- The owner can't be removed, which like above holds against a handover at the same time
+DELETE FROM workspace_members WHERE workspace_id = sqlc.arg(workspace_id) AND user_id = sqlc.arg(user_id) AND role <> 'owner';
 
 -- name: CountUserMemberships :one
 -- unscoped: counts the user's memberships across workspaces

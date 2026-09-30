@@ -337,21 +337,26 @@ func (m *Module) Transfer(ctx context.Context, workspaceID, toUserID string) err
 		}
 
 		// The unique owner index is checked per statement, so the current owner steps down first
-		owner, err := q.GetOwner(ctx, workspaceID)
-		if err == nil {
-			_, err = q.SetMemberRole(ctx, workspacesdb.SetMemberRoleParams{WorkspaceID: workspaceID, UserID: owner, Role: string(principal.RoleAdmin)})
-			if err != nil {
-				return fmt.Errorf("failed to demote the owner: %w", err)
-			}
-		} else if !database.IsNotFound(err) {
-			return fmt.Errorf("failed to load the owner: %w", err)
+		err = q.DemoteOwner(ctx, workspaceID)
+		if err != nil {
+			return fmt.Errorf("failed to demote the owner: %w", err)
 		}
-		_, err = q.SetMemberRole(ctx, workspacesdb.SetMemberRoleParams{WorkspaceID: workspaceID, UserID: toUserID, Role: string(principal.RoleOwner)})
+
+		// A member removed since the check above can't take over, and the error rolls back the demotion so the workspace keeps its owner
+		n, err := q.PromoteToOwner(ctx, workspacesdb.PromoteToOwnerParams{WorkspaceID: workspaceID, UserID: toUserID})
 		if err != nil {
 			return fmt.Errorf("failed to promote the new owner: %w", err)
 		}
+		if n == 0 {
+			return apperror.NotFound("Member")
+		}
 		return nil
 	})
+}
+
+// errMemberChanged answers a role change or removal of a member who became the owner or left since it was checked
+func errMemberChanged() error {
+	return apperror.Conflict("The member changed in the meantime, reload and try again")
 }
 
 // Leave removes the user from the workspace, which the owner can only do after handing it over
@@ -368,9 +373,12 @@ func (m *Module) Leave(ctx context.Context, workspaceID, userID string) error {
 	if principal.Role(role) == principal.RoleOwner {
 		return apperror.Conflict("Hand over ownership before leaving the workspace")
 	}
-	_, err = m.queries.RemoveMember(ctx, workspacesdb.RemoveMemberParams{WorkspaceID: workspaceID, UserID: userID})
+	n, err := m.queries.RemoveMember(ctx, workspacesdb.RemoveMemberParams{WorkspaceID: workspaceID, UserID: userID})
 	if err != nil {
 		return fmt.Errorf("failed to leave workspace: %w", err)
+	}
+	if n == 0 {
+		return errMemberChanged()
 	}
 	return nil
 }
@@ -387,9 +395,12 @@ func (m *Module) SetRole(ctx context.Context, workspaceID, userID string, role p
 	if current == principal.RoleOwner {
 		return apperror.Forbidden("The owner's role changes by handing over ownership")
 	}
-	_, err = m.queries.SetMemberRole(ctx, workspacesdb.SetMemberRoleParams{WorkspaceID: workspaceID, UserID: userID, Role: string(role)})
+	n, err := m.queries.SetMemberRole(ctx, workspacesdb.SetMemberRoleParams{WorkspaceID: workspaceID, UserID: userID, Role: string(role)})
 	if err != nil {
 		return fmt.Errorf("failed to change role: %w", err)
+	}
+	if n == 0 {
+		return errMemberChanged()
 	}
 	return nil
 }
@@ -407,9 +418,12 @@ func (m *Module) Remove(ctx context.Context, workspaceID, userID string) error {
 	if current == principal.RoleOwner {
 		return apperror.Forbidden("The owner can't be removed, only hand over ownership")
 	}
-	_, err = m.queries.RemoveMember(ctx, workspacesdb.RemoveMemberParams{WorkspaceID: workspaceID, UserID: userID})
+	n, err := m.queries.RemoveMember(ctx, workspacesdb.RemoveMemberParams{WorkspaceID: workspaceID, UserID: userID})
 	if err != nil {
 		return fmt.Errorf("failed to remove member: %w", err)
+	}
+	if n == 0 {
+		return errMemberChanged()
 	}
 	return nil
 }

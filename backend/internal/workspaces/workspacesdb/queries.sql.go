@@ -142,6 +142,15 @@ func (q *Queries) DeleteWorkspace(ctx context.Context, id string) (int64, error)
 	return result.RowsAffected()
 }
 
+const demoteOwner = `-- name: DemoteOwner :exec
+UPDATE workspace_members SET role = 'admin' WHERE workspace_id = $1 AND role = 'owner'
+`
+
+func (q *Queries) DemoteOwner(ctx context.Context, workspaceID string) error {
+	_, err := q.db.ExecContext(ctx, demoteOwner, workspaceID)
+	return err
+}
+
 const ensureWorkspace = `-- name: EnsureWorkspace :exec
 INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3)
 ON CONFLICT (id) DO NOTHING
@@ -304,17 +313,6 @@ func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (s
 	return role, err
 }
 
-const getOwner = `-- name: GetOwner :one
-SELECT user_id FROM workspace_members WHERE workspace_id = $1 AND role = 'owner'
-`
-
-func (q *Queries) GetOwner(ctx context.Context, workspaceID string) (string, error) {
-	row := q.db.QueryRowContext(ctx, getOwner, workspaceID)
-	var user_id string
-	err := row.Scan(&user_id)
-	return user_id, err
-}
-
 const getWorkspace = `-- name: GetWorkspace :one
 SELECT id, name, created_at FROM workspaces WHERE id = $1
 `
@@ -474,8 +472,25 @@ func (q *Queries) OldestMembership(ctx context.Context, userID string) (string, 
 	return workspace_id, err
 }
 
+const promoteToOwner = `-- name: PromoteToOwner :execrows
+UPDATE workspace_members SET role = 'owner' WHERE workspace_id = $1 AND user_id = $2
+`
+
+type PromoteToOwnerParams struct {
+	WorkspaceID string
+	UserID      string
+}
+
+func (q *Queries) PromoteToOwner(ctx context.Context, arg PromoteToOwnerParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, promoteToOwner, arg.WorkspaceID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const removeMember = `-- name: RemoveMember :execrows
-DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2
+DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2 AND role <> 'owner'
 `
 
 type RemoveMemberParams struct {
@@ -483,6 +498,7 @@ type RemoveMemberParams struct {
 	UserID      string
 }
 
+// The owner can't be removed, which like above holds against a handover at the same time
 func (q *Queries) RemoveMember(ctx context.Context, arg RemoveMemberParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, removeMember, arg.WorkspaceID, arg.UserID)
 	if err != nil {
@@ -524,7 +540,7 @@ func (q *Queries) SetLastWorkspace(ctx context.Context, arg SetLastWorkspacePara
 }
 
 const setMemberRole = `-- name: SetMemberRole :execrows
-UPDATE workspace_members SET role = $1 WHERE workspace_id = $2 AND user_id = $3
+UPDATE workspace_members SET role = $1 WHERE workspace_id = $2 AND user_id = $3 AND role <> 'owner'
 `
 
 type SetMemberRoleParams struct {
@@ -533,6 +549,7 @@ type SetMemberRoleParams struct {
 	UserID      string
 }
 
+// The owner only changes through a handover, and leaving them out here rather than in a check before keeps a handover at the same time from being undone
 func (q *Queries) SetMemberRole(ctx context.Context, arg SetMemberRoleParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setMemberRole, arg.Role, arg.WorkspaceID, arg.UserID)
 	if err != nil {
