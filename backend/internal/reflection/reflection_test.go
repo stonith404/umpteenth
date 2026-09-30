@@ -6,9 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -424,6 +426,35 @@ func TestAStaleReflectionOnlyAddsItsCostAndTokens(t *testing.T) {
 	assert.EqualValues(t, 5, cost)
 	assert.EqualValues(t, 1200, tokens)
 	assert.Len(t, published, 1)
+}
+
+func TestReflectionResultSurvivesAFailedWrite(t *testing.T) {
+	ctx := t.Context()
+	db := testutil.NewDatabaseForTest(t)
+	if db.Engine() != database.EngineSQLite {
+		t.Skip("the failed write is staged with a SQLite trigger")
+	}
+	delay := finishRetryDelay
+	finishRetryDelay = 500 * time.Millisecond
+	t.Cleanup(func() { finishRetryDelay = delay })
+	wid := testutil.SeedWorkspace(t, db)
+	jobID := testutil.SeedJob(t, db, wid, "skip")
+	m := newModule(db, nil, nil, runner.JobConfig{})
+	runID := seedRun(t, db, wid, jobID, 1, runner.ModeAssisted, 0)
+
+	// The database refuses reflection results for a moment, like one that briefly drops connections
+	until := time.Now().Add(200 * time.Millisecond).UnixMilli()
+	testutil.Exec(t, db, fmt.Sprintf(`CREATE TRIGGER refuse_results BEFORE UPDATE OF reflection ON runs
+		WHEN (julianday('now') - 2440587.5) * 86400000 < %d BEGIN SELECT RAISE(ABORT, 'database unavailable'); END`, until))
+
+	// The result is recorded once the database is back, and the spend the failed write added counts only once
+	m.finish(ctx, wid, jobID, runID, nil, result{Status: StatusDone, Summary: "Learned something", Cost: 5, Tokens: 500})
+	var reflection string
+	var cost, tokens int64
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT reflection, reflection_cost, reflection_tokens FROM runs WHERE id = $1`, runID).Scan(&reflection, &cost, &tokens))
+	assert.Equal(t, StatusDone, reflection)
+	assert.EqualValues(t, 5, cost)
+	assert.EqualValues(t, 500, tokens)
 }
 
 // fakeTester answers shadow runs in order and remembers what it was asked to run

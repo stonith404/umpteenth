@@ -258,17 +258,20 @@ type result struct {
 	Tokens int64
 }
 
+const (
+	// finishAttempts bounds how often a reflection's result is written, after which the reconciler fails the reflection
+	finishAttempts = 4
+	// finishTimeout bounds each write, so a stalled database can't hold the replica's one reflection slot forever, and outlasts SQLite's busy timeout
+	finishTimeout = 15 * time.Second
+)
+
+// finishRetryDelay is the wait before the first retry of a failed write, and grows with every attempt
+var finishRetryDelay = 2 * time.Second
+
 // finish records a reflection's result on the run
 // requestedAt identifies the request this reflection answers, so a result arriving after a newer request only adds its cost and tokens
+// A failed write is retried here rather than by the taskpool, since running the task again would reflect again, changing the playbook and spending a second time
 func (m *Module) finish(ctx context.Context, workspaceID, jobID, runID string, requestedAt *int64, res result) {
-	// A free model still used tokens, which a workspace that shows usage in tokens counts
-	if res.Cost > 0 || res.Tokens > 0 {
-		err := m.queries.AddReflectionSpend(ctx, reflectiondb.AddReflectionSpendParams{Cost: res.Cost, Tokens: res.Tokens, WorkspaceID: workspaceID, ID: runID})
-		if err != nil {
-			slog.ErrorContext(ctx, "Failed to record the reflection cost", slog.String("run", runID), slog.Any("error", err))
-		}
-	}
-
 	params := reflectiondb.FinishReflectionParams{
 		RequestedAt:       requestedAt,
 		Reflection:        res.Status,
@@ -282,16 +285,46 @@ func (m *Module) finish(ctx context.Context, workspaceID, jobID, runID string, r
 		raw, _ := json.Marshal(res.Ops)
 		params.ReflectionOps = new(string(raw))
 	}
-	n, err := m.queries.FinishReflection(ctx, params)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to record the reflection result", slog.String("run", runID), slog.Any("error", err))
-		return
+	for attempt := 1; ; attempt++ {
+		n, err := m.record(ctx, params, res)
+		if err == nil {
+			// A result that was too late changed nothing that open pages show
+			if n > 0 {
+				m.publish(ctx, workspaceID, jobID, runID, res.Status)
+			}
+			return
+		}
+		if attempt == finishAttempts {
+			slog.ErrorContext(ctx, "Failed to record the reflection result", slog.String("run", runID), slog.Any("error", err))
+			return
+		}
+		slog.WarnContext(ctx, "Failed to record the reflection result, retrying", slog.String("run", runID), slog.Int("attempt", attempt), slog.Any("error", err))
+		time.Sleep(time.Duration(attempt) * finishRetryDelay)
 	}
+}
 
-	// A result that was too late changed nothing that open pages show
-	if n > 0 {
-		m.publish(ctx, workspaceID, jobID, runID, res.Status)
-	}
+// record writes a reflection's spend and result in one transaction, so a retried write never counts the spend twice
+func (m *Module) record(ctx context.Context, params reflectiondb.FinishReflectionParams, res result) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, finishTimeout)
+	defer cancel()
+
+	var n int64
+	err := m.deps.DB.InTx(ctx, func(tx *database.Tx) error {
+		q := reflectiondb.New(tx)
+
+		// A free model still used tokens, which a workspace that shows usage in tokens counts
+		if res.Cost > 0 || res.Tokens > 0 {
+			err := q.AddReflectionSpend(ctx, reflectiondb.AddReflectionSpendParams{Cost: res.Cost, Tokens: res.Tokens, WorkspaceID: params.WorkspaceID, ID: params.ID})
+			if err != nil {
+				return fmt.Errorf("failed to record the reflection cost: %w", err)
+			}
+		}
+
+		var err error
+		n, err = q.FinishReflection(ctx, params)
+		return err
+	})
+	return n, err
 }
 
 // publish tells open pages that a run's reflection changed, so the run page and the playbook can refresh
