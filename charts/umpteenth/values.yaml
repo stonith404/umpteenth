@@ -82,7 +82,7 @@ sandbox:
   nodeSelector: {}
   # Taints they tolerate, as key, operator, value and effect
   tolerations: []
-  # The cluster's pod and Service networks, e.g. [10.244.0.0/16, 10.96.0.0/12], which sandboxes never reach through the egress proxy, not even with Allow private network
+  # The cluster's pod and Service networks, e.g. [10.244.0.0/16, 10.96.0.0/12], which sandboxes never reach through the egress proxy, not even with Allow private network; while empty, the proxy refuses every private address
   clusterRanges: []
   # Offer jobs the unrestricted network, which skips the egress proxy and reaches public addresses directly
   allowUnrestrictedNetwork: true

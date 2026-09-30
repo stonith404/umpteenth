@@ -71,7 +71,7 @@ A sandbox that may reach the Docker host can reach Umpteenth's published port to
 **Internet access** and **Allowed domains only** sandboxes have no route out of their run network, and reach the outside through the egress proxy, which runs inside Umpteenth on the broker port.
 Before each connection, the proxy checks the address the name resolved to, so a public name that points at a private address gets no further than the address itself.
 For every job, it also refuses the address of any container on the engine, which keeps one run away from another run's sandbox.
-On Kubernetes, it refuses the pod and Service networks you list in the chart's `sandbox.clusterRanges` instead ([Install on Kubernetes](../../getting-started/kubernetes/#network-policies)).
+On Kubernetes, it refuses the pod and Service networks you list in the chart's `sandbox.clusterRanges` instead, and every private address while that list is empty ([Install on Kubernetes](../../getting-started/kubernetes/#network-policies)).
 
 The proxy treats the Docker host's public address like any other public address.
 Add the host's public IP addresses to `network.blocked_targets` to keep sandboxes off the services that listen on them:

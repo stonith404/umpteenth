@@ -141,6 +141,7 @@ Set `sandbox.requireNetworkPolicy: false` to run sandboxes anyway, for example o
 
 List your cluster's pod and Service networks in `sandbox.clusterRanges`, such as `[10.244.0.0/16, 10.96.0.0/12]`.
 The egress proxy then refuses them for every job, so a job with **Allow private network** reaches your LAN but not the database or other services in the cluster.
+While the list is empty, the proxy refuses every private address, and **Allow private network** changes nothing.
 
 ## Job images
 

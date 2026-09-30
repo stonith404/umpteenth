@@ -144,3 +144,12 @@ func TestContainerAddressCoversTheClusterRanges(t *testing.T) {
 	assert.True(t, a.ContainerAddress(netip.MustParseAddr("::ffff:10.96.0.1")))
 	assert.False(t, a.ContainerAddress(netip.MustParseAddr("192.168.1.10")))
 }
+
+// Unknown cluster ranges could be anywhere in the private network, where a job that may reach it would otherwise reach pods and Services through the broker
+func TestContainerAddressFailsClosedWithoutClusterRanges(t *testing.T) {
+	a := testAdapter(t, Config{})
+	assert.True(t, a.ContainerAddress(netip.MustParseAddr("10.244.3.7")))
+	assert.True(t, a.ContainerAddress(netip.MustParseAddr("::ffff:172.20.0.5")))
+	assert.True(t, a.ContainerAddress(netip.MustParseAddr("100.64.1.2")))
+	assert.False(t, a.ContainerAddress(netip.MustParseAddr("93.184.216.34")))
+}

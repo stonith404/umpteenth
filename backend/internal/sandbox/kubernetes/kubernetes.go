@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/stonith404/umpteenth/backend/internal/common"
+	"github.com/stonith404/umpteenth/backend/internal/egress"
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 )
 
@@ -114,7 +115,7 @@ type Config struct {
 	RegistryPassword string
 	// InsecureRegistry talks plain HTTP to Registry's host
 	InsecureRegistry bool
-	// ClusterRanges are the pod and Service networks, which the egress proxy refuses for every job
+	// ClusterRanges are the pod and Service networks, which the egress proxy refuses for every job; without them it refuses every private address
 	ClusterRanges []netip.Prefix
 	// BrokerHost is this replica's pod IP, which sandboxes reach the broker on
 	BrokerHost string
@@ -241,6 +242,9 @@ func newAdapter(ctx context.Context, cfg Config) (*Adapter, error) {
 	}
 	if cfg.Registry != "" && cfg.RegistryUsername != "" {
 		a.pullSecret = "ump-registry-" + shortHash(cfg.InstanceID)
+	}
+	if len(cfg.ClusterRanges) == 0 {
+		a.log.InfoContext(ctx, "sandbox.kubernetes.cluster_ranges is empty, so the egress proxy refuses every private address, even for jobs that allow the private network")
 	}
 	return a, nil
 }
@@ -385,6 +389,11 @@ func (a *Adapter) Maintain(ctx context.Context) error {
 // ContainerAddress reports whether an address lies in the cluster's pod or Service networks, which the egress proxy keeps sandboxes off like Docker's container networks
 func (a *Adapter) ContainerAddress(addr netip.Addr) bool {
 	addr = addr.Unmap()
+
+	// Without configured ranges every private address could be a pod's or a Service's, so all of them stay off limits, even for jobs that may reach the private network
+	if len(a.cfg.ClusterRanges) == 0 {
+		return egress.Blocked(addr)
+	}
 	for _, prefix := range a.cfg.ClusterRanges {
 		if prefix.Contains(addr) {
 			return true
