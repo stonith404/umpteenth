@@ -48,6 +48,8 @@ Umpteenth builds the image under these rules:
 - Umpteenth uses Docker's classic builder, which rejects BuildKit syntax such as `RUN --mount` and heredocs.
 - A build can run for up to 15 minutes and produce an image of up to 5 GiB.
 - Build steps reach the internet through the egress proxy, whatever the job's network setting.
+- `ADD` fails the build, since the builder would fetch its source past the egress proxy, so download files with `curl` in a `RUN` step instead.
+- While `network.allow_private_targets` is `false`, images on a registry at a private address fail the build too, unless they come from `sandbox.registry.repository`.
 
 The compile step and reflection write Dockerfiles as well.
 The **Sandbox** card on the **New job** review screen has a **Custom environment** switch, which the compile step turns on if it proposes a Dockerfile, and Umpteenth builds that image before the first run.

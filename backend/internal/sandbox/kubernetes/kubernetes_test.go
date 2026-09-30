@@ -3,6 +3,8 @@
 package kubernetes
 
 import (
+	"errors"
+	"net/http"
 	"net/netip"
 	"strings"
 	"testing"
@@ -143,6 +145,34 @@ func TestContainerAddressCoversTheClusterRanges(t *testing.T) {
 	assert.True(t, a.ContainerAddress(netip.MustParseAddr("10.244.3.7")))
 	assert.True(t, a.ContainerAddress(netip.MustParseAddr("::ffff:10.96.0.1")))
 	assert.False(t, a.ContainerAddress(netip.MustParseAddr("192.168.1.10")))
+}
+
+// recordingTransport notes the hosts it was asked to reach and fails every request
+type recordingTransport struct{ hosts []string }
+
+func (r *recordingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.hosts = append(r.hosts, req.URL.Host)
+	return nil, errors.New("refused")
+}
+
+// A Dockerfile names the registries base images are resolved in, so every lookup outside the configured registry goes through the guarded transport
+func TestRegistryLookupsOutsideTheRegistryUseTheGuardedTransport(t *testing.T) {
+	guarded := &recordingTransport{}
+	a := testAdapter(t, Config{Registry: "registry.invalid/jobs", RegistryTransport: guarded})
+
+	_, err := (&Builder{a}).ResolveDigest(t.Context(), "10.0.0.5:5000/tools:1")
+	require.Error(t, err)
+	require.NotEmpty(t, guarded.hosts)
+	for _, host := range guarded.hosts {
+		assert.Equal(t, "10.0.0.5:5000", host)
+	}
+
+	// The configured registry is the operator's choice and keeps the default transport
+	own, err := a.parseRef("registry.invalid/jobs/job-1:abc")
+	require.NoError(t, err)
+	other, err := a.parseRef("ghcr.io/acme/tool:1")
+	require.NoError(t, err)
+	assert.Len(t, a.remoteOptions(t.Context(), other), len(a.remoteOptions(t.Context(), own))+1)
 }
 
 // Unknown cluster ranges could be anywhere in the private network, where a job that may reach it would otherwise reach pods and Services through the broker

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/builtin/taskpool"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/images/imagesdb"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox/dockerfile"
 	"github.com/stonith404/umpteenth/backend/internal/storage"
 )
 
@@ -148,9 +150,12 @@ func (m *Module) build(ctx context.Context, img imagesdb.Image) error {
 	logs := newBuildLog(ctx, m.deps.Storage, logKey)
 	defer logs.Close()
 
+	// A Dockerfile that would make the builder fetch outside the egress proxy fails before anything is pulled
+	checkErr := m.checkDockerfile(ctx, img.Dockerfile)
+
 	// Pinning FROM to a digest makes every replica build the same image
 	dockerfile, baseDigest := img.Dockerfile, img.BaseDigest
-	if baseDigest == nil {
+	if baseDigest == nil && checkErr == nil {
 		if ref := firstFrom(dockerfile); ref != "" && !strings.Contains(ref, "@") {
 			fmt.Fprintf(logs, "Resolving base image %s\n", ref)
 			digest, err := m.deps.Builder.ResolveDigest(ctx, ref)
@@ -170,14 +175,17 @@ func (m *Module) build(ctx context.Context, img imagesdb.Image) error {
 		return err
 	}
 
-	built, err := m.buildWithProxy(ctx, sandbox.BuildSpec{
-		Dockerfile:   dockerfile,
-		Tag:          m.tag(img),
-		Push:         m.deps.Registry != "",
-		Logs:         logs,
-		Timeout:      buildTimeout,
-		MaxSizeBytes: maxImageBytes,
-	})
+	built, err := sandbox.Image{}, checkErr
+	if err == nil {
+		built, err = m.buildWithProxy(ctx, sandbox.BuildSpec{
+			Dockerfile:   dockerfile,
+			Tag:          m.tag(img),
+			Push:         m.deps.Registry != "",
+			Logs:         logs,
+			Timeout:      buildTimeout,
+			MaxSizeBytes: maxImageBytes,
+		})
+	}
 
 	// A build interrupted by a shutdown or an actor halt says nothing about the Dockerfile, so the taskpool retries it instead of failing the image for good
 	if err != nil && (ctx.Err() != nil || errors.Is(err, actor.ErrActorHalted)) {
@@ -291,6 +299,55 @@ func (l *buildLog) Close() {
 		close(l.stop)
 		<-l.done
 	})
+}
+
+// checkDockerfile refuses what the builder would fetch itself instead of through the egress proxy: ADD sources, and images on registries Umpteenth itself may not reach
+func (m *Module) checkDockerfile(ctx context.Context, text string) error {
+	err := dockerfile.Check(text)
+	if err != nil {
+		return err
+	}
+	if m.deps.Egress == nil {
+		return nil
+	}
+
+	// The first FROM is what base image pinning pulls, so it is vetted along with every image the builder pulls
+	bases, err := dockerfile.BaseImages(text)
+	if err != nil {
+		return err
+	}
+	copies, err := dockerfile.CopyImages(text)
+	if err != nil {
+		return err
+	}
+	refs := append([]string{firstFrom(text)}, copies...)
+	for _, base := range bases {
+		refs = append(refs, base.Ref)
+	}
+
+	// The configured registry is the operator's choice, and may well sit on a private network
+	own := registryDomain(m.deps.Registry)
+	for _, ref := range refs {
+		domain := registryDomain(ref)
+		if domain == "" || domain == own {
+			continue
+		}
+		err := m.deps.Egress.CheckURL(ctx, "dockerfile", "https://"+domain)
+		if err != nil {
+			return fmt.Errorf("image %s is on a registry Umpteenth may not reach: %w", ref, err)
+		}
+	}
+	return nil
+}
+
+// registryDomain returns the registry host of an image reference such as ghcr.io/acme/tool:1, or of a registry setting such as https://ghcr.io/acme/jobs
+func registryDomain(ref string) string {
+	ref = strings.TrimPrefix(strings.TrimPrefix(ref, "https://"), "http://")
+	named, err := reference.ParseNormalizedNamed(strings.TrimRight(ref, "/"))
+	if err != nil {
+		return ""
+	}
+	return reference.Domain(named)
 }
 
 // fromLine matches a FROM instruction and captures its image

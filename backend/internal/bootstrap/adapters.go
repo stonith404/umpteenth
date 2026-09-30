@@ -67,7 +67,7 @@ func replicaID(configured string) string {
 }
 
 // initSandboxAdapter builds the adapter selected by sandbox.adapter, or returns nil for none
-func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hostID string) (sandbox.Adapter, error) {
+func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hostID string, guard *egress.Guard) (sandbox.Adapter, error) {
 	switch cfg.Sandbox.Adapter {
 	case config.SandboxAdapterNone:
 		return nil, nil
@@ -112,6 +112,7 @@ func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hos
 			RegistryPassword:     cfg.Sandbox.Registry.Password,
 			InsecureRegistry:     k.InsecureRegistry,
 			ClusterRanges:        clusterRanges,
+			RegistryTransport:    guard.HTTPClient(0).Transport,
 			BrokerHost:           cfg.Sandbox.BrokerHost,
 			BrokerPort:           cfg.Server.BrokerPort,
 			AllowUnrestricted:    cfg.Sandbox.AllowUnrestrictedNetwork,

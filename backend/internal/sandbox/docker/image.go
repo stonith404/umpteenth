@@ -19,8 +19,11 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/client"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox/dockerfile"
 )
 
 // runningInPattern finds the container the classic builder runs a step in
@@ -39,6 +42,11 @@ func (a *Adapter) BuildImage(ctx context.Context, spec sandbox.BuildSpec) (sandb
 		buildCtx, cancel = context.WithTimeout(ctx, spec.Timeout)
 		defer cancel()
 	}
+	// Base images are vetted first, since the engine runs their ONBUILD triggers outside the build's network
+	if err := a.checkBaseImages(buildCtx, spec.Dockerfile); err != nil {
+		return sandbox.Image{}, buildError(buildCtx, spec, err)
+	}
+
 	// Build steps reach the outside only through the egress proxy, so a Dockerfile written by reflection reaches the internet but not private networks, the host or cloud metadata, like an internet sandbox
 	// Without a proxy grant they get no network at all
 	networkMode, buildArgs := "none", map[string]*string(nil)
@@ -114,6 +122,63 @@ func (a *Adapter) BuildImage(ctx context.Context, spec sandbox.BuildSpec) (sandb
 		img.Digest = digest
 	}
 	return img, nil
+}
+
+// checkBaseImages refuses base images with an ADD among their ONBUILD triggers
+// The classic builder runs those triggers in the engine, which would fetch an ADD's source from the host's network instead of through the egress proxy
+func (a *Adapter) checkBaseImages(ctx context.Context, text string) error {
+	bases, err := dockerfile.BaseImages(text)
+	if err != nil {
+		return err
+	}
+	for _, base := range bases {
+		inspect, err := a.baseImage(ctx, base)
+		if err != nil {
+			return err
+		}
+		if inspect.Config == nil {
+			continue
+		}
+		if err := dockerfile.CheckTriggers(inspect.Config.OnBuild); err != nil {
+			return fmt.Errorf("base image %s: %w", base.Ref, err)
+		}
+	}
+	return nil
+}
+
+// baseImage returns the image the classic builder takes for a FROM, pulling it for the FROM's platform when the engine lacks it, as the builder would
+func (a *Adapter) baseImage(ctx context.Context, base dockerfile.Base) (image.InspectResponse, error) {
+	var opts []client.ImageInspectOption
+	if base.Platform != "" {
+		parts := strings.Split(base.Platform, "/")
+		if len(parts) < 2 || len(parts) > 3 {
+			return image.InspectResponse{}, fmt.Errorf("the platform %q of %s must be os/arch or os/arch/variant", base.Platform, base.Ref)
+		}
+		platform := &ocispec.Platform{OS: parts[0], Architecture: parts[1]}
+		if len(parts) == 3 {
+			platform.Variant = parts[2]
+		}
+		opts = append(opts, client.ImageInspectWithPlatform(platform))
+	}
+
+	inspect, err := a.cli.ImageInspect(ctx, base.Ref, opts...)
+	if err == nil {
+		return inspect, nil
+	}
+	if !isNotFound(err) {
+		return inspect, fmt.Errorf("failed to inspect image %s: %w", base.Ref, err)
+	}
+	if isLocalJobImage(base.Ref) {
+		return inspect, fmt.Errorf("%w: job image %s is missing on this host", sandbox.ErrNotFound, base.Ref)
+	}
+	if err := a.pullPlatform(ctx, base.Ref, base.Platform); err != nil {
+		return inspect, err
+	}
+	inspect, err = a.cli.ImageInspect(ctx, base.Ref, opts...)
+	if err != nil {
+		return inspect, fmt.Errorf("failed to inspect image %s: %w", base.Ref, err)
+	}
+	return inspect, nil
 }
 
 // buildNetwork creates an internal network for one build with the broker attached, and returns its name
@@ -264,8 +329,13 @@ func (a *Adapter) imageArch(ctx context.Context, ref string) (string, error) {
 
 // pullImage pulls an image, wrapping sandbox.ErrNotFound when the registry has no such image or denies access
 func (a *Adapter) pullImage(ctx context.Context, ref string) error {
+	return a.pullPlatform(ctx, ref, "")
+}
+
+// pullPlatform pulls an image for a platform such as linux/arm64, or for the engine's own when it is empty
+func (a *Adapter) pullPlatform(ctx context.Context, ref, platform string) error {
 	a.log.InfoContext(ctx, "Pulling image", "image", ref)
-	rc, err := a.cli.ImagePull(ctx, ref, image.PullOptions{RegistryAuth: a.registryAuth(ref)})
+	rc, err := a.cli.ImagePull(ctx, ref, image.PullOptions{RegistryAuth: a.registryAuth(ref), Platform: platform})
 	if err == nil {
 		err = readProgress(rc, nil)
 		_ = rc.Close()

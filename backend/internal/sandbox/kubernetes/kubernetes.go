@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/netip"
 	"os"
 	"regexp"
@@ -115,6 +116,8 @@ type Config struct {
 	RegistryPassword string
 	// InsecureRegistry talks plain HTTP to Registry's host
 	InsecureRegistry bool
+	// RegistryTransport carries lookups in every registry but Registry's, such as resolving a Dockerfile's base image, so the egress guard keeps them off networks Umpteenth itself may not reach
+	RegistryTransport http.RoundTripper
 	// ClusterRanges are the pod and Service networks, which the egress proxy refuses for every job; without them it refuses every private address
 	ClusterRanges []netip.Prefix
 	// BrokerHost is this replica's pod IP, which sandboxes reach the broker on

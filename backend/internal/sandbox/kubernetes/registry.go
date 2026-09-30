@@ -48,12 +48,17 @@ func (a *Adapter) inRegistry(ref name.Reference) bool {
 }
 
 // remoteOptions authenticate against the configured registry and go anonymously everywhere else
+// Every other registry is reached through the registry transport, since a Dockerfile names it and could point it, or a redirect or token realm it returns, at a private network
 func (a *Adapter) remoteOptions(ctx context.Context, ref name.Reference) []remote.Option {
 	auth := authn.Anonymous
 	if a.inRegistry(ref) && a.cfg.RegistryUsername != "" {
 		auth = authn.FromConfig(authn.AuthConfig{Username: a.cfg.RegistryUsername, Password: a.cfg.RegistryPassword})
 	}
-	return []remote.Option{remote.WithContext(ctx), remote.WithAuth(auth), remote.WithUserAgent("umpteenth")}
+	opts := []remote.Option{remote.WithContext(ctx), remote.WithAuth(auth), remote.WithUserAgent("umpteenth")}
+	if !a.inRegistry(ref) && a.cfg.RegistryTransport != nil {
+		opts = append(opts, remote.WithTransport(a.cfg.RegistryTransport))
+	}
+	return opts
 }
 
 // head resolves a reference in its registry, reporting a missing image as false

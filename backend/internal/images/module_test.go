@@ -143,6 +143,45 @@ func TestFailedBuildSavesTheLogBeforeTheStatus(t *testing.T) {
 	assert.Contains(t, string(data), "Build failed: exit code 3")
 }
 
+// refusingEgress refuses URLs on one host, like the egress guard refuses private ones
+type refusingEgress struct{ host string }
+
+func (e refusingEgress) CheckURL(_ context.Context, field, rawURL string) error {
+	if strings.Contains(rawURL, e.host) {
+		return apperror.InvalidField(field, "forbidden", "points to a private or local network address")
+	}
+	return nil
+}
+
+// The builder fetches ADD sources and pulls images itself, outside the egress proxy, so a Dockerfile asking for either fails before the builder sees it
+func TestBuildRefusesWhatTheBuilderWouldFetchItself(t *testing.T) {
+	cases := map[string]string{
+		"add":                "FROM debian:trixie-slim\nADD https://example.com/file /file\n",
+		"private base":       "FROM 10.0.0.5:5000/tools:1\nRUN echo hi\n",
+		"private later base": "FROM debian:trixie-slim AS build\nFROM 10.0.0.5:5000/tools:1\n",
+		"private copy":       "FROM debian:trixie-slim\nCOPY --from=10.0.0.5:5000/tools:1 /bin/tool /bin/tool\n",
+	}
+	for name, text := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := newHarness(t)
+			h.m.deps.Egress = refusingEgress{host: "10.0.0.5"}
+			var built atomic.Bool
+			h.builder.OnBuild(func(sandbox.BuildSpec) error {
+				built.Store(true)
+				return nil
+			})
+			id := database.NewID()
+			require.NoError(t, h.m.queries.CreateImage(context.Background(), imagesdb.CreateImageParams{ID: id, JobID: h.jobID, DockerfileHash: playbook.HashDockerfile(text), Dockerfile: text, CreatedAt: database.Now()}))
+			img, err := h.m.queries.GetImage(context.Background(), id)
+			require.NoError(t, err)
+
+			require.NoError(t, h.m.build(context.Background(), img))
+			assert.Equal(t, StatusFailed, h.status(t, id))
+			assert.False(t, built.Load())
+		})
+	}
+}
+
 func TestResolveImageUsesAnOlderReadyImageDuringARebuild(t *testing.T) {
 	h := newHarness(t)
 	ready := h.seedReadyImage(t, database.Now()-1000)

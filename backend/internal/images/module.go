@@ -70,6 +70,13 @@ type Dependencies struct {
 	MaintenanceDisabled bool
 	// GrantProxy lets a build reach the internet through the egress proxy until revoke is called; builds get no network without it
 	GrantProxy func(token string, network sandbox.NetworkPolicy) (revoke func())
+	// Egress vets the registries a Dockerfile pulls images from, which the builder reaches directly rather than through the egress proxy
+	Egress URLChecker
+}
+
+// URLChecker refuses URLs on networks Umpteenth itself may not reach
+type URLChecker interface {
+	CheckURL(ctx context.Context, field, rawURL string) error
 }
 
 type Module struct {
@@ -327,7 +334,10 @@ func (m *Module) rebuildLocal(ctx context.Context, img imagesdb.Image, lb *local
 	if img.BaseDigest != nil {
 		dockerfile = pinFrom(dockerfile, *img.BaseDigest)
 	}
-	_, err := m.buildWithProxy(ctx, sandbox.BuildSpec{Dockerfile: dockerfile, Tag: ref, Logs: io.Discard, Timeout: buildTimeout, MaxSizeBytes: maxImageBytes})
+	err := m.checkDockerfile(ctx, dockerfile)
+	if err == nil {
+		_, err = m.buildWithProxy(ctx, sandbox.BuildSpec{Dockerfile: dockerfile, Tag: ref, Logs: io.Discard, Timeout: buildTimeout, MaxSizeBytes: maxImageBytes})
+	}
 	if err != nil {
 		lb.err = fmt.Errorf("failed to rebuild the job image on this replica: %w", err)
 		lb.cancelled = ctx.Err() != nil
