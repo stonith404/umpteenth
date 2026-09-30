@@ -24,13 +24,14 @@
 	import { formatBytes, formatDateTime, formatDuration } from '$lib/utils/format-util';
 	import { DEFAULT_IMAGE_TOOLS } from '$lib/utils/job-util';
 	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { invalidateAfterNavigation, subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
 	import ContainerIcon from '@lucide/svelte/icons/container';
 	import HammerIcon from '@lucide/svelte/icons/hammer';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 	import type { ColumnDef } from '@tanstack/table-core';
-	import { tick, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { dockerfileTemplate } from '../../dockerfile-template';
 	import ImageSheet from './image-sheet.svelte';
@@ -212,6 +213,26 @@
 		toast.success('Rebuilding the image');
 		await imagesTable?.refresh();
 		openImageId = result.data.id;
+	}
+
+	// Reflection can change the Dockerfile in the background, so the page follows along while it is open
+	onMount(() =>
+		subscribeWorkspaceEvents({
+			onReflection: (event) => {
+				if (event.jobId === job.id && event.status !== 'pending') void followNewVersion();
+			},
+			onReconnect: () => void followNewVersion()
+		})
+	);
+
+	// Text the user hasn't touched takes the new Dockerfile, while edits stay and a save then reports that the Dockerfile changed
+	async function followNewVersion() {
+		const untouched = dockerfile === editedFrom;
+		await Promise.all([invalidateAfterNavigation('app:playbook'), imagesTable?.refresh()]);
+		if (untouched && dockerfile === editedFrom) {
+			dockerfile = savedDockerfile;
+			editedFrom = savedDockerfile;
+		}
 	}
 
 	// The table polls while any visible build is still running, so statuses update without a reload
