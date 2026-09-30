@@ -30,7 +30,7 @@ func (m *Module) queueBuild(ctx context.Context, jobID, dockerfile string) (stri
 	}
 
 	// A row without a build task would stay queued, so it is removed and the next caller queues a fresh build
-	_, err = m.pool.Submit(ctx, buildTask{ImageID: id}, taskpool.WithTaskKey(id))
+	_, err = m.pool.Submit(ctx, buildTask{ImageID: id}, taskpool.WithTaskKey(id), taskpool.WithRequiredCapability(builderCapability))
 	if err != nil {
 		delErr := m.queries.DeleteImage(context.WithoutCancel(ctx), id)
 		if delErr != nil {
@@ -45,7 +45,7 @@ func (m *Module) queueBuild(ctx context.Context, jobID, dockerfile string) (stri
 // The image ID is the task key, so this is a no-op while the original task is still pending or running
 func (m *Module) requeue(ctx context.Context, img imagesdb.Image) error {
 	slog.WarnContext(ctx, "Requeueing an image build that stopped making progress", slog.String("image", img.ID), slog.String("status", img.Status))
-	_, err := m.pool.Submit(ctx, buildTask{ImageID: img.ID}, taskpool.WithTaskKey(img.ID))
+	_, err := m.pool.Submit(ctx, buildTask{ImageID: img.ID}, taskpool.WithTaskKey(img.ID), taskpool.WithRequiredCapability(builderCapability))
 	if err != nil {
 		return fmt.Errorf("failed to requeue image build: %w", err)
 	}

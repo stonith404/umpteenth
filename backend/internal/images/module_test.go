@@ -182,6 +182,25 @@ func TestEnsureBuildRequeuesAStaleBuild(t *testing.T) {
 	require.Eventually(t, func() bool { return h.status(t, fresh.ID) == StatusReady }, 20*time.Second, 100*time.Millisecond)
 }
 
+// A replica without a builder must leave build tasks to replicas with one, since running one would panic on the missing builder
+func TestReplicaWithoutBuilderTakesNoBuilds(t *testing.T) {
+	db := testutil.NewDatabaseForTest(t)
+	var m *Module
+	testutil.NewActorHostForTest(t, func(t *testing.T, host *local.Host) {
+		var err error
+		m, err = New(Dependencies{DB: db, Actors: host, MaintenanceDisabled: true})
+		require.NoError(t, err)
+	})
+	jobID := testutil.SeedJob(t, db, testutil.SeedWorkspace(t, db), "skip")
+
+	id, err := m.queueBuild(context.Background(), jobID, testDockerfile)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	img, err := m.queries.GetImage(context.Background(), id)
+	require.NoError(t, err)
+	assert.Equal(t, StatusQueued, img.Status)
+}
+
 func TestEnsureLocalWaitersGetTheLeadersError(t *testing.T) {
 	h := newHarness(t)
 	img := h.seedReadyImage(t, database.Now())

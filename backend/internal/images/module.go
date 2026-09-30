@@ -41,6 +41,8 @@ const (
 	waitPoll      = 2 * time.Second
 	// staleAfter is how long a queued or building image may go without progress before its build task is presumed lost
 	staleAfter = buildTimeout + 10*time.Minute
+	// builderCapability is what replicas that can build images advertise to the build taskpool
+	builderCapability = "builder"
 )
 
 // JobChecker verifies a job belongs to the caller's workspace, since images are scoped through their job
@@ -80,12 +82,17 @@ type Module struct {
 func New(deps Dependencies) (*Module, error) {
 	m := &Module{deps: deps, queries: imagesdb.New(deps.DB)}
 
-	pool, err := taskpool.New("image-builds",
+	// Build tasks require the builder capability, so a replica without a builder, e.g. one with sandbox.adapter none in a mixed cluster, never picks one up
+	opts := []taskpool.Option{
 		taskpool.WithHandler(m.handleBuild),
 		taskpool.WithConcurrency(1),
 		taskpool.WithMaxAttempts(2),
 		taskpool.WithLogger(slog.Default().With("scope", "images")),
-	)
+	}
+	if deps.Builder != nil {
+		opts = append(opts, taskpool.WithCapability(builderCapability))
+	}
+	pool, err := taskpool.New("image-builds", opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create image build taskpool: %w", err)
 	}
@@ -95,7 +102,8 @@ func New(deps Dependencies) (*Module, error) {
 	}
 	m.pool = pool.Service(deps.Actors.Service())
 
-	if !deps.MaintenanceDisabled {
+	// GC removes images from the engine or registry before it drops their rows, which only a replica with a builder can do
+	if !deps.MaintenanceDisabled && deps.Builder != nil {
 		gc, err := cronjob.New("ImageGC", cronjob.WithCron("43 4 * * *"), cronjob.WithJob(m.gc), cronjob.WithJitter(10*time.Minute), cronjob.WithLogger(slog.Default()))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create image GC: %w", err)
