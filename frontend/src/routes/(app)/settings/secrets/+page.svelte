@@ -1,13 +1,7 @@
 <script lang="ts">
 	import type { Secret } from '$lib/api/types';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import {
-		DataTable,
-		RowActions,
-		actionsColumn,
-		renderSnippet,
-		type TableQuery
-	} from '$lib/components/data-table';
+	import { DataTable, RowActions, actionsColumn, renderSnippet } from '$lib/components/data-table';
 	import { Button } from '$lib/components/ui/button';
 	import * as Empty from '$lib/components/ui/empty';
 	import * as Tooltip from '$lib/components/ui/tooltip';
@@ -29,7 +23,8 @@
 	let dataTable: ReturnType<typeof DataTable<Secret>> | undefined = $state();
 	let dialogOpen = $state(false);
 	let editing = $state<Secret | null>(null);
-	let noSecrets = $state(false);
+	// Without any secret the create button moves from the toolbar into the empty panel, like on the jobs list
+	let noSecrets = $state<boolean>();
 
 	// Values only change by replacing them, so the last update is the date that matters and the creation date sits in its tooltip
 	const columns: ColumnDef<Secret>[] = [
@@ -47,13 +42,6 @@
 		},
 		actionsColumn<Secret>((secret) => renderSnippet(actionsCell, secret))
 	];
-
-	// Without any secret the create button moves from the toolbar into the empty panel, like on the jobs list
-	async function fetchSecrets(query: TableQuery) {
-		const result = await secretService.list(query);
-		noSecrets = result.total === 0 && !query.search;
-		return result;
-	}
 
 	function openCreate() {
 		editing = null;
@@ -146,11 +134,12 @@
 		bind:this={dataTable}
 		label="Secrets"
 		{columns}
-		fetchPage={fetchSecrets}
+		fetchPage={(query) => secretService.list(query)}
+		bind:isEmpty={noSecrets}
 		getRowId={(secret) => secret.id}
 		defaultSort="name"
 		searchPlaceholder="Search secrets"
-		actions={noSecrets ? undefined : createButton}
+		actions={noSecrets === false ? createButton : undefined}
 	>
 		{#snippet empty()}
 			<Empty.Root size="sm">

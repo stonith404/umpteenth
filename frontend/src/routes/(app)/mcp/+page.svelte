@@ -8,8 +8,7 @@
 		RowActions,
 		actionsColumn,
 		renderSnippet,
-		type RowAction,
-		type TableQuery
+		type RowAction
 	} from '$lib/components/data-table';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import RelativeTime from '$lib/components/relative-time.svelte';
@@ -50,7 +49,8 @@
 	let testing = $state<McpServer | null>(null);
 	let viewing = $state<McpServer | null>(null);
 	let toggling = $state<Record<string, boolean>>({});
-	let noServers = $state(false);
+	// Without any server the add button moves from the header into the empty panel, like on the jobs list
+	let noServers = $state<boolean>();
 
 	// Tailwind's sm breakpoint, below which the auth and enabled columns make way for the name
 	const wide = new MediaQuery('min-width: 40rem', true);
@@ -90,13 +90,6 @@
 		},
 		actionsColumn<McpServer>((server) => renderSnippet(actionsCell, server))
 	];
-
-	// Without any server the add button moves from the header into the empty panel, like on the jobs list
-	async function fetchServers(query: TableQuery) {
-		const result = await mcpService.list(query);
-		noServers = result.total === 0 && !query.search && !query.transport;
-		return result;
-	}
 
 	function openAdd() {
 		editing = null;
@@ -365,14 +358,15 @@
 <PageHeader
 	title="MCP servers"
 	description="Tools your jobs can use through the Model Context Protocol."
-	actions={noServers ? undefined : addButton}
+	actions={noServers === false ? addButton : undefined}
 />
 
 <DataTable
 	bind:this={dataTable}
 	label="MCP servers"
 	{columns}
-	fetchPage={fetchServers}
+	fetchPage={(query) => mcpService.list(query)}
+	bind:isEmpty={noServers}
 	getRowId={(server) => server.id}
 	onRowClick={(server) => (viewing = server)}
 	defaultSort="name"

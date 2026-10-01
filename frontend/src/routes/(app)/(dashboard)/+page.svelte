@@ -36,6 +36,8 @@
 	const DEFAULT_RANGE = RANGES[1];
 	// Run changes arrive in bursts, one reload per burst is enough for a dashboard
 	const LIVE_RELOAD_DELAY_MS = 1500;
+	// A first load faster than this goes straight to the figures or the welcome, without flashing the skeleton of a page it may not become
+	const SKELETON_DELAY_MS = 200;
 
 	const statsService = new StatsService();
 
@@ -54,6 +56,7 @@
 	let overviewRange = $state<StatsRange | null>(null);
 	let loadError = $state<unknown>(null);
 	let requestSeq = 0;
+	let skeletonDue = $state(false);
 
 	$effect(() => {
 		const value = range.value;
@@ -98,12 +101,14 @@
 	}
 
 	onMount(() => {
+		const skeletonTimer = setTimeout(() => (skeletonDue = true), SKELETON_DELAY_MS);
 		const unsubscribe = subscribeWorkspaceEvents({
 			onRun: scheduleReload,
 			onReconnect: scheduleReload
 		});
 		return () => {
 			unsubscribe();
+			clearTimeout(skeletonTimer);
 			clearTimeout(reloadTimer);
 		};
 	});
@@ -137,6 +142,9 @@
 	// A workspace that never ran anything gets a welcome instead of a wall of zeros
 	// The period's figures are zero too when every run is older, so only the workspace-wide flag tells the two apart and keeps the period picker for the latter
 	const isFreshInstall = $derived(!!overview && !overview.hasRuns);
+
+	// The period picker and its description only belong to a workspace with runs, which the skeleton or an error takes for granted until the figures say otherwise
+	const showPeriod = $derived(overview ? overview.hasRuns : skeletonDue || !!loadError);
 
 	const finishedCurrent = $derived(current ? current.succeeded + current.failed : 0);
 	const finishedPrevious = $derived(previous ? previous.succeeded + previous.failed : 0);
@@ -180,9 +188,9 @@
 
 	// Says once which period the figures cover and what their changes compare with, so the cards don't each repeat it
 	const description = $derived(
-		isFreshInstall
-			? undefined
-			: `${sentenceCase(shownRange.period)}, compared with the ${shownRange.previous}.`
+		showPeriod
+			? `${sentenceCase(shownRange.period)}, compared with the ${shownRange.previous}.`
+			: undefined
 	);
 </script>
 
@@ -193,7 +201,7 @@
 <PageHeader title="Dashboard" {description}>
 	{#snippet actions()}
 		<!-- A fresh workspace has nothing to filter by period -->
-		{#if !isFreshInstall}
+		{#if showPeriod}
 			<Tabs.Root value={range.value} onValueChange={setRange}>
 				<Tabs.List aria-label="Period">
 					{#each RANGES as r (r.value)}
@@ -216,59 +224,61 @@
 {/snippet}
 
 {#if !overview && !loadError}
-	<!-- The skeleton has the shape of the loaded page, so nothing jumps when the figures arrive -->
-	<div class="flex flex-col gap-6" aria-busy="true" aria-label="Loading the dashboard">
-		<div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-			<!-- The labels are known up front, so only the figures wait, and the header is exactly as tall as a loaded card's -->
-			{#each kpiLabels as label (label)}
-				<Card.Root size="tile">
-					<Card.Header>
-						<Card.Description variant="label">{label}</Card.Description>
-					</Card.Header>
-					<Card.Content class="flex flex-col">
-						<div class="flex flex-1 flex-col gap-3">
-							<Skeleton radius="md" class="h-7.5 w-16 sm:h-8.75" />
-							<!-- As tall as the footer row every loaded card reserves -->
-							<Skeleton radius="md" class="mt-auto h-4.5 w-28 max-w-full" />
-						</div>
-					</Card.Content>
-				</Card.Root>
-			{/each}
+	{#if skeletonDue}
+		<!-- The skeleton has the shape of the loaded page, so nothing jumps when the figures arrive -->
+		<div class="flex flex-col gap-6" aria-busy="true" aria-label="Loading the dashboard">
+			<div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+				<!-- The labels are known up front, so only the figures wait, and the header is exactly as tall as a loaded card's -->
+				{#each kpiLabels as label (label)}
+					<Card.Root size="tile">
+						<Card.Header>
+							<Card.Description variant="label">{label}</Card.Description>
+						</Card.Header>
+						<Card.Content class="flex flex-col">
+							<div class="flex flex-1 flex-col gap-3">
+								<Skeleton radius="md" class="h-7.5 w-16 sm:h-8.75" />
+								<!-- As tall as the footer row every loaded card reserves -->
+								<Skeleton radius="md" class="mt-auto h-4.5 w-28 max-w-full" />
+							</div>
+						</Card.Content>
+					</Card.Root>
+				{/each}
+			</div>
+			<div class="grid gap-4 xl:grid-cols-2">
+				{#each [runsTitle, usageTitle] as title (title)}
+					<Card.Root>
+						<Card.Header>
+							<Card.Title>{title}</Card.Title>
+							<Skeleton radius="md" class="my-0.5 h-3.5 w-40" />
+						</Card.Header>
+						<Card.Content>
+							<div class="h-chart">
+								<Skeleton radius="md" class="h-full" />
+							</div>
+						</Card.Content>
+					</Card.Root>
+				{/each}
+			</div>
+			<div class="grid gap-4 md:grid-cols-2">
+				{#each ['Recent failures', usage.trendLabel] as title (title)}
+					<Card.Root>
+						<Card.Header>
+							<Card.Title>{title}</Card.Title>
+							<Skeleton radius="md" class="my-0.5 h-3.5 w-48 max-w-full" />
+						</Card.Header>
+						<!-- Five rows of a name and a detail line, the most a list shows -->
+						<Card.Content>
+							<div class="flex flex-col gap-4">
+								{#each [0, 1, 2, 3, 4] as row (row)}
+									<Skeleton radius="md" class="h-8 first:mt-1 last:mb-1" />
+								{/each}
+							</div>
+						</Card.Content>
+					</Card.Root>
+				{/each}
+			</div>
 		</div>
-		<div class="grid gap-4 xl:grid-cols-2">
-			{#each [runsTitle, usageTitle] as title (title)}
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>{title}</Card.Title>
-						<Skeleton radius="md" class="my-0.5 h-3.5 w-40" />
-					</Card.Header>
-					<Card.Content>
-						<div class="h-chart">
-							<Skeleton radius="md" class="h-full" />
-						</div>
-					</Card.Content>
-				</Card.Root>
-			{/each}
-		</div>
-		<div class="grid gap-4 md:grid-cols-2">
-			{#each ['Recent failures', usage.trendLabel] as title (title)}
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>{title}</Card.Title>
-						<Skeleton radius="md" class="my-0.5 h-3.5 w-48 max-w-full" />
-					</Card.Header>
-					<!-- Five rows of a name and a detail line, the most a list shows -->
-					<Card.Content>
-						<div class="flex flex-col gap-4">
-							{#each [0, 1, 2, 3, 4] as row (row)}
-								<Skeleton radius="md" class="h-8 first:mt-1 last:mb-1" />
-							{/each}
-						</div>
-					</Card.Content>
-				</Card.Root>
-			{/each}
-		</div>
-	</div>
+	{/if}
 {:else if !overview}
 	<Empty.Root variant="panel" size="lg" class="flex-none">
 		<Empty.Header>

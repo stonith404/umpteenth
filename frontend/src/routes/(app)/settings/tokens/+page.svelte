@@ -7,8 +7,7 @@
 		RowActions,
 		actionsColumn,
 		renderComponent,
-		renderSnippet,
-		type TableQuery
+		renderSnippet
 	} from '$lib/components/data-table';
 	import RelativeTime from '$lib/components/relative-time.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -31,7 +30,8 @@
 	let dataTable: ReturnType<typeof DataTable<ApiToken>> | undefined = $state();
 	let createOpen = $state(false);
 	let created = $state<ApiTokenCreated | null>(null);
-	let noTokens = $state(false);
+	// Without any token the create button moves from the toolbar into the empty panel, like on the jobs list
+	let noTokens = $state<boolean>();
 
 	// Members only see their own tokens, so only admins, who see everyone's, need to know whose a token is
 	const seesEveryToken = hasRole(page.data.user!, 'admin');
@@ -73,13 +73,6 @@
 		},
 		actionsColumn<ApiToken>((token) => renderSnippet(actionsCell, token))
 	];
-
-	// Without any token the create button moves from the toolbar into the empty panel, like on the jobs list
-	async function fetchTokens(query: TableQuery) {
-		const result = await apiTokenService.list(query);
-		noTokens = result.total === 0 && !query.search;
-		return result;
-	}
 
 	function onCreated(result: ApiTokenCreated) {
 		created = result;
@@ -153,11 +146,12 @@
 		bind:this={dataTable}
 		label="API tokens"
 		{columns}
-		fetchPage={fetchTokens}
+		fetchPage={(query) => apiTokenService.list(query)}
+		bind:isEmpty={noTokens}
 		getRowId={(token) => token.id}
 		defaultSort="-createdAt"
 		searchPlaceholder="Search tokens"
-		actions={noTokens ? undefined : createButton}
+		actions={noTokens === false ? createButton : undefined}
 	>
 		{#snippet empty()}
 			<Empty.Root size="sm">

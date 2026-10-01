@@ -8,8 +8,7 @@
 		RowActions,
 		actionsColumn,
 		renderSnippet,
-		type RowAction,
-		type TableQuery
+		type RowAction
 	} from '$lib/components/data-table';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
@@ -60,8 +59,9 @@
 	let editingModel = $state<Model | null>(null);
 	let modelDefaultProvider = $state<string | undefined>();
 	let syncing = $state<Record<string, boolean>>({});
-	let noProviders = $state(false);
-	let noModels = $state(false);
+	// An empty table shows its create button in the empty panel instead of the toolbar, like on the jobs list
+	let noProviders = $state<boolean>();
+	let noModels = $state<boolean>();
 	let toggling = $state<Record<string, boolean>>({});
 
 	const providerOptions = $derived(data.providers.map((p) => ({ value: p.id, label: p.name })));
@@ -135,19 +135,6 @@
 		},
 		actionsColumn<Model>((model) => renderSnippet(modelActionsCell, model))
 	];
-
-	// An empty table shows its create button in the empty panel instead of the toolbar, like on the jobs list
-	async function fetchProviders(query: TableQuery) {
-		const result = await providerService.list(query);
-		noProviders = result.total === 0 && !query.search;
-		return result;
-	}
-
-	async function fetchModels(query: TableQuery) {
-		const result = await providerService.listModels(query);
-		noModels = result.total === 0 && !query.search && !query.provider && !query.status;
-		return result;
-	}
 
 	function openAddProvider() {
 		editingProvider = null;
@@ -537,12 +524,13 @@
 			bind:this={providersTable}
 			label="Providers"
 			columns={providerColumns}
-			fetchPage={fetchProviders}
+			fetchPage={(query) => providerService.list(query)}
+			bind:isEmpty={noProviders}
 			getRowId={(provider) => provider.id}
 			defaultSort="name"
 			urlPrefix="providers"
 			searchPlaceholder="Search providers"
-			actions={noProviders ? undefined : addProviderButton}
+			actions={noProviders === false ? addProviderButton : undefined}
 		>
 			{#snippet empty()}
 				<Empty.Root size="sm">
@@ -577,7 +565,8 @@
 			bind:this={modelsTable}
 			label="Models"
 			columns={modelColumns}
-			fetchPage={fetchModels}
+			fetchPage={(query) => providerService.listModels(query)}
+			bind:isEmpty={noModels}
 			getRowId={(model) => model.id}
 			defaultSort="provider,model"
 			urlPrefix="models"
@@ -586,7 +575,7 @@
 				{ key: 'provider', label: 'Provider', options: providerOptions },
 				{ key: 'status', label: 'Status', options: statusOptions }
 			]}
-			actions={noModels ? undefined : addModelButton}
+			actions={noModels === false ? addModelButton : undefined}
 		>
 			{#snippet empty()}
 				<Empty.Root size="sm">

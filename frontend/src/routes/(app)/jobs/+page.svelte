@@ -1,12 +1,6 @@
 <script lang="ts">
 	import type { JobListItem } from '$lib/api/types';
-	import {
-		actionsColumn,
-		DataTable,
-		renderSnippet,
-		RowActions,
-		type TableQuery
-	} from '$lib/components/data-table';
+	import { actionsColumn, DataTable, renderSnippet, RowActions } from '$lib/components/data-table';
 	import RunHistory from '$lib/components/jobs/run-history.svelte';
 	import RunNowDialog from '$lib/components/jobs/run-now-dialog.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
@@ -39,7 +33,8 @@
 	let runNowOpen = $state(false);
 
 	// A workspace without any jobs shows one call to action in the empty table, so the header doesn't repeat it
-	let noJobs = $state(false);
+	// The header waits until the table knows, so the button never shows only to vanish again
+	let noJobs = $state<boolean>();
 
 	// The job fills the width, the other columns get minimum widths that fit their longest values, so they don't jump as times tick or when the skeleton gives way to rows
 	// Columns make way on smaller screens, at 1024px the sidebar leaves about 684px for the whole table
@@ -78,12 +73,6 @@
 		},
 		actionsColumn<JobListItem>((job) => renderSnippet(actionsCell, job))
 	];
-
-	async function fetchJobs(query: TableQuery) {
-		const result = await jobService.list(query);
-		noJobs = result.total === 0 && !query.search;
-		return result;
-	}
 
 	function openRunNow(job: JobListItem) {
 		runNowJob = job;
@@ -272,7 +261,7 @@
 <PageHeader
 	title="Jobs"
 	description="Tasks Umpteenth runs for you, on a schedule or on demand."
-	actions={noJobs ? undefined : createButton}
+	actions={noJobs === false ? createButton : undefined}
 />
 
 <!-- The loading rows are as tall as the two-line rows, 56px plus the hairline under each -->
@@ -280,7 +269,8 @@
 	bind:this={dataTable}
 	label="Jobs"
 	{columns}
-	fetchPage={fetchJobs}
+	fetchPage={(query) => jobService.list(query)}
+	bind:isEmpty={noJobs}
 	getRowId={(job) => job.id}
 	rowHref={(job) => `/jobs/${job.id}`}
 	defaultSort="name"

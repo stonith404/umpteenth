@@ -90,6 +90,8 @@
 		rowLabel?: (row: TData) => string;
 		// Shown when the table has no rows at all, as opposed to no rows matching the search or filters
 		empty: Snippet;
+		// Whether the table turned out to have no rows at all, undefined until it shows anything, so a page can hold back a create button that the empty panel would repeat
+		isEmpty?: boolean;
 		// Drops the table's own frame, for a table that sits edge to edge inside a card (`<Card.Content class="p-0">`)
 		// The toolbar, the outer cells and the pager then keep the card's gutter, so they line up with the card header
 		flush?: boolean;
@@ -115,6 +117,7 @@
 		selectionActions,
 		rowLabel,
 		empty,
+		isEmpty = $bindable(),
 		flush = false,
 		skeletonRowClass = 'h-12'
 	}: Props = $props();
@@ -219,9 +222,15 @@
 	);
 
 	// A table without any rows shows only its empty state, since search, filters and headers over nothing are noise
-	const isEmpty = $derived(loaded && total === 0 && !isFiltered);
-	const showSearch = $derived(searchable && !isEmpty);
-	const showFilters = $derived(filters.length > 0 && !isEmpty);
+	const showEmpty = $derived(loaded && total === 0 && !isFiltered);
+	const showSearch = $derived(searchable && !showEmpty);
+	const showFilters = $derived(filters.length > 0 && !showEmpty);
+
+	// A skeleton stands in for rows, so while it shows the table counts as having some
+	$effect(() => {
+		const next = showContent ? showEmpty : undefined;
+		if (isEmpty !== next) isEmpty = next;
+	});
 
 	// When nothing matches, the message below the header offers 'Clear filters', so the toolbar doesn't repeat it as 'Reset'
 	const noResults = $derived(loaded && rows.length === 0 && isFiltered);
@@ -347,7 +356,7 @@
 		const firstRow = bodyRef?.querySelector<HTMLElement>('tr[data-row-id]');
 		if (count > 0 && firstRow) {
 			skeletonMemory.set(memoryKey, { height: firstRow.offsetHeight, count });
-		} else if (isEmpty) {
+		} else if (showEmpty) {
 			skeletonMemory.delete(memoryKey);
 		}
 	});
@@ -680,7 +689,7 @@
 				flush && !showPagination && 'rounded-b-inherit'
 			)}
 		>
-			{#if isEmpty}
+			{#if showEmpty}
 				{@render empty()}
 			{:else}
 				<Table.Root
