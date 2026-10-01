@@ -218,15 +218,10 @@ func TestDatabaseProviderRecognizesPostgresURLs(t *testing.T) {
 func TestExampleFileShowsValidOptionsWithTheirDefaults(t *testing.T) {
 	const example = "../../../config.example.yml"
 
-	// The example only holds known options, and the values it shows are the defaults apart from the example sign-in providers
+	// The example only holds known options, and the values it shows are the defaults
 	cfg := Default()
 	require.NoError(t, newSchema(cfg).applyFile(example))
-	want := Default()
-	want.Auth.Providers = map[string]*AuthProvider{
-		"pocket-id": {Type: "oidc", Name: "Pocket ID", ClientID: "umpteenth", Issuer: "https://id.example.com", AllowedGroups: []string{}},
-		"github":    {Type: "github", Name: "GitHub", AllowedUsers: []string{"octocat"}},
-	}
-	assert.Equal(t, want, cfg)
+	assert.Equal(t, Default(), cfg)
 }
 
 func TestLoadReadsSignInProvidersFromTheFileAndTheEnvironment(t *testing.T) {
