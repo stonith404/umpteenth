@@ -47,9 +47,11 @@ extraEnv:
   - name: AUTH_PROVIDERS_CORP_SSO_CLIENT_ID
     value: umpteenth
 
+# kind's pod and Service networks, without which the egress proxy refuses the gateway that jobs with Allow private network must reach
 sandbox:
   registry:
     insecure: true
+  clusterRanges: [10.244.0.0/16, 10.96.0.0/12]
 
 postgresql:
   persistence:
