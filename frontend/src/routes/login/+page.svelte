@@ -159,12 +159,13 @@
 			<div class="flex flex-col items-center gap-2">
 				{#if data.setupOpen}
 					<h1 class="display-title">Set up Umpteenth</h1>
-					<p class="text-muted-foreground max-w-lede-narrow text-balance">
-						Create the first account. It becomes an instance admin and signs in with a passkey.
+					<!-- The longer ledes above a form span the form's width, so they break into two even lines instead of three short ones -->
+					<p class="text-muted-foreground text-balance">
+						The first account signs in with a passkey and becomes the instance admin.
 					</p>
 				{:else if signingUp}
 					<h1 class="display-title">Create your account</h1>
-					<p class="text-muted-foreground max-w-lede-narrow text-balance">
+					<p class="text-muted-foreground text-balance">
 						You'll sign in with a passkey, so there's no password to remember.
 					</p>
 				{:else}
