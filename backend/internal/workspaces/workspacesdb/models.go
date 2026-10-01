@@ -143,6 +143,23 @@ type ModelCatalog struct {
 	FetchedAt int64
 }
 
+type Passkey struct {
+	ID           string
+	UserID       string
+	CredentialID string
+	Name         string
+	Credential   string
+	CreatedAt    int64
+	LastUsedAt   *int64
+}
+
+type PasskeyCeremony struct {
+	TokenHash string
+	Kind      string
+	Data      string
+	ExpiresAt int64
+}
+
 type PlaybookStat struct {
 	JobID     string
 	Kind      string
@@ -262,6 +279,13 @@ type Setting struct {
 	WorkspaceID string
 	Key         string
 	Value       string
+}
+
+type SignInLink struct {
+	TokenHash string
+	UserID    string
+	CreatedAt int64
+	ExpiresAt int64
 }
 
 type User struct {

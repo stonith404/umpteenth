@@ -1,4 +1,6 @@
 export const LOGIN_PATH = '/login';
+// A sign-in link an instance admin hands out opens this page, followed by its token, and works without a session
+export const SIGN_IN_LINK_PATH = '/login/link/';
 
 // Only same-origin relative paths are accepted, so the redirect parameter can't be used as an open redirect
 // The value is resolved like the browser will resolve it, since browsers drop tabs and newlines and read backslashes as slashes, which turns "/\t/evil.example" into another origin

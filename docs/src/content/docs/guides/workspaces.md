@@ -46,10 +46,10 @@ The **Invite to workspace** dialog offers two kinds of invite:
   Umpteenth shows the link once, and it works for whoever joins with it first.
 
 For either kind, pick the **Role**, **Member** or **Admin**, and under **Expires after** how long the invite lasts: 1, 7 or 30 days.
-Email invites match only an address that your [sign-in provider](../../deployment/sign-in/) verifies, so send a link to anyone whose provider doesn't.
+Email invites match only an address that your [sign-in provider](../../deployment/sign-in/) verifies or an instance admin entered for a passkey account, so send a link to anyone else.
 
 The link opens a page with the workspace's name, the role and who invited you, and **Join workspace** accepts it.
-Someone who has never signed in before joins as part of their first sign-in.
+Someone who has never signed in before joins as part of their first sign-in, and someone without any account can [create a passkey account](../../deployment/sign-in/#add-people) from the link.
 
 **Pending invites** on the same page lists the open invites, and **Revoke** in an invite's **⋯** menu withdraws one.
 
@@ -77,9 +77,9 @@ Umpteenth refuses to delete a workspace with active runs, so wait for them to fi
 ## Instance admins
 
 Instance admins see everyone who signed in and every workspace under **Admin** in the sidebar, and they have the owner's rights in every workspace.
-You make someone an instance admin in the options of the provider they sign in with, as [Sign-in](../../deployment/sign-in/#instance-admins) shows.
+You make someone an instance admin in the options of the provider they sign in with, or with **Make instance admin** for a passkey account, as [Sign-in](../../deployment/sign-in/#instance-admins) shows.
 
-**Admin → Users** lists every user with their workspace count and last sign-in.
+**Admin → Users** lists every user with how they sign in, their workspace count and their last sign-in, and **Add user** creates a [passkey account](../../deployment/sign-in/#add-people).
 **Deactivate** in a user's **⋯** menu signs them out everywhere, stops their API tokens and refuses their sign-ins with "Your account has been deactivated, ask an admin to reactivate it".
 Their memberships stay, so **Reactivate** in the same menu restores their access.
 

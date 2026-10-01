@@ -17,7 +17,6 @@ app:
   encryption_key: "<output of openssl rand -base64 32>"
 ```
 
-To sign in at all, you also need a provider under `auth.providers`, which [Sign-in](../sign-in/) sets up.
 For a commented starting point, copy [`config.example.yml`](https://github.com/stonith404/umpteenth/blob/main/config.example.yml) from the repository, which holds these options and a sample of each provider type.
 Create the file before the first start, or Docker creates an empty directory named `config.yml` in its place, and Umpteenth stops with `app.encryption_key (APP_ENCRYPTION_KEY) is required`.
 
@@ -97,11 +96,12 @@ Each row shows the option's path in `config.yml` above its environment variable.
 
 ### Sign-in
 
-Each sign-in provider has these options below its ID, and [Sign-in](../sign-in/) shows how to set up both types.
+Passkeys are on unless you turn them off, and each sign-in provider has the options below its ID, which [Sign-in](../sign-in/) shows how to set up.
 An option marked for one type stops Umpteenth at start on a provider of the other type.
 
 | Option | Default | Description |
 |---|---|---|
+| `auth.passkeys.enabled`<br />`AUTH_PASSKEYS_ENABLED` | `true` | Offers **Sign in with a passkey** on the login page, and lets whoever opens an instance without users create its first account. `false` leaves sign-in to the providers. |
 | `auth.providers.<id>.type`<br />`AUTH_PROVIDERS_<ID>_TYPE` | none, required | `oidc` for an OpenID Connect identity provider, or `github` for GitHub accounts. |
 | `auth.providers.<id>.name`<br />`AUTH_PROVIDERS_<ID>_NAME` | none, required | The label of the provider's button, which reads **Sign in with** and the name. |
 | `auth.providers.<id>.icon`<br />`AUTH_PROVIDERS_<ID>_ICON` | empty | An image for the button, as an `http://` or `https://` URL or a `data:image/` URI. |

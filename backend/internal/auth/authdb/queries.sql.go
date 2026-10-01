@@ -29,6 +29,135 @@ func (q *Queries) ClaimGitHubName(ctx context.Context, arg ClaimGitHubNameParams
 	return value, err
 }
 
+const countUserPasskeys = `-- name: CountUserPasskeys :one
+SELECT COUNT(*) FROM passkeys WHERE user_id = $1
+`
+
+// unscoped: passkeys belong to users, who are instance-wide
+func (q *Queries) CountUserPasskeys(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUserPasskeys, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+`
+
+// unscoped: users are instance-wide
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createLocalUser = `-- name: CreateLocalUser :one
+INSERT INTO users (id, issuer, subject, email, email_verified, name, is_admin, created_at)
+VALUES ($1, $2, $1, $3, $4, $5, $6, $7)
+RETURNING id, issuer, subject, email, email_verified, name, picture, is_admin, disabled_at, last_workspace_id, created_at, last_login_at
+`
+
+type CreateLocalUserParams struct {
+	ID            string
+	Issuer        string
+	Email         *string
+	EmailVerified bool
+	Name          *string
+	IsAdmin       bool
+	Now           int64
+}
+
+// unscoped: users are instance-wide, and a passkey account is its own subject at the passkey issuer
+func (q *Queries) CreateLocalUser(ctx context.Context, arg CreateLocalUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createLocalUser,
+		arg.ID,
+		arg.Issuer,
+		arg.Email,
+		arg.EmailVerified,
+		arg.Name,
+		arg.IsAdmin,
+		arg.Now,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Issuer,
+		&i.Subject,
+		&i.Email,
+		&i.EmailVerified,
+		&i.Name,
+		&i.Picture,
+		&i.IsAdmin,
+		&i.DisabledAt,
+		&i.LastWorkspaceID,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
+const createPasskey = `-- name: CreatePasskey :one
+INSERT INTO passkeys (id, user_id, credential_id, name, credential, created_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, credential_id, name, credential, created_at, last_used_at
+`
+
+type CreatePasskeyParams struct {
+	ID           string
+	UserID       string
+	CredentialID string
+	Name         string
+	Credential   string
+	CreatedAt    int64
+}
+
+// unscoped: passkeys belong to users, who are instance-wide
+func (q *Queries) CreatePasskey(ctx context.Context, arg CreatePasskeyParams) (Passkey, error) {
+	row := q.db.QueryRowContext(ctx, createPasskey,
+		arg.ID,
+		arg.UserID,
+		arg.CredentialID,
+		arg.Name,
+		arg.Credential,
+		arg.CreatedAt,
+	)
+	var i Passkey
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.CredentialID,
+		&i.Name,
+		&i.Credential,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+	)
+	return i, err
+}
+
+const createPasskeyCeremony = `-- name: CreatePasskeyCeremony :exec
+INSERT INTO passkey_ceremonies (token_hash, kind, data, expires_at) VALUES ($1, $2, $3, $4)
+`
+
+type CreatePasskeyCeremonyParams struct {
+	TokenHash string
+	Kind      string
+	Data      string
+	ExpiresAt int64
+}
+
+// unscoped: a ceremony is known only by its token, which the browser that started it keeps
+func (q *Queries) CreatePasskeyCeremony(ctx context.Context, arg CreatePasskeyCeremonyParams) error {
+	_, err := q.db.ExecContext(ctx, createPasskeyCeremony,
+		arg.TokenHash,
+		arg.Kind,
+		arg.Data,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const createSession = `-- name: CreateSession :exec
 INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)
 `
@@ -51,6 +180,38 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 	return err
 }
 
+const createSignInLink = `-- name: CreateSignInLink :exec
+INSERT INTO sign_in_links (token_hash, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)
+`
+
+type CreateSignInLinkParams struct {
+	TokenHash string
+	UserID    string
+	CreatedAt int64
+	ExpiresAt int64
+}
+
+// unscoped: sign-in links belong to users, who are instance-wide
+func (q *Queries) CreateSignInLink(ctx context.Context, arg CreateSignInLinkParams) error {
+	_, err := q.db.ExecContext(ctx, createSignInLink,
+		arg.TokenHash,
+		arg.UserID,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const deleteExpiredPasskeyCeremonies = `-- name: DeleteExpiredPasskeyCeremonies :exec
+DELETE FROM passkey_ceremonies WHERE expires_at <= $1
+`
+
+// unscoped: ceremonies are instance-wide
+func (q *Queries) DeleteExpiredPasskeyCeremonies(ctx context.Context, now int64) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredPasskeyCeremonies, now)
+	return err
+}
+
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :exec
 DELETE FROM sessions WHERE expires_at <= $1
 `
@@ -59,6 +220,34 @@ DELETE FROM sessions WHERE expires_at <= $1
 func (q *Queries) DeleteExpiredSessions(ctx context.Context, now int64) error {
 	_, err := q.db.ExecContext(ctx, deleteExpiredSessions, now)
 	return err
+}
+
+const deleteExpiredSignInLinks = `-- name: DeleteExpiredSignInLinks :exec
+DELETE FROM sign_in_links WHERE expires_at <= $1
+`
+
+// unscoped: sign-in links are instance-wide
+func (q *Queries) DeleteExpiredSignInLinks(ctx context.Context, now int64) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredSignInLinks, now)
+	return err
+}
+
+const deletePasskey = `-- name: DeletePasskey :execrows
+DELETE FROM passkeys WHERE id = $1 AND user_id = $2
+`
+
+type DeletePasskeyParams struct {
+	ID     string
+	UserID string
+}
+
+// unscoped: passkeys belong to users, who are instance-wide
+func (q *Queries) DeletePasskey(ctx context.Context, arg DeletePasskeyParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deletePasskey, arg.ID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteSession = `-- name: DeleteSession :exec
@@ -81,6 +270,16 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID string) error {
 	return err
 }
 
+const deleteUserSignInLinks = `-- name: DeleteUserSignInLinks :exec
+DELETE FROM sign_in_links WHERE user_id = $1
+`
+
+// unscoped: sign-in links belong to users, who are instance-wide
+func (q *Queries) DeleteUserSignInLinks(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, deleteUserSignInLinks, userID)
+	return err
+}
+
 const getGitHubClaim = `-- name: GetGitHubClaim :one
 SELECT value FROM kv WHERE key = $1
 `
@@ -91,6 +290,26 @@ func (q *Queries) GetGitHubClaim(ctx context.Context, key string) (string, error
 	var value string
 	err := row.Scan(&value)
 	return value, err
+}
+
+const getPasskeyByCredentialID = `-- name: GetPasskeyByCredentialID :one
+SELECT id, user_id, credential_id, name, credential, created_at, last_used_at FROM passkeys WHERE credential_id = $1
+`
+
+// unscoped: a credential ID is unique across the instance, and the passkey names the user it signs in
+func (q *Queries) GetPasskeyByCredentialID(ctx context.Context, credentialID string) (Passkey, error) {
+	row := q.db.QueryRowContext(ctx, getPasskeyByCredentialID, credentialID)
+	var i Passkey
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.CredentialID,
+		&i.Name,
+		&i.Credential,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+	)
+	return i, err
 }
 
 const getSessionUser = `-- name: GetSessionUser :one
@@ -135,6 +354,91 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 	return i, err
 }
 
+const listUserPasskeys = `-- name: ListUserPasskeys :many
+SELECT id, user_id, credential_id, name, credential, created_at, last_used_at FROM passkeys WHERE user_id = $1 ORDER BY created_at, id
+`
+
+// unscoped: passkeys belong to users, who are instance-wide
+func (q *Queries) ListUserPasskeys(ctx context.Context, userID string) ([]Passkey, error) {
+	rows, err := q.db.QueryContext(ctx, listUserPasskeys, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Passkey{}
+	for rows.Next() {
+		var i Passkey
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.CredentialID,
+			&i.Name,
+			&i.Credential,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockSetup = `-- name: LockSetup :exec
+INSERT INTO kv (key, value) VALUES ('passkey-setup', '') ON CONFLICT (key) DO UPDATE SET value = kv.value
+`
+
+// unscoped: an instance-wide key-value row that only serializes setting up the first account
+// Writing the row makes concurrent setups wait for each other on Postgres, where SQLite serializes writes anyway
+func (q *Queries) LockSetup(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, lockSetup)
+	return err
+}
+
+const renamePasskey = `-- name: RenamePasskey :execrows
+UPDATE passkeys SET name = $1 WHERE id = $2 AND user_id = $3
+`
+
+type RenamePasskeyParams struct {
+	Name   string
+	ID     string
+	UserID string
+}
+
+// unscoped: passkeys belong to users, who are instance-wide
+func (q *Queries) RenamePasskey(ctx context.Context, arg RenamePasskeyParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, renamePasskey, arg.Name, arg.ID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setLocalUserAdmin = `-- name: SetLocalUserAdmin :execrows
+UPDATE users SET is_admin = $1 WHERE id = $2 AND issuer = $3
+`
+
+type SetLocalUserAdminParams struct {
+	IsAdmin bool
+	ID      string
+	Issuer  string
+}
+
+// unscoped: users are instance-wide, and sign-in providers decide on the admins among their own accounts at every sign-in
+func (q *Queries) SetLocalUserAdmin(ctx context.Context, arg SetLocalUserAdminParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setLocalUserAdmin, arg.IsAdmin, arg.ID, arg.Issuer)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setUserDisabled = `-- name: SetUserDisabled :execrows
 UPDATE users SET disabled_at = $1 WHERE id = $2
 `
@@ -151,6 +455,97 @@ func (q *Queries) SetUserDisabled(ctx context.Context, arg SetUserDisabledParams
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const takePasskeyCeremony = `-- name: TakePasskeyCeremony :one
+DELETE FROM passkey_ceremonies WHERE token_hash = $1 AND kind = $2 AND expires_at > $3 RETURNING data
+`
+
+type TakePasskeyCeremonyParams struct {
+	TokenHash string
+	Kind      string
+	Now       int64
+}
+
+// unscoped: a ceremony is known only by its token, which the browser that started it keeps
+// Taking it deletes it, so a challenge can't be answered twice
+func (q *Queries) TakePasskeyCeremony(ctx context.Context, arg TakePasskeyCeremonyParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, takePasskeyCeremony, arg.TokenHash, arg.Kind, arg.Now)
+	var data string
+	err := row.Scan(&data)
+	return data, err
+}
+
+const takeSignInLink = `-- name: TakeSignInLink :one
+DELETE FROM sign_in_links WHERE token_hash = $1 AND expires_at > $2 RETURNING user_id
+`
+
+type TakeSignInLinkParams struct {
+	TokenHash string
+	Now       int64
+}
+
+// unscoped: a sign-in link is known only by its token
+// Taking it deletes it, so the link signs in once
+func (q *Queries) TakeSignInLink(ctx context.Context, arg TakeSignInLinkParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, takeSignInLink, arg.TokenHash, arg.Now)
+	var user_id string
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
+const touchLogin = `-- name: TouchLogin :exec
+UPDATE users SET last_login_at = $1 WHERE id = $2
+`
+
+type TouchLoginParams struct {
+	Now *int64
+	ID  string
+}
+
+// unscoped: users are instance-wide
+func (q *Queries) TouchLogin(ctx context.Context, arg TouchLoginParams) error {
+	_, err := q.db.ExecContext(ctx, touchLogin, arg.Now, arg.ID)
+	return err
+}
+
+const updateLocalUser = `-- name: UpdateLocalUser :one
+UPDATE users SET name = $1, email = $2, email_verified = CASE WHEN email = $2 THEN email_verified ELSE FALSE END WHERE id = $3 AND issuer = $4
+RETURNING id, issuer, subject, email, email_verified, name, picture, is_admin, disabled_at, last_workspace_id, created_at, last_login_at
+`
+
+type UpdateLocalUserParams struct {
+	Name   *string
+	Email  *string
+	ID     string
+	Issuer string
+}
+
+// unscoped: users are instance-wide, and only passkey accounts keep a name and email address of their own
+// A changed address loses the verification an instance admin gave it by entering it
+func (q *Queries) UpdateLocalUser(ctx context.Context, arg UpdateLocalUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateLocalUser,
+		arg.Name,
+		arg.Email,
+		arg.ID,
+		arg.Issuer,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Issuer,
+		&i.Subject,
+		&i.Email,
+		&i.EmailVerified,
+		&i.Name,
+		&i.Picture,
+		&i.IsAdmin,
+		&i.DisabledAt,
+		&i.LastWorkspaceID,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
 }
 
 const upsertUser = `-- name: UpsertUser :one
@@ -202,4 +597,21 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.LastLoginAt,
 	)
 	return i, err
+}
+
+const usePasskey = `-- name: UsePasskey :exec
+UPDATE passkeys SET credential = $1, last_used_at = $2 WHERE id = $3
+`
+
+type UsePasskeyParams struct {
+	Credential string
+	Now        *int64
+	ID         string
+}
+
+// unscoped: passkeys belong to users, who are instance-wide
+// The credential record changes at every use, such as its signature counter and backup state
+func (q *Queries) UsePasskey(ctx context.Context, arg UsePasskeyParams) error {
+	_, err := q.db.ExecContext(ctx, usePasskey, arg.Credential, arg.Now, arg.ID)
+	return err
 }

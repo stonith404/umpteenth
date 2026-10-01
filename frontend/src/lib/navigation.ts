@@ -160,6 +160,7 @@ export const segmentLabels: Record<string, string> = {
 	tokens: 'API tokens',
 	members: 'Members',
 	admin: 'Admin',
+	account: 'Account',
 	users: 'Users',
 	workspaces: 'Workspaces',
 	new: 'New job',

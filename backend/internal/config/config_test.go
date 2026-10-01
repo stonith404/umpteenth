@@ -70,6 +70,7 @@ func TestDefaultAppliesTheSchemaDefaults(t *testing.T) {
 	assert.True(t, cfg.Network.AllowPrivateTargets)
 	assert.Equal(t, 12*time.Hour, cfg.Models.CatalogRefreshInterval)
 	assert.Empty(t, cfg.Auth.Providers)
+	assert.True(t, cfg.Auth.Passkeys.Enabled)
 }
 
 func TestLoadLayersTheFileOverDefaultsAndTheEnvironmentOverTheFile(t *testing.T) {
@@ -296,6 +297,7 @@ func TestLoadRejectsMistakesInSignInProviders(t *testing.T) {
 		"admin option on oidc":    {provider("pocket-id", oidc+"      admin_users: [octocat]\n"), "auth.providers.pocket-id.admin_users (AUTH_PROVIDERS_POCKET_ID_ADMIN_USERS) only applies to github providers"},
 		"github without secret":   {provider("github", "      type: github\n      name: GitHub\n      client_id: umpteenth\n      allowed_users: [octocat]\n"), "auth.providers.github.client_secret (AUTH_PROVIDERS_GITHUB_CLIENT_SECRET) is required"},
 		"github open to everyone": {provider("github", github), "auth.providers.github.allowed_users (AUTH_PROVIDERS_GITHUB_ALLOWED_USERS) or auth.providers.github.allowed_organizations (AUTH_PROVIDERS_GITHUB_ALLOWED_ORGANIZATIONS) has to list who may sign in"},
+		"reserved id":             {provider("passkey", oidc), "auth.providers.passkey is reserved for passkeys, give the provider another ID"},
 		"two primaries":           {"auth:\n  providers:\n    a:\n" + oidc + "      primary: true\n    b:\n" + oidc + "      primary: true\n", "only one sign-in provider can be primary, but auth.providers.a.primary (AUTH_PROVIDERS_A_PRIMARY) and auth.providers.b.primary (AUTH_PROVIDERS_B_PRIMARY) both are"},
 	}
 	for name, c := range cases {

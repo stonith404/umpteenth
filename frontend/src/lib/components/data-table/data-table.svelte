@@ -123,6 +123,7 @@
 	const PAGE_SIZES = [25, 50, 100];
 	const SEARCH_DEBOUNCE_MS = 300;
 	const DEFAULT_SKELETON_ROWS = 5;
+	const SKELETON_DELAY_MS = 200;
 
 	// Rows are replaced wholesale on every fetch, so they don't need deep reactivity
 	let rows = $state.raw<TData[]>([]);
@@ -149,6 +150,10 @@
 	const someSelected = $derived(!allSelected && selectableIds.some((id) => selection.has(id)));
 	const memoryKey = untrack(() => `${page.route.id}|${urlPrefix ?? ''}|${label ?? ''}`);
 	const skeleton = untrack(() => skeletonMemory.get(memoryKey));
+
+	// Without remembered rows the table may well be empty, so a fast first load goes straight to its final view instead of flashing the toolbar and skeleton before the empty state
+	let skeletonDue = $state(!!skeleton);
+	const showContent = $derived(loaded || !!loadError || skeletonDue);
 
 	// Map between TanStack column IDs and server sort keys in both directions
 	const sortKeys = $derived.by(() => {
@@ -328,12 +333,22 @@
 		});
 	});
 
+	// A slow first load still gets its skeleton, just late enough that a fast one never shows it
+	$effect(() => {
+		if (skeletonDue) return;
+		const timer = setTimeout(() => (skeletonDue = true), SKELETON_DELAY_MS);
+		return () => clearTimeout(timer);
+	});
+
 	// Remember how the loaded rows look, so the next visit's skeleton has the same height and count
+	// A table found empty is forgotten, so its next visit waits for the data instead of showing rows it no longer has
 	$effect(() => {
 		const count = rows.length;
 		const firstRow = bodyRef?.querySelector<HTMLElement>('tr[data-row-id]');
 		if (count > 0 && firstRow) {
 			skeletonMemory.set(memoryKey, { height: firstRow.offsetHeight, count });
+		} else if (isEmpty) {
+			skeletonMemory.delete(memoryKey);
 		}
 	});
 
@@ -554,265 +569,274 @@
 {/snippet}
 
 <!-- A flush table takes the gutter and the corner radius of the card around it, the gutter being smaller in a small card -->
-<div class={cn('flex flex-col gap-3', flush && 'table-gutter rounded-inherit')}>
-	{#if showToolbar}
-		<!-- Everything shares one row where it fits, and the search gives up width before a filter wraps -->
-		<!-- On phones the search keeps the first row with the actions, and filters that don't fit beside it get one row of their own that scrolls sideways -->
-		<div
-			class={cn(
-				'flex flex-wrap items-center gap-2',
-				flush && 'px-(--table-gutter) pt-(--table-gutter)'
-			)}
-		>
-			{#if selection.size > 0}
-				<!-- The selection takes over the toolbar, so its actions sit where the eye already is and the filters can't change the rows underneath it -->
-				<div class="flex min-h-9 w-full flex-wrap items-center gap-2">
-					<span class="text-sm font-medium" aria-live="polite">{selection.size} selected</span>
-					<Button variant="ghost" onclick={clearSelection}>
-						Clear selection
-						<XIcon data-icon="inline-end" />
-					</Button>
-					{#if selectionActions}
-						<div class="ml-auto flex shrink-0 items-center gap-2">
-							{@render selectionActions([...selection])}
+{#if showContent}
+	<div class={cn('flex flex-col gap-3', flush && 'table-gutter rounded-inherit')}>
+		{#if showToolbar}
+			<!-- Everything shares one row where it fits, and the search gives up width before a filter wraps -->
+			<!-- On phones the search keeps the first row with the actions, and filters that don't fit beside it get one row of their own that scrolls sideways -->
+			<div
+				class={cn(
+					'flex flex-wrap items-center gap-2',
+					flush && 'px-(--table-gutter) pt-(--table-gutter)'
+				)}
+			>
+				{#if selection.size > 0}
+					<!-- The selection takes over the toolbar, so its actions sit where the eye already is and the filters can't change the rows underneath it -->
+					<div class="flex min-h-9 w-full flex-wrap items-center gap-2">
+						<span class="text-sm font-medium" aria-live="polite">{selection.size} selected</span>
+						<Button variant="ghost" onclick={clearSelection}>
+							Clear selection
+							<XIcon data-icon="inline-end" />
+						</Button>
+						{#if selectionActions}
+							<div class="ml-auto flex shrink-0 items-center gap-2">
+								{@render selectionActions([...selection])}
+							</div>
+						{/if}
+					</div>
+				{:else}
+					{#if showSearch}
+						<InputGroup.Root
+							class="order-1 w-auto min-w-0 grow basis-36 sm:order-none sm:max-w-64 sm:basis-48"
+						>
+							<InputGroup.Addon>
+								<SearchIcon />
+							</InputGroup.Addon>
+							<InputGroup.Input
+								type="search"
+								class="[&::-webkit-search-cancel-button]:hidden"
+								placeholder={searchPlaceholder}
+								aria-label={searchPlaceholder}
+								value={searchInput}
+								oninput={(e) => onSearchInput(e.currentTarget.value)}
+								onkeydown={(e) => e.key === 'Escape' && clearSearch()}
+							/>
+							{#if searchInput}
+								<InputGroup.Addon align="inline-end">
+									<InputGroup.Button size="icon-xs" aria-label="Clear search" onclick={clearSearch}>
+										<XIcon />
+									</InputGroup.Button>
+								</InputGroup.Addon>
+							{/if}
+						</InputGroup.Root>
+					{/if}
+					{#if showFilters}
+						<!-- From sm up this row and its scroller dissolve into the toolbar, so filters wrap one by one instead of dropping below the search as a block -->
+						<div class="order-3 flex min-w-0 items-center gap-2 sm:order-none sm:contents">
+							<!-- The padding keeps the focus rings clear of the scroller's clipping edge -->
+							<div
+								class="-m-0.5 flex min-w-0 items-center gap-2 overflow-x-auto p-0.5 scrollbar-none *:shrink-0 max-sm:scroll-fade-x sm:contents [&::-webkit-scrollbar]:hidden"
+							>
+								{#each filters as filter, i (filter.key)}
+									{#if i < filters.length - 1}
+										{@render filterControl(filter)}
+									{:else}
+										<!-- The last filter and Reset wrap as one, so Reset never lands on a row of its own -->
+										<div class="flex items-center gap-2">
+											{@render filterControl(filter)}
+											{#if showReset}
+												<Button variant="ghost" class="hidden sm:inline-flex" onclick={resetView}>
+													Reset
+													<XIcon data-icon="inline-end" />
+												</Button>
+											{/if}
+										</div>
+									{/if}
+								{/each}
+							</div>
+							<!-- On phones Reset shrinks to its icon and stays outside the scroller, so it fits beside a short filter and stays in view however far the filters scroll -->
+							{#if showReset}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="sm:hidden"
+									aria-label="Reset"
+									onclick={resetView}
+								>
+									<XIcon />
+								</Button>
+							{/if}
 						</div>
 					{/if}
-				</div>
-			{:else}
-				{#if showSearch}
-					<InputGroup.Root
-						class="order-1 w-auto min-w-0 grow basis-36 sm:order-none sm:max-w-64 sm:basis-48"
-					>
-						<InputGroup.Addon>
-							<SearchIcon />
-						</InputGroup.Addon>
-						<InputGroup.Input
-							type="search"
-							class="[&::-webkit-search-cancel-button]:hidden"
-							placeholder={searchPlaceholder}
-							aria-label={searchPlaceholder}
-							value={searchInput}
-							oninput={(e) => onSearchInput(e.currentTarget.value)}
-							onkeydown={(e) => e.key === 'Escape' && clearSearch()}
-						/>
-						{#if searchInput}
-							<InputGroup.Addon align="inline-end">
-								<InputGroup.Button size="icon-xs" aria-label="Clear search" onclick={clearSearch}>
-									<XIcon />
-								</InputGroup.Button>
-							</InputGroup.Addon>
-						{/if}
-					</InputGroup.Root>
-				{/if}
-				{#if showFilters}
-					<!-- From sm up this row and its scroller dissolve into the toolbar, so filters wrap one by one instead of dropping below the search as a block -->
-					<div class="order-3 flex min-w-0 items-center gap-2 sm:order-none sm:contents">
-						<!-- The padding keeps the focus rings clear of the scroller's clipping edge -->
+					{#if actions}
+						<!-- Hidden until the snippet renders an element, since a snippet that renders nothing still leaves whitespace that would take a gap -->
 						<div
-							class="-m-0.5 flex min-w-0 items-center gap-2 overflow-x-auto p-0.5 scrollbar-none *:shrink-0 max-sm:scroll-fade-x sm:contents [&::-webkit-scrollbar]:hidden"
+							class="order-2 ml-auto hidden shrink-0 items-center gap-2 has-[*]:flex sm:order-none"
 						>
-							{#each filters as filter, i (filter.key)}
-								{#if i < filters.length - 1}
-									{@render filterControl(filter)}
-								{:else}
-									<!-- The last filter and Reset wrap as one, so Reset never lands on a row of its own -->
-									<div class="flex items-center gap-2">
-										{@render filterControl(filter)}
-										{#if showReset}
-											<Button variant="ghost" class="hidden sm:inline-flex" onclick={resetView}>
-												Reset
-												<XIcon data-icon="inline-end" />
-											</Button>
-										{/if}
-									</div>
-								{/if}
-							{/each}
+							{@render actions()}
 						</div>
-						<!-- On phones Reset shrinks to its icon and stays outside the scroller, so it fits beside a short filter and stays in view however far the filters scroll -->
-						{#if showReset}
-							<Button
-								variant="ghost"
-								size="icon"
-								class="sm:hidden"
-								aria-label="Reset"
-								onclick={resetView}
-							>
-								<XIcon />
-							</Button>
-						{/if}
-					</div>
+					{/if}
 				{/if}
-				{#if actions}
-					<!-- Hidden until the snippet renders an element, since a snippet that renders nothing still leaves whitespace that would take a gap -->
-					<div
-						class="order-2 ml-auto hidden shrink-0 items-center gap-2 has-[*]:flex sm:order-none"
-					>
-						{@render actions()}
-					</div>
+			</div>
+		{/if}
+
+		<!-- A flush frame clips to the card's rounded corners where it reaches them, so the opaque cells of a pinned column don't square them off -->
+		<div
+			class={cn(
+				'min-w-0',
+				!flush && 'bg-card ring-border overflow-hidden rounded-lg shadow-xs ring-1',
+				flush && 'overflow-hidden',
+				flush && !showToolbar && 'rounded-t-inherit',
+				flush && !showPagination && 'rounded-b-inherit'
+			)}
+		>
+			{#if isEmpty}
+				{@render empty()}
+			{:else}
+				<Table.Root
+					bind:ref={tableRef}
+					class="isolate"
+					{flush}
+					aria-label={label}
+					aria-busy={loading}
+				>
+					<Table.Header>
+						{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
+							<Table.Row>
+								{#if selectable}
+									<Table.Head class="w-0">
+										<Checkbox
+											aria-label="Select all rows"
+											checked={allSelected}
+											indeterminate={someSelected}
+											disabled={selectableIds.length === 0}
+											onCheckedChange={(checked) => toggleAll(checked)}
+										/>
+									</Table.Head>
+								{/if}
+								{#each headerGroup.headers as header (header.id)}
+									{@const def = header.column.columnDef}
+									<Table.Head
+										colspan={header.colSpan}
+										aria-sort={ariaSort(header.column.getIsSorted())}
+										class={cn(
+											'group/th',
+											columnClass(header.column),
+											headerWidthClass(header.column),
+											pinnedClass(header.column, 'head'),
+											def.meta?.headerClass
+										)}
+									>
+										{#if !header.isPlaceholder}
+											{#if header.column.getCanSort() && typeof def.header === 'string'}
+												<DataTableSortHeader
+													column={header.column}
+													label={def.header}
+													align={alignOf(header.column)}
+												/>
+											{:else}
+												<FlexRender content={def.header} context={header.getContext()} />
+											{/if}
+										{/if}
+									</Table.Head>
+								{/each}
+							</Table.Row>
+						{/each}
+					</Table.Header>
+					<Table.Body bind:ref={bodyRef} busy={loading && loaded}>
+						{#if !loaded && !loadError}
+							{@const count = skeleton?.count ?? Math.min(urlState.pageSize, DEFAULT_SKELETON_ROWS)}
+							{#each Array.from({ length: count }, (_, i) => i) as i (i)}
+								<Table.Row
+									data-skeleton
+									class={skeleton ? 'h-(--skeleton-row-height)' : skeletonRowClass}
+									style={skeleton ? `--skeleton-row-height: ${skeleton.height}px` : undefined}
+								>
+									{#if selectable}
+										<Table.Cell class="w-0">
+											<Skeleton radius="sm" class="size-4" />
+										</Table.Cell>
+									{/if}
+									{#each table.getVisibleLeafColumns() as column (column.id)}
+										<Table.Cell
+											class={cn(
+												columnClass(column),
+												pinnedClass(column, 'cell'),
+												column.columnDef.meta?.cellClass
+											)}
+										>
+											{#if isPinned(column)}
+												<!-- Holds the actions column open at the width of the '⋯' button, so no column shifts when the rows arrive -->
+												<div aria-hidden="true" class="invisible -my-2 ml-auto size-8"></div>
+											{:else}
+												<Skeleton
+													radius="sm"
+													class={cn(
+														'inline-block h-3.5 w-full max-w-40 align-middle',
+														i % 2 === 1 && 'max-w-28'
+													)}
+												/>
+											{/if}
+										</Table.Cell>
+									{/each}
+								</Table.Row>
+							{/each}
+						{:else if loaded && rows.length > 0}
+							{#each table.getRowModel().rows as row (row.id)}
+								{@const rowSelectable = canSelect?.(row.original) ?? true}
+								<Table.Row
+									data-row-id={row.id}
+									data-state={selection.has(row.id) ? 'selected' : undefined}
+									{clickable}
+									class={cn((clickable || selectable) && 'group/row')}
+									onclick={(e) => handleRowClick(e, row.original)}
+									onauxclick={(e) => e.button === 1 && handleRowClick(e, row.original)}
+								>
+									{#if selectable}
+										<Table.Cell class="w-0">
+											<Checkbox
+												aria-label={`Select ${rowLabel?.(row.original) ?? 'row'}`}
+												checked={selection.has(row.id)}
+												disabled={!rowSelectable}
+												onCheckedChange={(checked) => toggleRow(row.id, checked)}
+											/>
+										</Table.Cell>
+									{/if}
+									{#each row.getVisibleCells() as cell (cell.id)}
+										<Table.Cell
+											class={cn(
+												'[&>*]:align-middle',
+												columnClass(cell.column),
+												pinnedClass(cell.column, 'cell'),
+												cell.column.columnDef.meta?.cellClass
+											)}
+										>
+											<FlexRender
+												content={cell.column.columnDef.cell}
+												context={cell.getContext()}
+											/>
+										</Table.Cell>
+									{/each}
+								</Table.Row>
+							{/each}
+						{/if}
+					</Table.Body>
+				</Table.Root>
+
+				<!-- Messages sit below the header rather than in a spanning cell, so they are sized to the frame instead of a table that scrolls sideways -->
+				{#if !loaded && loadError}
+					{@render stateBlock(
+						getErrorMessage(loadError, 'Failed to load data'),
+						'Try again',
+						refresh,
+						loading
+					)}
+				{:else if noResults}
+					{@render stateBlock(
+						'No results match your search or filters',
+						'Clear filters',
+						resetView
+					)}
 				{/if}
 			{/if}
 		</div>
-	{/if}
 
-	<!-- A flush frame clips to the card's rounded corners where it reaches them, so the opaque cells of a pinned column don't square them off -->
-	<div
-		class={cn(
-			'min-w-0',
-			!flush && 'bg-card ring-border overflow-hidden rounded-lg shadow-xs ring-1',
-			flush && 'overflow-hidden',
-			flush && !showToolbar && 'rounded-t-inherit',
-			flush && !showPagination && 'rounded-b-inherit'
-		)}
-	>
-		{#if isEmpty}
-			{@render empty()}
-		{:else}
-			<Table.Root
-				bind:ref={tableRef}
-				class="isolate"
-				{flush}
-				aria-label={label}
-				aria-busy={loading}
-			>
-				<Table.Header>
-					{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
-						<Table.Row>
-							{#if selectable}
-								<Table.Head class="w-0">
-									<Checkbox
-										aria-label="Select all rows"
-										checked={allSelected}
-										indeterminate={someSelected}
-										disabled={selectableIds.length === 0}
-										onCheckedChange={(checked) => toggleAll(checked)}
-									/>
-								</Table.Head>
-							{/if}
-							{#each headerGroup.headers as header (header.id)}
-								{@const def = header.column.columnDef}
-								<Table.Head
-									colspan={header.colSpan}
-									aria-sort={ariaSort(header.column.getIsSorted())}
-									class={cn(
-										'group/th',
-										columnClass(header.column),
-										headerWidthClass(header.column),
-										pinnedClass(header.column, 'head'),
-										def.meta?.headerClass
-									)}
-								>
-									{#if !header.isPlaceholder}
-										{#if header.column.getCanSort() && typeof def.header === 'string'}
-											<DataTableSortHeader
-												column={header.column}
-												label={def.header}
-												align={alignOf(header.column)}
-											/>
-										{:else}
-											<FlexRender content={def.header} context={header.getContext()} />
-										{/if}
-									{/if}
-								</Table.Head>
-							{/each}
-						</Table.Row>
-					{/each}
-				</Table.Header>
-				<Table.Body bind:ref={bodyRef} busy={loading && loaded}>
-					{#if !loaded && !loadError}
-						{@const count = skeleton?.count ?? Math.min(urlState.pageSize, DEFAULT_SKELETON_ROWS)}
-						{#each Array.from({ length: count }, (_, i) => i) as i (i)}
-							<Table.Row
-								data-skeleton
-								class={skeleton ? 'h-(--skeleton-row-height)' : skeletonRowClass}
-								style={skeleton ? `--skeleton-row-height: ${skeleton.height}px` : undefined}
-							>
-								{#if selectable}
-									<Table.Cell class="w-0">
-										<Skeleton radius="sm" class="size-4" />
-									</Table.Cell>
-								{/if}
-								{#each table.getVisibleLeafColumns() as column (column.id)}
-									<Table.Cell
-										class={cn(
-											columnClass(column),
-											pinnedClass(column, 'cell'),
-											column.columnDef.meta?.cellClass
-										)}
-									>
-										{#if isPinned(column)}
-											<!-- Holds the actions column open at the width of the '⋯' button, so no column shifts when the rows arrive -->
-											<div aria-hidden="true" class="invisible -my-2 ml-auto size-8"></div>
-										{:else}
-											<Skeleton
-												radius="sm"
-												class={cn(
-													'inline-block h-3.5 w-full max-w-40 align-middle',
-													i % 2 === 1 && 'max-w-28'
-												)}
-											/>
-										{/if}
-									</Table.Cell>
-								{/each}
-							</Table.Row>
-						{/each}
-					{:else if loaded && rows.length > 0}
-						{#each table.getRowModel().rows as row (row.id)}
-							{@const rowSelectable = canSelect?.(row.original) ?? true}
-							<Table.Row
-								data-row-id={row.id}
-								data-state={selection.has(row.id) ? 'selected' : undefined}
-								{clickable}
-								class={cn((clickable || selectable) && 'group/row')}
-								onclick={(e) => handleRowClick(e, row.original)}
-								onauxclick={(e) => e.button === 1 && handleRowClick(e, row.original)}
-							>
-								{#if selectable}
-									<Table.Cell class="w-0">
-										<Checkbox
-											aria-label={`Select ${rowLabel?.(row.original) ?? 'row'}`}
-											checked={selection.has(row.id)}
-											disabled={!rowSelectable}
-											onCheckedChange={(checked) => toggleRow(row.id, checked)}
-										/>
-									</Table.Cell>
-								{/if}
-								{#each row.getVisibleCells() as cell (cell.id)}
-									<Table.Cell
-										class={cn(
-											'[&>*]:align-middle',
-											columnClass(cell.column),
-											pinnedClass(cell.column, 'cell'),
-											cell.column.columnDef.meta?.cellClass
-										)}
-									>
-										<FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
-									</Table.Cell>
-								{/each}
-							</Table.Row>
-						{/each}
-					{/if}
-				</Table.Body>
-			</Table.Root>
-
-			<!-- Messages sit below the header rather than in a spanning cell, so they are sized to the frame instead of a table that scrolls sideways -->
-			{#if !loaded && loadError}
-				{@render stateBlock(
-					getErrorMessage(loadError, 'Failed to load data'),
-					'Try again',
-					refresh,
-					loading
-				)}
-			{:else if noResults}
-				{@render stateBlock('No results match your search or filters', 'Clear filters', resetView)}
-			{/if}
+		{#if showPagination}
+			<DataTablePagination
+				{table}
+				pageSizes={PAGE_SIZES}
+				class={cn(flush && 'px-(--table-gutter) pb-(--table-gutter)')}
+			/>
 		{/if}
 	</div>
-
-	{#if showPagination}
-		<DataTablePagination
-			{table}
-			pageSizes={PAGE_SIZES}
-			class={cn(flush && 'px-(--table-gutter) pb-(--table-gutter)')}
-		/>
-	{/if}
-</div>
+{/if}

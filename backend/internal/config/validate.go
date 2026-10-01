@@ -125,6 +125,11 @@ func (a Auth) validate() error {
 	for _, id := range slices.Sorted(maps.Keys(a.Providers)) {
 		p := a.Providers[id]
 		key := "auth.providers." + id
+
+		// Sessions and the login page tell passkey accounts apart by this ID
+		if id == PasskeyProviderID {
+			return fmt.Errorf("%s is reserved for passkeys, give the provider another ID", key)
+		}
 		p.Type = strings.ToLower(p.Type)
 
 		switch p.Type {

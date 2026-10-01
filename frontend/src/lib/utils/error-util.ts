@@ -1,6 +1,7 @@
 import { goto } from '$app/navigation';
 import { ApiError, isApiError } from '$lib/api/api-error';
 import ErrorToastDescription from '$lib/components/error-toast-description.svelte';
+import { PasskeyError } from '$lib/utils/passkey-util';
 import { LOGIN_PATH, loginUrl } from '$lib/utils/redirection-util';
 import { enterWorkspace } from '$lib/utils/workspace-util';
 import { toast } from 'svelte-sonner';
@@ -20,6 +21,7 @@ const codeMessages: Record<string, string> = {
 	rate_limited: 'Too many requests, please wait a moment and try again',
 	login_not_configured: 'Sign-in is not configured on this server',
 	login_failed: 'Sign-in failed, please try again',
+	passkey_failed: 'The passkey could not be verified, please try again',
 	unavailable: 'The service is temporarily unavailable, please try again'
 };
 
@@ -34,6 +36,10 @@ const loginErrorMessages: Record<string, string> = {
 
 // Returns a message that is safe and useful to show to the user
 export function getErrorMessage(e: unknown, defaultMessage = DEFAULT_MESSAGE): string {
+	// The browser's passkey prompt fails without a request, and its error is worded for people already
+	if (e instanceof PasskeyError) {
+		return e.message;
+	}
 	if (!(e instanceof ApiError)) {
 		return defaultMessage;
 	}

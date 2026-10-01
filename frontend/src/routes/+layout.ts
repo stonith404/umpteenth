@@ -3,7 +3,12 @@ import type { User } from '$lib/api/types';
 import { setShownWorkspace } from '$lib/services/api-service';
 import UserService from '$lib/services/user-service';
 import { rememberLoginProvider } from '$lib/utils/login-provider-util';
-import { LOGIN_PATH, loginUrl, safeRedirectPath } from '$lib/utils/redirection-util';
+import {
+	LOGIN_PATH,
+	SIGN_IN_LINK_PATH,
+	loginUrl,
+	safeRedirectPath
+} from '$lib/utils/redirection-util';
 import { tryCatch } from '$lib/utils/try-catch-util';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
@@ -32,7 +37,9 @@ export const load: LayoutLoad = async ({
 	const result = await tryCatch(new UserService(fetch).me());
 	if (result.error) {
 		if (!isApiError(result.error, 'not_signed_in', 'invalid_token')) throw result.error;
-		if (!isLoginPage) redirect(307, loginUrl(pathname + search));
+		if (!isLoginPage && !pathname.startsWith(SIGN_IN_LINK_PATH)) {
+			redirect(307, loginUrl(pathname + search));
+		}
 		return { user: null };
 	}
 

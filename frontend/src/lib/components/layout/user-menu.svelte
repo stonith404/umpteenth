@@ -11,6 +11,7 @@
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
+	import UserIcon from '@lucide/svelte/icons/user';
 
 	let { user }: { user: User } = $props();
 
@@ -69,6 +70,17 @@
 		</DropdownMenu.Label>
 		<DropdownMenu.Separator />
 		<DropdownMenu.Group>
+			<!-- Only passkey accounts keep a profile and passkeys of their own, sign-in providers manage the others -->
+			{#if user.passkeyAccount}
+				<DropdownMenu.Item>
+					{#snippet child({ props })}
+						<a href="/account" {...props}>
+							<UserIcon />
+							Account
+						</a>
+					{/snippet}
+				</DropdownMenu.Item>
+			{/if}
 			<DropdownMenu.Item>
 				{#snippet child({ props })}
 					<a href={DOCS_URL} target="_blank" rel="noopener" {...props}>

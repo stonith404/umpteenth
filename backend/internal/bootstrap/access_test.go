@@ -29,6 +29,9 @@ var (
 var operationAccess = map[string]httpserver.Access{
 	// Signing in, and everything anyone signed in may do with their own session
 	"list-login-providers": anyone, "login": anyone, "login-callback": anyone, "logout": anyone, "get-current-user": anyone,
+	"get-setup": anyone, "begin-passkey-sign-in": anyone, "passkey-sign-in": anyone, "begin-passkey-sign-up": anyone, "passkey-sign-up": anyone, "use-sign-in-link": anyone,
+	"update-my-profile": anyWorkspace, "list-my-passkeys": anyWorkspace, "begin-add-passkey": anyWorkspace, "add-passkey": anyWorkspace,
+	"rename-passkey": anyWorkspace, "delete-passkey": anyWorkspace,
 	"list-my-workspaces": session, "create-workspace": anyWorkspace, "switch-workspace": anyWorkspace,
 	"lookup-invite": anyWorkspace, "accept-invite": anyWorkspace, "leave-workspace": session,
 
@@ -38,7 +41,7 @@ var operationAccess = map[string]httpserver.Access{
 	"list-workspace-invites": adminSession, "create-workspace-invite": adminSession, "delete-workspace-invite": adminSession,
 
 	// Instance administration
-	"list-users": instanceAdmin, "update-user": instanceAdmin, "list-all-workspaces": instanceAdmin, "delete-any-workspace": instanceAdmin,
+	"list-users": instanceAdmin, "update-user": instanceAdmin, "create-user": instanceAdmin, "create-sign-in-link": instanceAdmin, "list-all-workspaces": instanceAdmin, "delete-any-workspace": instanceAdmin,
 
 	// API tokens act with their creator's role, and only a session can mint or revoke them
 	"list-api-tokens": anyone, "create-api-token": session, "delete-api-token": session,

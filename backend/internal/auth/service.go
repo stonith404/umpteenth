@@ -13,6 +13,8 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/go-webauthn/webauthn/webauthn"
+
 	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/auth/authdb"
 	"github.com/stonith404/umpteenth/backend/internal/database"
@@ -28,6 +30,8 @@ type Service struct {
 	appURL     string
 	codec      *cookieCodec
 	workspaces WorkspaceResolver
+	// rp checks passkeys, and is nil while passkeys are turned off
+	rp *webauthn.WebAuthn
 
 	// providers are in the order of the login page
 	providers []configuredProvider
@@ -41,6 +45,13 @@ type configuredProvider struct {
 
 func newService(db *database.DB, cfg Config, codec *cookieCodec, workspaces WorkspaceResolver) (*Service, error) {
 	s := &Service{db: db, queries: authdb.New(db), appURL: cfg.AppURL, codec: codec, workspaces: workspaces}
+	if cfg.Passkeys {
+		rp, err := newRelyingParty(cfg.AppURL)
+		if err != nil {
+			return nil, err
+		}
+		s.rp = rp
+	}
 	for _, pc := range cfg.Providers {
 		p, err := newProvider(pc, s.queries)
 		if err != nil {
@@ -148,8 +159,12 @@ func (s *Service) signIn(ctx context.Context, account identity, providerID, redi
 	if err != nil {
 		return http.Cookie{}, "", err
 	}
+	return s.startLogin(ctx, user, providerID, redirect)
+}
 
-	// A deactivated user stays locked out whatever the provider says
+// startLogin starts the session of a user who just proved who they are, in the workspace they land in, and returns where the browser goes next
+func (s *Service) startLogin(ctx context.Context, user authdb.User, providerID, redirect string) (http.Cookie, string, error) {
+	// A deactivated user stays locked out whatever the provider or passkey says
 	if user.DisabledAt != nil {
 		return http.Cookie{}, "", apperror.AccountDisabled()
 	}

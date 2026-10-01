@@ -71,7 +71,7 @@ func TestReactivatingAUserDoesntBringBackTheirSessions(t *testing.T) {
 	admin := principal.WithPrincipal(t.Context(), principal.Principal{UserID: "instance-admin", InstanceAdmin: true})
 	for _, deactivated := range []bool{true, false} {
 		in := &updateUserInput{ID: p.UserID}
-		in.Body.Deactivated = deactivated
+		in.Body.Deactivated = &deactivated
 		_, err = s.auth.handler.updateUser(admin, in)
 		require.NoError(t, err)
 	}

@@ -5,7 +5,7 @@
 	import type { FormInput } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
 	import { untrack, type Snippet } from 'svelte';
-	import type { HTMLAttributes } from 'svelte/elements';
+	import type { HTMLAttributes, HTMLInputAttributes } from 'svelte/elements';
 
 	type WithoutChildren = {
 		children?: undefined;
@@ -31,6 +31,7 @@
 		step,
 		futureOnly = false,
 		optional,
+		autocomplete,
 		class: className,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> &
@@ -46,6 +47,8 @@
 			futureOnly?: boolean;
 			// Shows '(optional)' after the label, by default for inputs whose schema accepts an empty value
 			optional?: boolean;
+			// Tells the browser what to fill in, such as name or email on a sign-up form
+			autocomplete?: HTMLInputAttributes['autocomplete'];
 		} = $props();
 
 	const id = $props.id();
@@ -97,6 +100,7 @@
 					{placeholder}
 					{type}
 					{step}
+					{autocomplete}
 					bind:value={
 						() => input.value as string | number | undefined, (value) => (input.value = value)
 					}

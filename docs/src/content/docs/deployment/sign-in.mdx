@@ -1,23 +1,64 @@
 ---
 title: Sign-in
-seoTitle: Sign-in with OpenID Connect or GitHub
-description: Let your team sign in to Umpteenth through an OpenID Connect provider such as Pocket ID or Keycloak, or with GitHub accounts, and limit who gets in.
+seoTitle: Sign-in with passkeys, OpenID Connect or GitHub
+description: Let your team sign in to Umpteenth with passkeys, an OpenID Connect provider such as Pocket ID or Authentik, or GitHub accounts, and limit who gets in.
 ---
 
 import { Steps } from '@astrojs/starlight/components';
 
-Umpteenth has no passwords of its own, so you sign in through an OpenID Connect identity provider or with a GitHub account.
-Each way to sign in is a provider under `auth.providers` in `config.yml`, and the login page shows a button for each one.
-Every provider option also takes an environment variable, such as `AUTH_PROVIDERS_GITHUB_CLIENT_SECRET`, and [Configuration](../configuration/#sign-in) lists them all.
+Umpteenth has no passwords, so you sign in with a passkey, through an OpenID Connect identity provider, or with a GitHub account.
+Passkeys work without any setup.
+Each identity provider or GitHub app is a provider under `auth.providers` in `config.yml`, and the login page shows a button for each one next to **Sign in with a passkey**.
+Every option also takes an environment variable, such as `AUTH_PROVIDERS_GITHUB_CLIENT_SECRET`, and [Configuration](../configuration/#sign-in) lists them all.
 
-## Pick a provider
+## Pick a way to sign in
 
-- If you run an identity provider such as Authentik, Keycloak or Zitadel, connect it through [OpenID Connect](#openid-connect).
-- If you don't have one yet, install [Pocket ID](https://github.com/pocket-id/pocket-id), a small OpenID Connect provider that runs in Docker next to Umpteenth, and connect it the same way.
-  It needs its own HTTPS address that both your browser and the Umpteenth container reach.
-- To try Umpteenth on your own machine, or if you'd rather not host an identity provider, [sign in with GitHub](#github).
+- To start without hosting anything else, use [passkeys](#passkeys), which your password manager, phone or security key keeps.
+- If you run an identity provider such as [Pocket ID](https://pocket-id.org) or Authentik connect it through [OpenID Connect](#openid-connect), so it decides who gets in.
+- If your team lives on GitHub, [sign in with GitHub](#github) and list the accounts or organizations that may.
 
-You can offer several at once, as [Several providers](#several-providers) shows.
+Passkeys and providers work side by side, as [Several providers](#several-providers) shows.
+
+## Passkeys
+
+A passkey account belongs to Umpteenth itself, with a name and an optional email address that you keep up to date yourself.
+Your browser creates the passkey and binds it to the host of `app.url`, so open Umpteenth at that address, over HTTPS or at `localhost`.
+Browsers refuse passkeys on plain HTTP anywhere else, and on an IP address such as `http://192.168.1.10:8080`.
+
+### The first account
+
+Until anyone has an account, the login page reads **Set up Umpteenth**.
+Enter a **Name** and an **Email**, which can stay empty, and click **Create account with a passkey**.
+Your browser asks where to save the passkey, and you land on the dashboard as an instance admin who owns the workspace.
+
+:::caution[Set up right after the first start]
+Whoever opens a fresh instance first becomes its admin.
+Create your account before you open the instance to anyone else, or turn passkeys off with `auth.passkeys.enabled: false` and sign in through a provider.
+:::
+
+The first sign-in through a provider closes the setup too, since the instance has a user from then on.
+
+### Add people
+
+After the first account, people get a passkey account in one of two ways:
+
+- An instance admin clicks **Add user** under **Admin → Users**, enters a **Name** and an **Email**, which can stay empty, and ticks **Instance admin** for another admin.
+  Umpteenth shows a sign-in link once, which signs the person in a single time within 24 hours.
+  They land on their **Account** page, where **Add passkey** creates the passkey they sign in with from then on.
+- With [workspaces](../../guides/workspaces/#invite-people) on, an invite link takes someone without an account to the login page, where **Create an account** creates a passkey account that joins the workspace.
+
+An address an admin types into **Add user** counts as verified, so email invites to it reach the account.
+Addresses people enter themselves don't, so invite them with a link.
+Anyone else who tries to sign up gets "Ask an instance admin for an account, or for an invite to a workspace".
+
+### Manage passkeys
+
+Open **Account** in the account menu at the top right to change your name and email address and to manage your passkeys.
+Add one per device or password manager with **Add passkey**, and give it a clearer name with **Rename** in its **⋯** menu.
+**Remove** deletes a passkey, and your last one stays, so you never lock yourself out.
+
+If someone loses every passkey, an instance admin clicks **Create sign-in link** in that user's **⋯** menu under **Admin → Users** and sends them the new link.
+A new link replaces the ones before it.
 
 ## OpenID Connect
 
@@ -124,14 +165,17 @@ auth:
       allowed_organizations: [acme]
 ```
 
-The primary provider gets the large button at the top of the login page, and the others follow below it.
+The primary provider gets the large button at the top of the login page, and the others follow below it, with **Sign in with a passkey** last.
+Without any provider, the passkey button is the large one.
+Passkeys use the provider ID `passkey`, so no provider can have it.
 
-Umpteenth tells users apart by the account they sign in with, so a person who signs in through Pocket ID and through GitHub becomes two users.
+Umpteenth tells users apart by the account they sign in with, so a person who signs in through Pocket ID and through GitHub becomes two users, and a passkey account is a third.
 
 ## Instance admins
 
 Instance admins see every user and workspace of the instance and can deactivate users, as [Workspaces](../../guides/workspaces/#instance-admins) describes.
-Name them in the options of the provider they sign in with: `admin_groups` on an `oidc` provider, and `admin_users` or `admin_organizations` on a `github` provider.
+The first passkey account is one, and an instance admin makes other passkey accounts admins with **Make instance admin** in their **⋯** menu under **Admin → Users**.
+For people who sign in through a provider, name them in that provider's options: `admin_groups` on an `oidc` provider, and `admin_users` or `admin_organizations` on a `github` provider.
 
 ```yaml title="config.yml"
 auth:
@@ -145,4 +189,4 @@ auth:
 ```
 
 Admins get in even when the allow lists leave them out.
-Umpteenth checks the admin lists at every sign-in, so a change takes effect the next time that person signs in.
+Umpteenth checks the admin lists at every sign-in, so a change takes effect the next time that person signs in, and **Admin → Users** offers no admin switch for these accounts.

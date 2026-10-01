@@ -20,6 +20,8 @@ type WorkspaceResolver interface {
 	ResolveLogin(ctx context.Context, info workspaces.LoginInfo) (workspaceID, redirect string, err error)
 	Access(ctx context.Context, workspaceID, userID string) (workspaces.Access, error)
 	Get(ctx context.Context, workspaceID string) (workspaces.Summary, error)
+	// CheckInvite fails unless an invite link can still be accepted, which lets someone without an account sign up with a passkey
+	CheckInvite(ctx context.Context, token string) error
 	Enabled() bool
 }
 
@@ -32,6 +34,8 @@ type UsageUnits interface {
 type Config struct {
 	AppURL    string
 	Providers []ProviderConfig
+	// Passkeys lets people sign in with passkeys of accounts that belong to no sign-in provider
+	Passkeys bool
 }
 
 // ProviderConfig is a way users can sign in, whose Type picks the implementation
@@ -93,10 +97,29 @@ func (m *Module) RegisterRoutes(api huma.API, auth, loginRateLimit huma.Middlewa
 	httpserver.Register(api, httpserver.Operation("logout", http.MethodPost, "/api/auth/logout", "Auth"), nil, m.handler.logout)
 	httpserver.Register(api, httpserver.Operation("get-current-user", http.MethodGet, "/api/users/me", "Auth"), auth, m.handler.me)
 
+	// Passkey sign-ins happen in the page, so they answer with where to go instead of redirecting
+	httpserver.Register(api, httpserver.Operation("get-setup", http.MethodGet, "/api/auth/setup", "Auth"), nil, m.handler.getSetup)
+	httpserver.Register(api, httpserver.Operation("begin-passkey-sign-in", http.MethodPost, "/api/auth/passkey/sign-in/options", "Auth"), loginRateLimit, m.handler.beginPasskeySignIn)
+	httpserver.Register(api, httpserver.Operation("passkey-sign-in", http.MethodPost, "/api/auth/passkey/sign-in", "Auth"), loginRateLimit, m.handler.passkeySignIn)
+	httpserver.Register(api, httpserver.Operation("begin-passkey-sign-up", http.MethodPost, "/api/auth/passkey/sign-up/options", "Auth"), loginRateLimit, m.handler.beginPasskeySignUp)
+	httpserver.Register(api, httpserver.Operation("passkey-sign-up", http.MethodPost, "/api/auth/passkey/sign-up", "Auth"), loginRateLimit, m.handler.passkeySignUp)
+	httpserver.Register(api, httpserver.Operation("use-sign-in-link", http.MethodPost, "/api/auth/sign-in-link", "Auth"), loginRateLimit, m.handler.useSignInLink)
+
+	// The signed-in user's own account, which no workspace owns and an API token can't change
+	own := httpserver.Access{SessionOnly: true, AnyWorkspace: true}
+	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("update-my-profile", http.MethodPatch, "/api/users/me", "Auth"), own), auth, m.handler.updateProfile)
+	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("list-my-passkeys", http.MethodGet, "/api/users/me/passkeys", "Auth"), own), auth, m.handler.listPasskeys)
+	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("begin-add-passkey", http.MethodPost, "/api/users/me/passkeys/options", "Auth"), own), auth, m.handler.beginAddPasskey)
+	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("add-passkey", http.MethodPost, "/api/users/me/passkeys", "Auth"), own), auth, m.handler.addPasskey)
+	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("rename-passkey", http.MethodPatch, "/api/users/me/passkeys/{id}", "Auth"), own), auth, m.handler.renamePasskey)
+	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("delete-passkey", http.MethodDelete, "/api/users/me/passkeys/{id}", "Auth"), own), auth, m.handler.deletePasskey)
+
 	// Every user of the instance, for instance admins
 	instanceAdmin := httpserver.Access{InstanceAdmin: true, SessionOnly: true}
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("list-users", http.MethodGet, "/api/admin/users", "Admin"), instanceAdmin), auth, m.handler.listUsers)
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("update-user", http.MethodPatch, "/api/admin/users/{id}", "Admin"), instanceAdmin), auth, m.handler.updateUser)
+	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("create-user", http.MethodPost, "/api/admin/users", "Admin"), instanceAdmin), auth, m.handler.createUser)
+	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("create-sign-in-link", http.MethodPost, "/api/admin/users/{id}/sign-in-link", "Admin"), instanceAdmin), auth, m.handler.createSignInLink)
 }
 
 // VerifySession is used by the auth middleware

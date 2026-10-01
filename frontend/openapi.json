@@ -31,6 +31,10 @@
 					"name": {
 						"type": ["string", "null"]
 					},
+					"passkeyAccount": {
+						"description": "Whether the account signs in with passkeys, which instance admins manage, instead of a sign-in provider",
+						"type": "boolean"
+					},
 					"picture": {
 						"type": ["string", "null"]
 					},
@@ -50,6 +54,7 @@
 					"picture",
 					"issuer",
 					"provider",
+					"passkeyAccount",
 					"isAdmin",
 					"deactivated",
 					"workspaceCount",
@@ -229,6 +234,37 @@
 					}
 				},
 				"required": ["status", "loggedInAt", "expiresAt", "refreshable"],
+				"type": "object"
+			},
+			"BeginPasskeySignInInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"redirect": {
+						"description": "Relative path to return to after signing in",
+						"type": "string"
+					}
+				},
+				"type": "object"
+			},
+			"BeginPasskeySignUpInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"email": {
+						"format": "email",
+						"maxLength": 254,
+						"type": "string"
+					},
+					"name": {
+						"maxLength": 100,
+						"minLength": 1,
+						"type": "string"
+					},
+					"redirect": {
+						"description": "Relative path to continue at, which is the invite page for a sign-up through an invite link",
+						"type": "string"
+					}
+				},
+				"required": ["name"],
 				"type": "object"
 			},
 			"Body": {
@@ -659,6 +695,41 @@
 					}
 				},
 				"required": ["id", "sync"],
+				"type": "object"
+			},
+			"CreateUserInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"email": {
+						"description": "Counts as verified, so invites sent to it reach the account",
+						"format": "email",
+						"maxLength": 254,
+						"type": "string"
+					},
+					"isAdmin": {
+						"description": "Makes the account an instance admin",
+						"type": "boolean"
+					},
+					"name": {
+						"maxLength": 100,
+						"minLength": 1,
+						"type": "string"
+					}
+				},
+				"required": ["name"],
+				"type": "object"
+			},
+			"CreateUserOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"signInLink": {
+						"$ref": "#/components/schemas/SignInLinkDto"
+					},
+					"user": {
+						"$ref": "#/components/schemas/AdminUserDto"
+					}
+				},
+				"required": ["user", "signInLink"],
 				"type": "object"
 			},
 			"DayBucket": {
@@ -1752,8 +1823,8 @@
 						"type": "boolean"
 					},
 					"type": {
-						"description": "How the provider signs in, which picks the default icon",
-						"enum": ["oidc", "github"],
+						"description": "How the provider signs in, which picks the default icon, where passkey stands for passkey accounts",
+						"enum": ["oidc", "github", "passkey"],
 						"type": "string"
 					}
 				},
@@ -2353,6 +2424,47 @@
 				"required": ["items", "page", "pageSize", "total"],
 				"type": "object"
 			},
+			"PasskeyDto": {
+				"additionalProperties": false,
+				"properties": {
+					"createdAt": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"id": {
+						"type": "string"
+					},
+					"lastUsedAt": {
+						"format": "int64",
+						"type": ["integer", "null"]
+					},
+					"name": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "name", "createdAt", "lastUsedAt"],
+				"type": "object"
+			},
+			"PasskeyOptionsOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"options": {
+						"description": "The publicKey options for navigator.credentials, in their JSON form"
+					}
+				},
+				"required": ["options"],
+				"type": "object"
+			},
+			"PasskeyResponseInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"credential": {
+						"description": "The PublicKeyCredential the browser created or signed with, in its JSON form"
+					}
+				},
+				"required": ["credential"],
+				"type": "object"
+			},
 			"Price": {
 				"additionalProperties": false,
 				"properties": {
@@ -2475,6 +2587,18 @@
 					}
 				},
 				"required": ["question", "options"],
+				"type": "object"
+			},
+			"RenamePasskeyInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"name": {
+						"maxLength": 100,
+						"minLength": 1,
+						"type": "string"
+					}
+				},
+				"required": ["name"],
 				"type": "object"
 			},
 			"RollbackInputBody": {
@@ -3207,6 +3331,43 @@
 				"required": ["changed"],
 				"type": "object"
 			},
+			"SetupOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"open": {
+						"description": "Whether the instance has no users yet, so whoever opens it creates its first account, an instance admin, with a passkey",
+						"type": "boolean"
+					}
+				},
+				"required": ["open"],
+				"type": "object"
+			},
+			"SignInLinkDto": {
+				"additionalProperties": false,
+				"properties": {
+					"expiresAt": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"url": {
+						"description": "Signs in the account once, so its owner can add a passkey",
+						"type": "string"
+					}
+				},
+				"required": ["url", "expiresAt"],
+				"type": "object"
+			},
+			"SignedInOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"redirect": {
+						"description": "Relative path to continue at",
+						"type": "string"
+					}
+				},
+				"required": ["redirect"],
+				"type": "object"
+			},
 			"Spec": {
 				"additionalProperties": false,
 				"properties": {
@@ -3615,6 +3776,23 @@
 				},
 				"type": "object"
 			},
+			"UpdateProfileInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"email": {
+						"format": "email",
+						"maxLength": 254,
+						"type": "string"
+					},
+					"name": {
+						"maxLength": 100,
+						"minLength": 1,
+						"type": "string"
+					}
+				},
+				"required": ["name"],
+				"type": "object"
+			},
 			"UpdateProviderInputBody": {
 				"additionalProperties": false,
 				"properties": {
@@ -3640,9 +3818,24 @@
 					"deactivated": {
 						"description": "A deactivated user can't sign in, and their sessions and API tokens stop working",
 						"type": "boolean"
+					},
+					"isAdmin": {
+						"description": "Makes a passkey account an instance admin or takes that away, while sign-in providers decide on their own accounts",
+						"type": "boolean"
 					}
 				},
-				"required": ["deactivated"],
+				"type": "object"
+			},
+			"UseSignInLinkInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"token": {
+						"description": "The token at the end of the sign-in link",
+						"minLength": 1,
+						"type": "string"
+					}
+				},
+				"required": ["token"],
 				"type": "object"
 			},
 			"UserDto": {
@@ -3664,6 +3857,10 @@
 					},
 					"name": {
 						"type": ["string", "null"]
+					},
+					"passkeyAccount": {
+						"description": "Whether the user signs in with passkeys and keeps their own name and email address, instead of a sign-in provider",
+						"type": "boolean"
 					},
 					"picture": {
 						"description": "Profile picture URL from the sign-in provider",
@@ -3691,6 +3888,7 @@
 					"workspaceId",
 					"viaToken",
 					"isAdmin",
+					"passkeyAccount",
 					"workspacesEnabled",
 					"workspace"
 				],
@@ -3989,6 +4187,43 @@
 					}
 				},
 				"tags": ["Admin"]
+			},
+			"post": {
+				"description": "Requires an instance admin and a signed-in session instead of an API token.",
+				"operationId": "create-user",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateUserInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CreateUserOutputBody"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Admin"]
 			}
 		},
 		"/api/admin/users/{id}": {
@@ -4018,6 +4253,45 @@
 				"responses": {
 					"204": {
 						"description": "No Content"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Admin"]
+			}
+		},
+		"/api/admin/users/{id}/sign-in-link": {
+			"post": {
+				"description": "Requires an instance admin and a signed-in session instead of an API token.",
+				"operationId": "create-sign-in-link",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SignInLinkDto"
+								}
+							}
+						},
+						"description": "OK"
 					},
 					"default": {
 						"content": {
@@ -4320,6 +4594,204 @@
 				"tags": ["Auth"]
 			}
 		},
+		"/api/auth/passkey/sign-in": {
+			"post": {
+				"operationId": "passkey-sign-in",
+				"parameters": [
+					{
+						"in": "cookie",
+						"name": "umpteenth_passkey",
+						"schema": {
+							"$ref": "#/components/schemas/Cookie"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/PasskeyResponseInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SignedInOutputBody"
+								}
+							}
+						},
+						"description": "OK",
+						"headers": {
+							"Set-Cookie": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
+		"/api/auth/passkey/sign-in/options": {
+			"post": {
+				"operationId": "begin-passkey-sign-in",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/BeginPasskeySignInInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PasskeyOptionsOutputBody"
+								}
+							}
+						},
+						"description": "OK",
+						"headers": {
+							"Set-Cookie": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
+		"/api/auth/passkey/sign-up": {
+			"post": {
+				"operationId": "passkey-sign-up",
+				"parameters": [
+					{
+						"in": "cookie",
+						"name": "umpteenth_passkey",
+						"schema": {
+							"$ref": "#/components/schemas/Cookie"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/PasskeyResponseInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SignedInOutputBody"
+								}
+							}
+						},
+						"description": "OK",
+						"headers": {
+							"Set-Cookie": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
+		"/api/auth/passkey/sign-up/options": {
+			"post": {
+				"operationId": "begin-passkey-sign-up",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/BeginPasskeySignUpInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PasskeyOptionsOutputBody"
+								}
+							}
+						},
+						"description": "OK",
+						"headers": {
+							"Set-Cookie": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
 		"/api/auth/providers": {
 			"get": {
 				"operationId": "list-login-providers",
@@ -4336,6 +4808,79 @@
 							}
 						},
 						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
+		"/api/auth/setup": {
+			"get": {
+				"operationId": "get-setup",
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SetupOutputBody"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
+		"/api/auth/sign-in-link": {
+			"post": {
+				"operationId": "use-sign-in-link",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UseSignInLinkInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SignedInOutputBody"
+								}
+							}
+						},
+						"description": "OK",
+						"headers": {
+							"Set-Cookie": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
 					},
 					"default": {
 						"content": {
@@ -7914,6 +8459,229 @@
 							}
 						},
 						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			},
+			"patch": {
+				"description": "Requires a signed-in session instead of an API token.",
+				"operationId": "update-my-profile",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateProfileInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
+		"/api/users/me/passkeys": {
+			"get": {
+				"description": "Requires a signed-in session instead of an API token.",
+				"operationId": "list-my-passkeys",
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/PasskeyDto"
+									},
+									"type": ["array", "null"]
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			},
+			"post": {
+				"description": "Requires a signed-in session instead of an API token.",
+				"operationId": "add-passkey",
+				"parameters": [
+					{
+						"in": "cookie",
+						"name": "umpteenth_passkey",
+						"schema": {
+							"$ref": "#/components/schemas/Cookie"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/PasskeyResponseInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PasskeyDto"
+								}
+							}
+						},
+						"description": "OK",
+						"headers": {
+							"Set-Cookie": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
+		"/api/users/me/passkeys/options": {
+			"post": {
+				"description": "Requires a signed-in session instead of an API token.",
+				"operationId": "begin-add-passkey",
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PasskeyOptionsOutputBody"
+								}
+							}
+						},
+						"description": "OK",
+						"headers": {
+							"Set-Cookie": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			}
+		},
+		"/api/users/me/passkeys/{id}": {
+			"delete": {
+				"description": "Requires a signed-in session instead of an API token.",
+				"operationId": "delete-passkey",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No Content"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Auth"]
+			},
+			"patch": {
+				"description": "Requires a signed-in session instead of an API token.",
+				"operationId": "rename-passkey",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RenamePasskeyInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
 					},
 					"default": {
 						"content": {

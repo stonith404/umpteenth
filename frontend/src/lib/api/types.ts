@@ -24,6 +24,8 @@ export type QueryOf<O extends keyof operations> = NonNullable<operations[O]['par
 
 export type User = Schemas['UserDto'];
 export type LoginProvider = Schemas['LoginProviderDto'];
+export type Passkey = Schemas['PasskeyDto'];
+export type SignInLink = Schemas['SignInLinkDto'];
 export type ApiToken = Schemas['ApiTokenDto'];
 export type ApiTokenCreate = RequestBodyOf<'create-api-token'>;
 export type ApiTokenCreated = ResponseOf<'create-api-token'>;
@@ -108,4 +110,6 @@ export type WorkspaceInvite = Schemas['InviteDto'];
 export type WorkspaceInviteCreate = RequestBodyOf<'create-workspace-invite'>;
 export type InvitePreview = ResponseOf<'lookup-invite'>;
 export type AdminUser = Schemas['AdminUserDto'];
+export type AdminUserCreate = RequestBodyOf<'create-user'>;
+export type AdminUserCreated = ResponseOf<'create-user'>;
 export type AdminWorkspace = Schemas['AdminWorkspaceDto'];

@@ -112,10 +112,21 @@ const (
 )
 
 type Auth struct {
+	// Passkeys are accounts of Umpteenth itself that sign in with a passkey, next to the providers
+	Passkeys Passkeys `yaml:"passkeys"`
 	// Providers are the ways users can sign in, keyed by an ID of lowercase letters, digits and hyphens
 	// Their options are set through variables like AUTH_PROVIDERS_POCKET_ID_ISSUER, where the ID's hyphens become underscores
 	Providers map[string]*AuthProvider `yaml:"providers"`
 }
+
+// Passkeys are accounts that need no identity provider, so a fresh instance can be used right away
+type Passkeys struct {
+	// Enabled offers passkey sign-in on the login page, and the first person to open an instance without users creates its first account, an instance admin
+	Enabled bool `yaml:"enabled" default:"true"`
+}
+
+// PasskeyProviderID is the sign-in provider ID of passkey accounts, which no configured provider may take
+const PasskeyProviderID = "passkey"
 
 // AuthProvider is an OAuth client users sign in through, registered with the redirect URI <app.url>/api/auth/callback/<id>
 // Every type shares the options up to client_secret, and the others only apply to the type their comment names

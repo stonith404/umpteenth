@@ -14,7 +14,8 @@ export interface paths {
 		/** @description Requires an instance admin and a signed-in session instead of an API token. */
 		get: operations['list-users'];
 		put?: never;
-		post?: never;
+		/** @description Requires an instance admin and a signed-in session instead of an API token. */
+		post: operations['create-user'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -36,6 +37,23 @@ export interface paths {
 		head?: never;
 		/** @description Requires an instance admin and a signed-in session instead of an API token. */
 		patch: operations['update-user'];
+		trace?: never;
+	};
+	'/api/admin/users/{id}/sign-in-link': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Requires an instance admin and a signed-in session instead of an API token. */
+		post: operations['create-sign-in-link'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
 		trace?: never;
 	};
 	'/api/admin/workspaces': {
@@ -120,6 +138,70 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/auth/passkey/sign-in': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['passkey-sign-in'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/passkey/sign-in/options': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['begin-passkey-sign-in'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/passkey/sign-up': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['passkey-sign-up'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/passkey/sign-up/options': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['begin-passkey-sign-up'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/auth/providers': {
 		parameters: {
 			query?: never;
@@ -130,6 +212,38 @@ export interface paths {
 		get: operations['list-login-providers'];
 		put?: never;
 		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/setup': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations['get-setup'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/sign-in-link': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['use-sign-in-link'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -999,7 +1113,61 @@ export interface paths {
 		delete?: never;
 		options?: never;
 		head?: never;
+		/** @description Requires a signed-in session instead of an API token. */
+		patch: operations['update-my-profile'];
+		trace?: never;
+	};
+	'/api/users/me/passkeys': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Requires a signed-in session instead of an API token. */
+		get: operations['list-my-passkeys'];
+		put?: never;
+		/** @description Requires a signed-in session instead of an API token. */
+		post: operations['add-passkey'];
+		delete?: never;
+		options?: never;
+		head?: never;
 		patch?: never;
+		trace?: never;
+	};
+	'/api/users/me/passkeys/options': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Requires a signed-in session instead of an API token. */
+		post: operations['begin-add-passkey'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/users/me/passkeys/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Requires a signed-in session instead of an API token. */
+		delete: operations['delete-passkey'];
+		options?: never;
+		head?: never;
+		/** @description Requires a signed-in session instead of an API token. */
+		patch: operations['rename-passkey'];
 		trace?: never;
 	};
 	'/api/workspace': {
@@ -1190,6 +1358,8 @@ export interface components {
 			/** Format: int64 */
 			lastLoginAt: number | null;
 			name: string | null;
+			/** @description Whether the account signs in with passkeys, which instance admins manage, instead of a sign-in provider */
+			passkeyAccount: boolean;
 			picture: string | null;
 			/** @description The name of the sign-in provider the account belongs to, or the issuer's host when no configured provider has its issuer */
 			provider: string;
@@ -1271,6 +1441,17 @@ export interface components {
 			 * @enum {string}
 			 */
 			status: 'unsupported' | 'unknown' | 'bearer_token' | 'not_logged_in' | 'oauth';
+		};
+		BeginPasskeySignInInputBody: {
+			/** @description Relative path to return to after signing in */
+			redirect?: string;
+		};
+		BeginPasskeySignUpInputBody: {
+			/** Format: email */
+			email?: string;
+			name: string;
+			/** @description Relative path to continue at, which is the invite page for a sign-up through an invite link */
+			redirect?: string;
 		};
 		Body: {
 			code: string;
@@ -1422,6 +1603,20 @@ export interface components {
 		CreateProviderOutputBody: {
 			id: string;
 			sync: components['schemas']['SyncResult'];
+		};
+		CreateUserInputBody: {
+			/**
+			 * Format: email
+			 * @description Counts as verified, so invites sent to it reach the account
+			 */
+			email?: string;
+			/** @description Makes the account an instance admin */
+			isAdmin?: boolean;
+			name: string;
+		};
+		CreateUserOutputBody: {
+			signInLink: components['schemas']['SignInLinkDto'];
+			user: components['schemas']['AdminUserDto'];
 		};
 		DayBucket: {
 			/** Format: int64 */
@@ -1818,10 +2013,10 @@ export interface components {
 			/** @description Whether the provider gets the large sign-in button */
 			primary: boolean;
 			/**
-			 * @description How the provider signs in, which picks the default icon
+			 * @description How the provider signs in, which picks the default icon, where passkey stands for passkey accounts
 			 * @enum {string}
 			 */
-			type: 'oidc' | 'github';
+			type: 'oidc' | 'github' | 'passkey';
 		};
 		MCPNeed: {
 			server: string;
@@ -2030,6 +2225,22 @@ export interface components {
 			/** Format: int64 */
 			total: number;
 		};
+		PasskeyDto: {
+			/** Format: int64 */
+			createdAt: number;
+			id: string;
+			/** Format: int64 */
+			lastUsedAt: number | null;
+			name: string;
+		};
+		PasskeyOptionsOutputBody: {
+			/** @description The publicKey options for navigator.credentials, in their JSON form */
+			options: unknown;
+		};
+		PasskeyResponseInputBody: {
+			/** @description The PublicKeyCredential the browser created or signed with, in its JSON form */
+			credential: unknown;
+		};
 		Price: {
 			/** Format: int64 */
 			cacheRead: number;
@@ -2077,6 +2288,9 @@ export interface components {
 			/** @description Likely answers the user can pick, empty when only the user can know */
 			options: string[] | null;
 			question: string;
+		};
+		RenamePasskeyInputBody: {
+			name: string;
 		};
 		RollbackInputBody: {
 			/** Format: int64 */
@@ -2348,6 +2562,20 @@ export interface components {
 			/** Format: int64 */
 			changed: number;
 		};
+		SetupOutputBody: {
+			/** @description Whether the instance has no users yet, so whoever opens it creates its first account, an instance admin, with a passkey */
+			open: boolean;
+		};
+		SignInLinkDto: {
+			/** Format: int64 */
+			expiresAt: number;
+			/** @description Signs in the account once, so its owner can add a passkey */
+			url: string;
+		};
+		SignedInOutputBody: {
+			/** @description Relative path to continue at */
+			redirect: string;
+		};
 		Spec: {
 			dockerfile: string | null;
 			goal: string;
@@ -2496,6 +2724,11 @@ export interface components {
 			label?: string;
 			price?: components['schemas']['Price'];
 		};
+		UpdateProfileInputBody: {
+			/** Format: email */
+			email?: string;
+			name: string;
+		};
 		UpdateProviderInputBody: {
 			apiKey?: string;
 			baseUrl?: string;
@@ -2503,7 +2736,13 @@ export interface components {
 		};
 		UpdateUserInputBody: {
 			/** @description A deactivated user can't sign in, and their sessions and API tokens stop working */
-			deactivated: boolean;
+			deactivated?: boolean;
+			/** @description Makes a passkey account an instance admin or takes that away, while sign-in providers decide on their own accounts */
+			isAdmin?: boolean;
+		};
+		UseSignInLinkInputBody: {
+			/** @description The token at the end of the sign-in link */
+			token: string;
 		};
 		UserDto: {
 			email: string | null;
@@ -2513,6 +2752,8 @@ export interface components {
 			/** @description ID of the sign-in provider the session signed in with */
 			loginProvider?: string;
 			name: string | null;
+			/** @description Whether the user signs in with passkeys and keeps their own name and email address, instead of a sign-in provider */
+			passkeyAccount: boolean;
 			/** @description Profile picture URL from the sign-in provider */
 			picture: string | null;
 			viaToken: boolean;
@@ -2641,6 +2882,39 @@ export interface operations {
 			};
 		};
 	};
+	'create-user': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['CreateUserInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['CreateUserOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
 	'update-user': {
 		parameters: {
 			query?: never;
@@ -2662,6 +2936,37 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content?: never;
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'create-sign-in-link': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SignInLinkDto'];
+				};
 			};
 			/** @description Error */
 			default: {
@@ -2845,6 +3150,146 @@ export interface operations {
 			};
 		};
 	};
+	'passkey-sign-in': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: {
+				umpteenth_passkey?: components['schemas']['Cookie'];
+			};
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['PasskeyResponseInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					'Set-Cookie'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SignedInOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'begin-passkey-sign-in': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['BeginPasskeySignInInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					'Set-Cookie'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PasskeyOptionsOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'passkey-sign-up': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: {
+				umpteenth_passkey?: components['schemas']['Cookie'];
+			};
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['PasskeyResponseInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					'Set-Cookie'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SignedInOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'begin-passkey-sign-up': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['BeginPasskeySignUpInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					'Set-Cookie'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PasskeyOptionsOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
 	'list-login-providers': {
 		parameters: {
 			query?: never;
@@ -2861,6 +3306,69 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['LoginProviderDto'][] | null;
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'get-setup': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SetupOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'use-sign-in-link': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['UseSignInLinkInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					'Set-Cookie'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SignedInOutputBody'];
 				};
 			};
 			/** @description Error */
@@ -5353,6 +5861,194 @@ export interface operations {
 				content: {
 					'application/json': components['schemas']['UserDto'];
 				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'update-my-profile': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['UpdateProfileInputBody'];
+			};
+		};
+		responses: {
+			/** @description No Content */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'list-my-passkeys': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PasskeyDto'][] | null;
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'add-passkey': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: {
+				umpteenth_passkey?: components['schemas']['Cookie'];
+			};
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['PasskeyResponseInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					'Set-Cookie'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PasskeyDto'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'begin-add-passkey': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					'Set-Cookie'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PasskeyOptionsOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'delete-passkey': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description No Content */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'rename-passkey': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['RenamePasskeyInputBody'];
+			};
+		};
+		responses: {
+			/** @description No Content */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 			/** @description Error */
 			default: {

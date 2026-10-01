@@ -1,16 +1,25 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { LoginProvider } from '$lib/api/types';
+	import FormInput from '$lib/components/form/form-input.svelte';
 	import Logo from '$lib/components/logo.svelte';
 	import Wordmark from '$lib/components/wordmark.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { getLoginErrorMessage } from '$lib/utils/error-util';
+	import * as Field from '$lib/components/ui/field';
+	import UserService from '$lib/services/user-service';
+	import { apiErrorToast, getLoginErrorMessage } from '$lib/utils/error-util';
+	import { preventDefault } from '$lib/utils/event-util';
+	import { createForm } from '$lib/utils/form-util';
 	import { docsUrl } from '$lib/navigation';
 	import { lastLoginProvider } from '$lib/utils/login-provider-util';
-	import { providerLoginUrl } from '$lib/utils/redirection-util';
+	import { passkeyAccountSchema } from '$lib/utils/passkey-util';
+	import { providerLoginUrl, safeRedirectPath } from '$lib/utils/redirection-util';
+	import { tryCatch } from '$lib/utils/try-catch-util';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
+	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import { SvelteSet } from 'svelte/reactivity';
 	import DitherField from './dither-field.svelte';
@@ -18,15 +27,62 @@
 
 	let { data } = $props();
 
+	const userService = new UserService();
+
 	const error = $derived(page.url.searchParams.get('error'));
 	const redirect = $derived(page.url.searchParams.get('redirect'));
 
 	// The primary provider gets the large button, and so does a lone provider that isn't marked primary
+	// Passkeys are listed last and are only primary on an instance without sign-in providers
+	const redirectProviders = $derived(data.providers.filter((p) => p.type !== 'passkey'));
 	const primary = $derived(
 		data.providers.find((p) => p.primary) ??
-			(data.providers.length === 1 ? data.providers[0] : undefined)
+			(redirectProviders.length === 1 ? redirectProviders[0] : undefined)
 	);
 	const others = $derived(data.providers.filter((p) => p !== primary));
+	const passkeys = $derived(data.providers.some((p) => p.type === 'passkey'));
+
+	// Someone without an account can create one with a passkey for an invite link, which the login page has as its redirect
+	const fromInvite = $derived(safeRedirectPath(redirect)?.startsWith('/invite/') ?? false);
+
+	// An instance without users is set up by whoever opens it first, and an invite link lets newcomers create their account
+	let signingUp = $state(false);
+	const creatingAccount = $derived(data.setupOpen || signingUp);
+
+	const form = createForm(passkeyAccountSchema, { name: '', email: '' });
+	const inputs = form.inputs;
+	let busy = $state(false);
+
+	async function signInWithPasskey() {
+		busy = true;
+		const result = await tryCatch(userService.signInWithPasskey(redirect));
+		busy = false;
+		if (result.error) {
+			apiErrorToast(result.error, 'Failed to sign in with a passkey');
+			return;
+		}
+		if (result.data) await goto(result.data.redirect, { invalidateAll: true });
+	}
+
+	async function signUpWithPasskey() {
+		const values = form.validate();
+		if (!values) return;
+
+		busy = true;
+		const result = await tryCatch(
+			userService.signUpWithPasskey({
+				name: values.name,
+				email: values.email || undefined,
+				redirect: safeRedirectPath(redirect) ?? undefined
+			})
+		);
+		busy = false;
+		if (result.error) {
+			apiErrorToast(result.error, 'Failed to create the account');
+			return;
+		}
+		if (result.data) await goto(result.data.redirect, { invalidateAll: true });
+	}
 
 	// Pointing out the provider used last time only helps when there is a choice
 	const lastUsed = $derived(data.providers.length > 1 ? lastLoginProvider() : null);
@@ -40,6 +96,27 @@
 </svelte:head>
 
 {#snippet providerButton(provider: LoginProvider, large: boolean)}
+	{#if provider.type === 'passkey'}
+		<!-- Passkeys sign in right here, with the browser's own prompt -->
+		<Button
+			variant={large ? 'default' : 'outline'}
+			size={large ? 'lg' : 'default'}
+			class="relative w-full"
+			isLoading={busy}
+			onclick={signInWithPasskey}
+		>
+			<KeyRoundIcon />
+			<span class="ml-0.5 truncate">Sign in with a passkey</span>
+			{#if provider.id === lastUsed}
+				<Badge variant="outline" floating class="absolute -top-2.5 right-3 h-5">Last used</Badge>
+			{/if}
+		</Button>
+	{:else}
+		{@render redirectButton(provider, large)}
+	{/if}
+{/snippet}
+
+{#snippet redirectButton(provider: LoginProvider, large: boolean)}
 	<!-- The login endpoint belongs to the backend, so the SvelteKit router must not handle this link -->
 	<Button
 		href={providerLoginUrl(provider.id, redirect)}
@@ -80,10 +157,22 @@
 			class="mx-auto flex w-full max-w-sm flex-col items-stretch justify-center gap-5 py-10 text-center"
 		>
 			<div class="flex flex-col items-center gap-2">
-				<h1 class="display-title">Sign in to Umpteenth</h1>
-				<p class="text-muted-foreground max-w-lede-narrow text-balance">
-					Continue with your team's account.
-				</p>
+				{#if data.setupOpen}
+					<h1 class="display-title">Set up Umpteenth</h1>
+					<p class="text-muted-foreground max-w-lede-narrow text-balance">
+						Create the first account. It becomes an instance admin and signs in with a passkey.
+					</p>
+				{:else if signingUp}
+					<h1 class="display-title">Create your account</h1>
+					<p class="text-muted-foreground max-w-lede-narrow text-balance">
+						You'll sign in with a passkey, so there's no password to remember.
+					</p>
+				{:else}
+					<h1 class="display-title">Sign in to Umpteenth</h1>
+					<p class="text-muted-foreground max-w-lede-narrow text-balance">
+						Continue with your team's account.
+					</p>
+				{/if}
 			</div>
 			{#if error}
 				<Alert.Root variant="destructive" class="text-left">
@@ -107,6 +196,51 @@
 						>.
 					</Alert.Description>
 				</Alert.Root>
+			{:else if creatingAccount}
+				<form
+					novalidate
+					class="flex flex-col gap-5 text-left"
+					onsubmit={preventDefault(signUpWithPasskey)}
+				>
+					<Field.Group>
+						<FormInput label="Name" bind:input={$inputs.name} autocomplete="name" />
+						<FormInput
+							label="Email"
+							type="email"
+							description="Shown to the people you work with."
+							bind:input={$inputs.email}
+							autocomplete="email"
+						/>
+					</Field.Group>
+					<Button type="submit" size="lg" class="w-full" isLoading={busy}>
+						<KeyRoundIcon />
+						Create account with a passkey
+					</Button>
+				</form>
+				{#if signingUp}
+					<p class="text-muted-foreground text-sm">
+						Have an account?
+						<button
+							type="button"
+							class="text-foreground focus-visible:ring-ring rounded-sm underline underline-offset-4 outline-none hover:opacity-80 focus-visible:ring-2"
+							onclick={() => (signingUp = false)}
+						>
+							Sign in
+						</button>
+					</p>
+				{:else if redirectProviders.length > 0}
+					<!-- The first account can also come from a sign-in provider, which then decides on the instance admins -->
+					<div class="flex flex-col gap-2.5">
+						<div class="text-muted-foreground flex items-center gap-3 py-1 text-sm">
+							<span class="bg-border h-px flex-1"></span>
+							or
+							<span class="bg-border h-px flex-1"></span>
+						</div>
+						{#each redirectProviders as provider (provider.id)}
+							{@render redirectButton(provider, false)}
+						{/each}
+					</div>
+				{/if}
 			{:else}
 				<div class="flex flex-col gap-2.5">
 					{#if primary}
@@ -123,6 +257,18 @@
 						{@render providerButton(provider, false)}
 					{/each}
 				</div>
+				{#if passkeys && fromInvite}
+					<p class="text-muted-foreground text-sm">
+						New to Umpteenth?
+						<button
+							type="button"
+							class="text-foreground focus-visible:ring-ring rounded-sm underline underline-offset-4 outline-none hover:opacity-80 focus-visible:ring-2"
+							onclick={() => (signingUp = true)}
+						>
+							Create an account
+						</button>
+					</p>
+				{/if}
 			{/if}
 		</div>
 

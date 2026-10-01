@@ -19,35 +19,17 @@ On a single host, [install with Docker Compose](../installation/) instead.
 - A network plugin that enforces NetworkPolicies, such as Calico, Cilium or kindnet.
   Umpteenth refuses to start sandboxes on a cluster that ignores them, see [Network policies](#network-policies).
 - A default StorageClass for the bundled Postgres.
-- An identity provider or GitHub, and a model provider, as for [Docker](../installation/#requirements).
 - A container registry, if jobs build their own images from a Dockerfile, see [Job images](#job-images).
 
 ## Install
 
 <Steps>
 
-1. Create a `values.yaml` with the address you'll open Umpteenth at and a sign-in provider, which [Sign-in](../../deployment/sign-in/) shows how to register.
+1. Create a `values.yaml` with the address you'll open Umpteenth at.
 
    ```yaml title="values.yaml"
    app:
      url: https://umpteenth.example.com
-
-   config:
-     auth:
-       providers:
-         pocket-id:
-           type: oidc
-           name: Pocket ID
-           issuer: https://id.example.com
-           client_id: umpteenth
-
-   # The client secret comes from a Secret you create
-   extraEnv:
-     - name: AUTH_PROVIDERS_POCKET_ID_CLIENT_SECRET
-       valueFrom:
-         secretKeyRef:
-           name: umpteenth-oidc
-           key: client-secret
 
    ingress:
      enabled: true
@@ -58,18 +40,13 @@ On a single host, [install with Docker Compose](../installation/) instead.
          hosts: [umpteenth.example.com]
    ```
 
-   The chart renders `config` into `config.yml`, so every option from [Configuration](../../deployment/configuration/) fits there.
-   It sets the database, replica and sandbox options itself, through environment variables that win over `config`, so you change those through the chart's values instead.
+   That's enough to sign in with passkeys, and [Sign-in providers](#sign-in-providers) adds an identity provider or GitHub.
    The chart's [`values.yaml`](https://github.com/stonith404/umpteenth/blob/main/charts/umpteenth/values.yaml) describes every value.
 
-2. Create the namespace and the Secret with the client secret.
+2. Create the namespace.
 
    ```bash
    kubectl create namespace umpteenth
-   ```
-
-   ```bash
-   kubectl --namespace umpteenth create secret generic umpteenth-oidc --from-literal=client-secret='<client secret>'
    ```
 
 3. Install the chart.
@@ -78,12 +55,45 @@ On a single host, [install with Docker Compose](../installation/) instead.
    helm install umpteenth oci://ghcr.io/stonith404/charts/umpteenth --namespace umpteenth --values values.yaml
    ```
 
-4. Open `app.url`, sign in, and [connect a model](../installation/#connect-a-model).
+4. Open `app.url`, create the first account with a passkey on **Set up Umpteenth**, and [connect a model](../installation/#connect-a-model).
+
+   Do this right after the install, since whoever opens a fresh instance first becomes its admin.
 
 </Steps>
 
 Without an ingress, `kubectl --namespace umpteenth port-forward service/umpteenth 8080:8080` reaches Umpteenth at `http://localhost:8080`, which then has to be `app.url`.
 With a model connected, the instance is ready for [your first job](../first-job/).
+
+### Sign-in providers
+
+To sign in through an identity provider or GitHub as well, register Umpteenth with it as [Sign-in](../../deployment/sign-in/) shows, and add it under `config` in `values.yaml`.
+The chart renders `config` into `config.yml`, so every option from [Configuration](../../deployment/configuration/) fits there.
+Pass the client secret from a Secret through `extraEnv`, so it stays out of your values:
+
+```yaml title="values.yaml"
+config:
+  auth:
+    providers:
+      pocket-id:
+        type: oidc
+        name: Pocket ID
+        issuer: https://id.example.com
+        client_id: umpteenth
+
+extraEnv:
+  - name: AUTH_PROVIDERS_POCKET_ID_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: umpteenth-oidc
+        key: client-secret
+```
+
+```bash
+kubectl --namespace umpteenth create secret generic umpteenth-oidc --from-literal=client-secret='<client secret>'
+```
+
+Apply the change with `helm upgrade` and the same arguments as `helm install`.
+The chart sets the database, replica and sandbox options itself, through environment variables that win over `config`, so you change those through the chart's values instead.
 
 ### The encryption key
 

@@ -7,10 +7,11 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/auth/authdb"
 )
 
-// Sign-in provider types, each implemented by one provider
+// Sign-in provider types, each implemented by one provider, and passkeys, which the login page lists like one
 const (
-	TypeOIDC   = "oidc"
-	TypeGitHub = "github"
+	TypeOIDC    = "oidc"
+	TypeGitHub  = "github"
+	TypePasskey = "passkey"
 )
 
 // provider is one way to sign in, such as an OpenID Connect identity provider or GitHub

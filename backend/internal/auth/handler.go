@@ -16,7 +16,7 @@ type handler struct {
 
 type loginProviderDto struct {
 	ID      string `json:"id"`
-	Type    string `json:"type" enum:"oidc,github" doc:"How the provider signs in, which picks the default icon"`
+	Type    string `json:"type" enum:"oidc,github,passkey" doc:"How the provider signs in, which picks the default icon, where passkey stands for passkey accounts"`
 	Name    string `json:"name"`
 	Icon    string `json:"icon,omitempty" doc:"Image URL for the sign-in button, an http(s) URL or a data:image URI"`
 	Primary bool   `json:"primary" doc:"Whether the provider gets the large sign-in button"`
@@ -31,6 +31,11 @@ func (h *handler) listProviders(_ context.Context, _ *struct{}) (*listProvidersO
 	out := &listProvidersOutput{Body: make([]loginProviderDto, 0, len(providers))}
 	for _, p := range providers {
 		out.Body = append(out.Body, loginProviderDto{ID: p.ID, Type: p.Type, Name: p.Name, Icon: p.Icon, Primary: p.Primary})
+	}
+
+	// Passkeys come after the providers, and get the large button on an instance without any
+	if h.service.PasskeysEnabled() {
+		out.Body = append(out.Body, loginProviderDto{ID: PasskeyProviderID, Type: TypePasskey, Name: "Passkey", Primary: len(providers) == 0})
 	}
 	return out, nil
 }
@@ -118,6 +123,7 @@ type userDto struct {
 	// The login page remembers the provider as the last one used in this browser
 	LoginProvider     string              `json:"loginProvider,omitempty" doc:"ID of the sign-in provider the session signed in with"`
 	IsAdmin           bool                `json:"isAdmin" doc:"Whether the user is an instance admin, who manages every user and workspace"`
+	PasskeyAccount    bool                `json:"passkeyAccount" doc:"Whether the user signs in with passkeys and keeps their own name and email address, instead of a sign-in provider"`
 	WorkspacesEnabled bool                `json:"workspacesEnabled" doc:"Whether people can have several workspaces on this instance"`
 	Workspace         sessionWorkspaceDto `json:"workspace"`
 }
@@ -162,6 +168,7 @@ func (h *handler) me(ctx context.Context, _ *struct{}) (*meOutput, error) {
 		WorkspaceID:       p.WorkspaceID,
 		LoginProvider:     p.LoginProvider,
 		IsAdmin:           p.InstanceAdmin,
+		PasskeyAccount:    user.Issuer == passkeyIssuer,
 		WorkspacesEnabled: enabled,
 		Workspace:         workspace,
 	}}, nil

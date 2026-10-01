@@ -75,7 +75,7 @@ The backend is built with [Huma](https://huma.rocks) and [sqlc](https://sqlc.dev
 2. Edit `backend/config.yml`:
    - Add `env: development` under `app` and set `app.url` to `http://localhost:3000`
    - Set `app.encryption_key` to the output of `openssl rand -base64 32`
-   - Add a sign-in provider under `auth.providers` and register `http://localhost:3000/api/auth/callback/<id>` as its redirect URI, where `<id>` is the provider's key
+   - Sign in with a passkey, or uncomment a provider under `auth.providers`, fill it in and register `http://localhost:3000/api/auth/callback/<id>` as its redirect URI, where `<id>` is the provider's key
 3. Open the `backend` folder
 4. Start the backend with `go run -tags exclude_frontend,exclude_ump ./cmd/umpteenth`
 

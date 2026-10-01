@@ -14,6 +14,7 @@ CREATE TABLE workspaces (
 
 -- Users sign in through several providers, so they are keyed by the issuer and the subject, since a subject is only unique at its issuer
 -- is_admin, email_verified and picture come from the sign-in provider and are refreshed at every sign-in
+-- Passkey accounts have the issuer passkey and their own ID as the subject, and nothing refreshes them, so instance admins set their is_admin
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
   issuer TEXT NOT NULL,
@@ -40,6 +41,36 @@ CREATE TABLE sessions (
 );
 CREATE INDEX sessions_user ON sessions (user_id);
 CREATE INDEX sessions_expires ON sessions (expires_at);
+
+-- Accounts of the passkey issuer sign in with these instead of a sign-in provider, and credential holds the WebAuthn credential record as JSON
+CREATE TABLE passkeys (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  credential_id TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  credential TEXT NOT NULL,
+  created_at BIGINT NOT NULL,
+  last_used_at BIGINT
+);
+CREATE INDEX passkeys_user ON passkeys (user_id);
+
+-- A passkey ceremony waits here between handing out its challenge and checking the browser's answer, which deletes it, so every challenge is answered at most once
+CREATE TABLE passkey_ceremonies (
+  token_hash TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  data TEXT NOT NULL,
+  expires_at BIGINT NOT NULL
+);
+CREATE INDEX passkey_ceremonies_expires ON passkey_ceremonies (expires_at);
+
+-- A one-time link an instance admin hands to a passkey account, which signs it in once so it can add a passkey, such as a new account or one that lost its passkeys
+CREATE TABLE sign_in_links (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at BIGINT NOT NULL,
+  expires_at BIGINT NOT NULL
+);
+CREATE INDEX sign_in_links_user ON sign_in_links (user_id);
 
 CREATE TABLE workspace_members (
   workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,

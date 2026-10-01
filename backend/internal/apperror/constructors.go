@@ -60,6 +60,10 @@ func LoginFailed(cause error) *Error {
 	return wrap(cause, CodeLoginFailed, http.StatusUnauthorized, "Login failed")
 }
 
+func PasskeyFailed(cause error) *Error {
+	return wrap(cause, CodePasskeyFailed, http.StatusBadRequest, "The passkey could not be verified")
+}
+
 func AccountDisabled() *Error {
 	return New(CodeAccountDisabled, http.StatusForbidden, "Your account has been deactivated")
 }

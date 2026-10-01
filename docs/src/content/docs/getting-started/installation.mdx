@@ -1,7 +1,7 @@
 ---
 title: Install with Docker
 seoTitle: Install with Docker Compose
-description: Run Umpteenth on one host with Docker Compose from the published images, sign in through your identity provider or GitHub, and connect a model.
+description: Run Umpteenth on one host with Docker Compose from the published images, sign in with a passkey, your identity provider or GitHub, and connect a model.
 next:
   link: /getting-started/first-job/
   label: Your first job
@@ -17,7 +17,6 @@ On a Kubernetes cluster, [install the Helm chart](../kubernetes/) instead.
 ## Requirements
 
 - A host with Docker Engine and Docker Compose on amd64 (x86-64) or arm64.
-- An OpenID Connect identity provider, such as [Pocket ID](https://pocket-id.org), Authentik, Keycloak or Zitadel, or a GitHub account to sign in with.
 - An Anthropic API key, or an OpenAI-compatible API such as OpenAI, OpenRouter, Ollama or LM Studio.
 
 ## Set up
@@ -55,17 +54,23 @@ On a Kubernetes cluster, [install the Helm chart](../kubernetes/) instead.
    Umpteenth encrypts your secrets, model API keys and MCP logins with the key and signs sessions with it.
    Keep a copy with your backups: under a different key, Umpteenth can't decrypt what it stored, and everyone has to sign in again.
 
-3. Register Umpteenth with a sign-in provider.
+3. Pick how you sign in.
 
-   Umpteenth has no passwords of its own, so you sign in through an identity provider or with GitHub.
-   [Sign-in](../../deployment/sign-in/) shows how to register Umpteenth with either, and you come back with a client ID and a client secret.
+   Umpteenth has no passwords, and passkeys work without any setup.
+   To sign in through an identity provider or with GitHub instead, register Umpteenth with it as [Sign-in](../../deployment/sign-in/) shows, and come back with a client ID and a client secret.
 
-   For a first try on your own machine, pick GitHub, since a GitHub OAuth app accepts a callback on `http://localhost:8080`.
-   An identity provider such as Pocket ID needs an HTTPS address that both your browser and the Umpteenth container reach.
-
-4. Create `config.yml` next to `docker-compose.yml`, with the key and the provider.
+4. Create `config.yml` next to `docker-compose.yml`, with the key and any provider.
 
    <Tabs syncKey="sign-in">
+   <TabItem label="Passkeys">
+
+   ```yaml title="config.yml"
+   app:
+     url: http://localhost:8080
+     encryption_key: "<the key from step 2>"
+   ```
+
+   </TabItem>
    <TabItem label="OpenID Connect">
 
    ```yaml title="config.yml"
@@ -104,15 +109,15 @@ On a Kubernetes cluster, [install the Helm chart](../kubernetes/) instead.
    </TabItem>
    </Tabs>
 
-   `app.url` is the address you open Umpteenth at, and your sign-in provider sends you back to it:
+   `app.url` is the address you open Umpteenth at, which passkeys are bound to and your sign-in provider sends you back to:
 
    - On the machine that runs Docker, keep `http://localhost:8080`.
-   - From another computer on your network, use the host's address, such as `http://192.168.1.10:8080`.
+   - From another computer on your network, use the host's address, such as `http://192.168.1.10:8080`, and sign in through a provider, since browsers refuse passkeys on plain HTTP away from `localhost`.
    - On a server that others reach, set its HTTPS address, such as `https://umpteenth.example.com`, and set up the [reverse proxy](../../deployment/reverse-proxy/) before you sign in.
      With an `https://` address, Umpteenth marks the session cookie as Secure, so a sign-in over plain HTTP on port 8080 fails.
 
-   Everyone who gets through the provider joins your workspace, with every job and secret in it.
-   A `github` provider admits only the accounts you list, and [Sign-in](../../deployment/sign-in/#openid-connect) shows how to limit an identity provider to a group.
+   Everyone who signs in joins your workspace, with every job and secret in it.
+   Passkey accounts come only from you once you have yours, a `github` provider admits only the accounts you list, and [Sign-in](../../deployment/sign-in/#openid-connect) shows how to limit an identity provider to a group.
 
    Every other option has a default, which [Configuration](../../deployment/configuration/) lists.
 
@@ -131,7 +136,10 @@ On a Kubernetes cluster, [install the Helm chart](../kubernetes/) instead.
 
    A missing or invalid option stops the start with an error that names it, such as `app.encryption_key (APP_ENCRYPTION_KEY) is required`.
 
-6. Open `app.url` in your browser and click your provider's button, such as **Sign in with Pocket ID**.
+6. Open `app.url` in your browser.
+
+   The login page reads **Set up Umpteenth**.
+   Enter your **Name** and click **Create account with a passkey**, or click your provider's button, such as **Sign in with Pocket ID**.
 
    As the first to sign in, you own the workspace, and the **Dashboard** shows **Nothing to show yet** until your first job runs.
    If sign-in fails, the login page shows the reason.

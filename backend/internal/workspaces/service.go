@@ -563,6 +563,24 @@ func (m *Module) LookupInvite(ctx context.Context, token, userID string) (Invite
 	}, nil
 }
 
+// CheckInvite fails unless the invite link can still be accepted, which lets someone without an account create one to accept it
+func (m *Module) CheckInvite(ctx context.Context, token string) error {
+	if !m.enabled {
+		return errDisabled()
+	}
+	hash := crypto.HashToken(token)
+	inv, err := m.queries.GetInviteByTokenHash(ctx, &hash)
+	if database.IsNotFound(err) {
+		return apperror.NotFound("Invite")
+	} else if err != nil {
+		return fmt.Errorf("failed to load invite: %w", err)
+	}
+	if inv.ExpiresAt <= database.Now() {
+		return apperror.Conflict("This invite has expired, ask for a new one")
+	}
+	return nil
+}
+
 // AcceptInvite joins the user to the workspace of an invite link and returns the workspace
 func (m *Module) AcceptInvite(ctx context.Context, token, userID string) (string, error) {
 	if !m.enabled {

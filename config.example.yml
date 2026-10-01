@@ -11,24 +11,27 @@ app:
   encryption_key: ""
 
 auth:
-  # Required
-  # Options how users can sign in. Currently we support generic OIDC providers and GitHub
-  providers:
-    pocket-id:
-      type: oidc
-      name: Pocket ID
-      issuer: https://id.example.com
-      client_id: umpteenth
-      client_secret: ""
-      allowed_groups: []
-    github:
-      type: github
-      name: GitHub
-      client_id: ""
-      client_secret: ""
-      # Required
-      # These GitHub usernames may sign in, or list GitHub organizations under allowed_organizations instead
-      allowed_users: [octocat]
+  passkeys:
+    # Everyone signs in with a passkey. Set it to false to sign in only through the providers below
+    enabled: true
+  # Sign-in providers for your identity provider (generic OIDC) or GitHub, shown on the login page next to passkeys
+  # Uncomment the ones you use and fill in their client
+  # providers:
+  #   pocket-id:
+  #     type: oidc
+  #     name: Pocket ID
+  #     issuer: https://id.example.com
+  #     client_id: umpteenth
+  #     client_secret: ""
+  #     allowed_groups: []
+  #   github:
+  #     type: github
+  #     name: GitHub
+  #     client_id: ""
+  #     client_secret: ""
+  #     # Required
+  #     # These GitHub usernames may sign in, or list GitHub organizations under allowed_organizations instead
+  #     allowed_users: [octocat]
 
 server:
   # Recommended to change

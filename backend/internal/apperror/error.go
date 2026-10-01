@@ -27,6 +27,7 @@ const (
 	CodeWorkspaceChanged   Code = "workspace_changed"
 	CodeLoginNotConfigured Code = "login_not_configured"
 	CodeLoginFailed        Code = "login_failed"
+	CodePasskeyFailed      Code = "passkey_failed"
 	CodeAccountDisabled    Code = "account_disabled"
 	CodeUnsupported        Code = "unsupported"
 	CodeProviderError      Code = "provider_error"

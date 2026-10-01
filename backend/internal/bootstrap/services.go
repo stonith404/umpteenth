@@ -338,7 +338,7 @@ func (s *services) close() {
 	}
 }
 
-// authConfig hands the sign-in providers of the config to the auth module
+// authConfig hands the sign-in providers and the passkey option of the config to the auth module
 func authConfig(cfg *config.Config) auth.Config {
 	providers := make([]auth.ProviderConfig, 0, len(cfg.Auth.Providers))
 	for id, p := range cfg.Auth.Providers {
@@ -359,5 +359,5 @@ func authConfig(cfg *config.Config) auth.Config {
 			AdminOrganizations:   p.AdminOrganizations,
 		})
 	}
-	return auth.Config{AppURL: cfg.App.URL, Providers: providers}
+	return auth.Config{AppURL: cfg.App.URL, Providers: providers, Passkeys: cfg.Auth.Passkeys.Enabled}
 }
