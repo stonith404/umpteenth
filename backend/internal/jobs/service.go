@@ -289,28 +289,28 @@ func effectiveLimits(d settings.Limits, o LimitOverrides) runner.Limits {
 // jobFields are the editable fields shared by create and update
 type jobFields struct {
 	Name        string  `json:"name" minLength:"1" maxLength:"200"`
-	Instruction string  `json:"instruction" minLength:"1" maxLength:"20000"`
-	Spec        *Spec   `json:"spec,omitempty"`
-	ModelID     *string `json:"modelId,omitempty"`
-	Image       *string `json:"image,omitempty" maxLength:"500"`
-	Network     string  `json:"network,omitempty" enum:"none,internet,allowlist,unrestricted"`
+	Instruction string  `json:"instruction" minLength:"1" maxLength:"20000" doc:"What the agent does, which it reads on every run"`
+	Spec        *Spec   `json:"spec,omitempty" doc:"The spec compiled from the instruction"`
+	ModelID     *string `json:"modelId,omitempty" doc:"Model that drives the agent, the workspace's agent model when omitted"`
+	Image       *string `json:"image,omitempty" maxLength:"500" doc:"Base image of the sandbox, the workspace's default image when omitted"`
+	Network     string  `json:"network,omitempty" enum:"none,internet,allowlist,unrestricted" doc:"What the sandbox may reach, internet when omitted; allowlist limits it to allowedDomains"`
 	// AllowedDomains are what an allowlist job may reach, e.g. api.github.com or *.example.com
 	AllowedDomains []string `json:"allowedDomains,omitempty" maxItems:"100"`
 	// AllowPrivateNetwork lets an internet or allowlist job reach private ranges such as the LAN, which are blocked otherwise
 	AllowPrivateNetwork bool           `json:"allowPrivateNetwork,omitempty"`
 	RunAsRoot           bool           `json:"runAsRoot,omitempty"`
 	Limits              LimitOverrides `json:"limits,omitzero"`
-	SelfImprove         *bool          `json:"selfImprove,omitempty"`
-	Graduate            *bool          `json:"graduate,omitempty"`
-	Concurrency         string         `json:"concurrency,omitempty" enum:"skip,queue,parallel"`
-	Cron                *string        `json:"cron,omitempty" maxLength:"100"`
-	Timezone            *string        `json:"timezone,omitempty" maxLength:"100"`
+	SelfImprove         *bool          `json:"selfImprove,omitempty" doc:"Whether reflection after runs improves the job's playbook, true when omitted"`
+	Graduate            *bool          `json:"graduate,omitempty" doc:"Whether the job may graduate to a script that runs without the agent, true when omitted"`
+	Concurrency         string         `json:"concurrency,omitempty" enum:"skip,queue,parallel" doc:"What a trigger during an active run does, skip when omitted"`
+	Cron                *string        `json:"cron,omitempty" maxLength:"100" doc:"Five-field cron expression or a descriptor such as @daily, for a job that runs on a schedule"`
+	Timezone            *string        `json:"timezone,omitempty" maxLength:"100" doc:"IANA time zone of the schedule, UTC when omitted"`
 }
 
 // jobPatch is a partial update: omitted fields keep their value, and an empty string clears an optional text field
 type jobPatch struct {
 	Name                *string         `json:"name,omitempty" minLength:"1" maxLength:"200"`
-	Instruction         *string         `json:"instruction,omitempty" minLength:"1" maxLength:"20000"`
+	Instruction         *string         `json:"instruction,omitempty" minLength:"1" maxLength:"20000" doc:"What the agent does, which it reads on every run"`
 	Spec                *Spec           `json:"spec,omitempty"`
 	RebuildSpec         *bool           `json:"rebuildSpec,omitempty" doc:"Whether a changed instruction compiles the goal, success criteria, inputs, outputs, services and side effects again, true when omitted"`
 	ModelID             *string         `json:"modelId,omitempty"`
@@ -323,7 +323,7 @@ type jobPatch struct {
 	SelfImprove         *bool           `json:"selfImprove,omitempty"`
 	Graduate            *bool           `json:"graduate,omitempty"`
 	Concurrency         *string         `json:"concurrency,omitempty" enum:"skip,queue,parallel"`
-	Cron                *string         `json:"cron,omitempty" maxLength:"100"`
+	Cron                *string         `json:"cron,omitempty" maxLength:"100" doc:"Five-field cron expression or a descriptor such as @daily, where an empty string stops the schedule"`
 	Timezone            *string         `json:"timezone,omitempty" maxLength:"100"`
 }
 

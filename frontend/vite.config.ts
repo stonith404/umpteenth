@@ -30,7 +30,8 @@ export default defineConfig({
 		proxy: {
 			'/api': { target: backendUrl },
 			'/hooks': { target: backendUrl },
-			'/healthz': { target: backendUrl }
+			'/healthz': { target: backendUrl },
+			'/.well-known/oauth-protected-resource': { target: backendUrl }
 		}
 	}
 });

@@ -81,7 +81,7 @@ func (m *Module) ValidateAPIToken(ctx context.Context, token string) (principal.
 		_ = m.queries.TouchAPIToken(ctx, apitokensdb.TouchAPITokenParams{ID: row.ID, LastUsedAt: &now})
 	}
 
-	return principal.Principal{WorkspaceID: row.WorkspaceID, TokenID: row.ID, TokenCreatorID: *row.CreatedBy, Role: role}, nil
+	return principal.Principal{WorkspaceID: row.WorkspaceID, Credential: principal.CredentialAPIToken, TokenID: row.ID, TokenCreatorID: *row.CreatedBy, Role: role}, nil
 }
 
 // ValidateAPITokenID confirms that an already authenticated token still exists, has not expired, and its creator still has access

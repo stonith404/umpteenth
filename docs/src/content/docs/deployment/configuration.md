@@ -122,6 +122,12 @@ An option marked for one type stops Umpteenth at start on a provider of the othe
 |---|---|---|
 | `workspaces.enabled`<br />`WORKSPACES_ENABLED` | `false` | Lets people create workspaces, invite others and switch between them. Off, everyone who signs in shares one workspace, see [Workspaces](../../guides/workspaces/). |
 
+### MCP server
+
+| Option | Default | Description |
+|---|---|---|
+| `mcp.oauth_provider`<br />`MCP_OAUTH_PROVIDER` | empty | The ID of an `oidc` provider under `auth.providers` that MCP clients such as Claude Desktop sign in through, next to API tokens. Empty, they connect with API tokens only, see [Connect an agent](../../reference/mcp-server/#sign-in-through-your-identity-provider). |
+
 ### Server
 
 | Option | Default | Description |

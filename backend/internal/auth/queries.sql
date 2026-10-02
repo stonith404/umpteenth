@@ -10,6 +10,10 @@ RETURNING *;
 -- unscoped: users are instance-wide
 SELECT * FROM users WHERE id = sqlc.arg(id);
 
+-- name: GetUserByIdentity :one
+-- unscoped: users are instance-wide and keyed by the issuer and subject of the account they sign in with
+SELECT id FROM users WHERE issuer = sqlc.arg(issuer) AND subject = sqlc.arg(subject);
+
 -- name: SetUserDisabled :execrows
 -- unscoped: users are instance-wide, and only instance admins deactivate them
 UPDATE users SET disabled_at = sqlc.narg(disabled_at) WHERE id = sqlc.arg(id);

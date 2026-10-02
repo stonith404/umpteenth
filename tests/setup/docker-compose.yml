@@ -25,6 +25,8 @@ services:
       AUTH_PROVIDERS_POCKET_ID_ISSUER: https://id.example.com
       AUTH_PROVIDERS_POCKET_ID_CLIENT_ID: umpteenth
       AUTH_PROVIDERS_POCKET_ID_PRIMARY: 'true'
+      # MCP clients may sign in through Pocket ID too, which only the sign-in metadata shows since the issuer is never contacted, while the HA stack leaves it off
+      MCP_OAUTH_PROVIDER: pocket-id
       AUTH_PROVIDERS_GITHUB_TYPE: github
       AUTH_PROVIDERS_GITHUB_NAME: GitHub
       AUTH_PROVIDERS_GITHUB_CLIENT_ID: umpteenth

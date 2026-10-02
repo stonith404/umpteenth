@@ -17,7 +17,7 @@ const accessMetadataKey = "umpteenth.access"
 type Access struct {
 	// MinRole is the lowest workspace role that may call the operation
 	MinRole principal.Role
-	// SessionOnly keeps API tokens out, for operations that change who has access, so a leaked token can't grant itself lasting access
+	// SessionOnly keeps API tokens and OAuth access tokens out, for operations that change who has access, so a leaked token can't grant itself lasting access
 	SessionOnly bool
 	// InstanceAdmin limits the operation to instance admins
 	InstanceAdmin bool
@@ -49,7 +49,7 @@ func (a Access) Check(p principal.Principal) error {
 	if a.InstanceAdmin && !p.InstanceAdmin {
 		return apperror.Forbidden("Only instance admins can do this")
 	}
-	if a.SessionOnly && p.TokenID != "" {
+	if a.SessionOnly && !p.IsSession() {
 		return apperror.Forbidden("This can only be done while signed in, not with an API token")
 	}
 	if a.MinRole != "" && !p.Role.AtLeast(a.MinRole) {

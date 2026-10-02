@@ -93,7 +93,7 @@ export default defineConfig({
 				},
 				{
 					label: 'Reference',
-					items: ['reference/job-settings', 'reference/api', { label: 'API endpoints', link: '/reference/api-endpoints/' }, 'reference/ump-cli']
+					items: ['reference/job-settings', 'reference/api', { label: 'API endpoints', link: '/reference/api-endpoints/' }, 'reference/mcp-server', 'reference/ump-cli']
 				}
 			]
 		})

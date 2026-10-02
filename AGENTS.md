@@ -14,7 +14,7 @@ Setup and test commands for humans are in `CONTRIBUTING.md`.
 
 ## Rules
 
-- Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:` …), since they decide the version bump and become the changelog.
+- Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:` …), since they decide the version bump.
 - After changing the frontend, run `pnpm lint` and fix all errors; don't add new `@shadcn/lint` warnings, which name the variant or theme token to use instead.
 - After changing the API, run `pnpm gen:api`; after changing a `queries.sql` or migration, run `make gen` in `backend/`.
   Migrations exist for both Postgres and SQLite in `backend/resources/migrations`.

@@ -22,6 +22,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/images"
 	"github.com/stonith404/umpteenth/backend/internal/jobs"
 	"github.com/stonith404/umpteenth/backend/internal/llm"
+	"github.com/stonith404/umpteenth/backend/internal/mcpapi"
 	"github.com/stonith404/umpteenth/backend/internal/mcpservers"
 	"github.com/stonith404/umpteenth/backend/internal/notifications"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
@@ -46,6 +47,7 @@ type services struct {
 	workspaces    *workspaces.Module
 	auth          *auth.Module
 	apiTokens     *apitokens.Module
+	mcpAPI        *mcpapi.Module
 	settings      *settings.Module
 	system        *system.Module
 	providers     *providers.Module
@@ -137,6 +139,12 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 	}
 	svc.workspaces.SetSessions(svc.auth)
 	svc.apiTokens = apitokens.New(apitokens.Dependencies{DB: db, Roles: svc.workspaces})
+	mcpDeps := mcpapi.Dependencies{Tokens: svc.apiTokens, AppURL: cfg.App.URL}
+	if id := cfg.MCP.OAuthProvider; id != "" {
+		mcpDeps.OAuth = svc.auth
+		mcpDeps.OAuthIssuer = cfg.Auth.Providers[id].Issuer
+	}
+	svc.mcpAPI = mcpapi.New(mcpDeps)
 
 	// Listed GitHub names are tied to their holders in the background, so an unreachable GitHub doesn't hold up the start
 	// The service then waits for shutdown, since one that returns stops the others, and test instances skip it since they never sign in through GitHub
@@ -365,5 +373,11 @@ func authConfig(cfg *config.Config) auth.Config {
 			AdminOrganizations:   p.AdminOrganizations,
 		})
 	}
-	return auth.Config{AppURL: cfg.App.URL, Providers: providers, Passkeys: cfg.Auth.Passkeys.Enabled}
+	c := auth.Config{AppURL: cfg.App.URL, Providers: providers, Passkeys: cfg.Auth.Passkeys.Enabled}
+
+	// MCP clients sign in with access tokens issued for the MCP endpoint, which the provider names as their audience
+	if id := cfg.MCP.OAuthProvider; id != "" {
+		c.AccessTokens = &auth.AccessTokenConfig{ProviderID: id, Audience: mcpapi.ResourceURL(cfg.App.URL)}
+	}
+	return c
 }

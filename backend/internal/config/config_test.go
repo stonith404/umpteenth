@@ -344,3 +344,22 @@ func TestValidateRejectsARetentionThatWouldPruneEveryFinishedRun(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, cfg.Runs.RetentionDays)
 }
+
+func TestValidateChecksTheMCPOAuthProvider(t *testing.T) {
+	providers := "auth:\n  providers:\n    pocket-id:\n      type: oidc\n      name: Pocket ID\n      issuer: https://id.example.com\n      client_id: umpteenth\n" +
+		"    github:\n      type: github\n      name: GitHub\n      client_id: umpteenth\n      client_secret: secret\n      allowed_users: [octocat]\n"
+
+	// MCP clients can sign in through an OpenID Connect provider, named by its ID in the file or the environment
+	cfg, err := load(writeFile(t, "config.yml", providers+"mcp:\n  oauth_provider: pocket-id\n"), devEnv)
+	require.NoError(t, err)
+	assert.Equal(t, "pocket-id", cfg.MCP.OAuthProvider)
+	cfg, err = load(writeFile(t, "config.yml", providers), map[string]string{"APP_ENV": "development", "APP_ENCRYPTION_KEY": testEncryptionKey, "MCP_OAUTH_PROVIDER": "pocket-id"})
+	require.NoError(t, err)
+	assert.Equal(t, "pocket-id", cfg.MCP.OAuthProvider)
+
+	// A provider that doesn't exist or issues no access tokens Umpteenth can verify is refused
+	_, err = load(writeFile(t, "config.yml", providers+"mcp:\n  oauth_provider: keycloak\n"), devEnv)
+	require.ErrorContains(t, err, `mcp.oauth_provider (MCP_OAUTH_PROVIDER) names "keycloak", which isn't one of the auth.providers`)
+	_, err = load(writeFile(t, "config.yml", providers+"mcp:\n  oauth_provider: github\n"), devEnv)
+	require.ErrorContains(t, err, `mcp.oauth_provider (MCP_OAUTH_PROVIDER) names "github", which has to be an oidc provider`)
+}

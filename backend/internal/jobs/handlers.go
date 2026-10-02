@@ -303,9 +303,10 @@ type triggerOutput struct {
 }
 
 func (m *Module) runNow(ctx context.Context, in *runNowInput) (*triggerOutput, error) {
+	// Only a click in the browser is a manual run, while API tokens and MCP clients count as the API even when they act as a user
 	p, _ := principal.From(ctx)
 	trigger := runs.TriggerManual
-	if p.UserID == "" {
+	if !p.IsSession() {
 		trigger = runs.TriggerAPI
 	}
 	res, err := m.Trigger(ctx, p.WorkspaceID, in.ID, runs.TriggerRequest{

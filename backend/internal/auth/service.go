@@ -35,6 +35,8 @@ type Service struct {
 
 	// providers are in the order of the login page
 	providers []configuredProvider
+	// accessTokens names the provider MCP clients sign in with, and is nil when they can only use API tokens
+	accessTokens *AccessTokenConfig
 }
 
 // configuredProvider pairs a provider's settings with the implementation of its type
@@ -44,7 +46,7 @@ type configuredProvider struct {
 }
 
 func newService(db *database.DB, cfg Config, codec *cookieCodec, workspaces WorkspaceResolver) (*Service, error) {
-	s := &Service{db: db, queries: authdb.New(db), appURL: cfg.AppURL, codec: codec, workspaces: workspaces}
+	s := &Service{db: db, queries: authdb.New(db), appURL: cfg.AppURL, codec: codec, workspaces: workspaces, accessTokens: cfg.AccessTokens}
 	if cfg.Passkeys {
 		rp, err := newRelyingParty(cfg.AppURL)
 		if err != nil {
@@ -270,6 +272,7 @@ func (s *Service) VerifySession(ctx context.Context, value string) (principal.Pr
 		return principal.Principal{}, err
 	}
 	return principal.Principal{
+		Credential:       principal.CredentialSession,
 		UserID:           claims.UserID,
 		WorkspaceID:      claims.WorkspaceID,
 		LoginProvider:    claims.Provider,

@@ -44,6 +44,7 @@ type Config struct {
 	FileStorage FileStorage `yaml:"file_storage"`
 	Auth        Auth        `yaml:"auth"`
 	Workspaces  Workspaces  `yaml:"workspaces"`
+	MCP         MCP         `yaml:"mcp"`
 	Sandbox     Sandbox     `yaml:"sandbox"`
 	Runs        Runs        `yaml:"runs"`
 	Network     Network     `yaml:"network"`
@@ -162,6 +163,13 @@ type Workspaces struct {
 	// Enabled lets people create workspaces, invite others to them and switch between them
 	// When it is off, everyone who signs in shares one workspace
 	Enabled bool `yaml:"enabled"`
+}
+
+// MCP configures the MCP server at /api/mcp, which agents such as Claude Code use to create and run jobs
+type MCP struct {
+	// OAuthProvider is the ID of an oidc provider under auth.providers whose access tokens MCP clients may sign in with, next to API tokens
+	// The provider has to issue JWT access tokens for the resource <app.url>/api/mcp, as Pocket ID does for an API with that resource
+	OAuthProvider string `yaml:"oauth_provider"`
 }
 
 type Sandbox struct {

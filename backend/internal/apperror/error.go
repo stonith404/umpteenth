@@ -102,6 +102,9 @@ func As(err error) (*Error, bool) {
 
 func (e *Error) Code() Code { return e.code }
 
+// Message returns the client-safe message without the internal cause
+func (e *Error) Message() string { return e.message }
+
 // GetStatus returns the HTTP status and makes Error satisfy huma.StatusError
 func (e *Error) GetStatus() int { return e.status }
 

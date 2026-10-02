@@ -42,13 +42,27 @@ func RevalidateCredential(ctx context.Context) error {
 	return revalidate(ctx)
 }
 
+type authenticatedKey struct{}
+
+// authenticated is a caller another layer of this process already authenticated
+type authenticated struct {
+	principal  principal.Principal
+	revalidate credentialRevalidator
+}
+
+// WithAuthenticated marks a request built inside the process for a caller that is already authenticated, such as the REST request behind an MCP tool call
+// Only code in this process can put values on a request's context, so no client can reach this path
+func WithAuthenticated(ctx context.Context, p principal.Principal, revalidate func(context.Context) error) context.Context {
+	return context.WithValue(ctx, authenticatedKey{}, authenticated{principal: p, revalidate: revalidate})
+}
+
 // RateLimiter decides whether a request with the given key may proceed
 type RateLimiter interface {
 	Allow(ctx context.Context, key string) (bool, time.Duration, error)
 }
 
-// workspaceHeader names the workspace a browser tab shows, which the SPA sends with its requests
-const workspaceHeader = "X-Umpteenth-Workspace"
+// WorkspaceHeader names the workspace a browser tab shows, which the SPA sends with its requests, and the workspace an MCP client signed in through OAuth works in
+const WorkspaceHeader = "X-Umpteenth-Workspace"
 
 // Auth authenticates requests by session cookie or API token and puts the principal on the context
 type Auth struct {
@@ -85,7 +99,7 @@ func (a *Auth) Required() huma.Middlewares {
 		// A write from a tab that still shows the previous workspace would land in the new one, so it is refused until the tab reloads
 		// Callers that don't name a workspace, such as scripts, keep acting on the session's one
 		access := httpserver.AccessOf(ctx.Operation())
-		shown := ctx.Header(workspaceHeader)
+		shown := ctx.Header(WorkspaceHeader)
 		if viaCookie && !isSafeMethod(ctx.Method()) && !access.AnyWorkspace && shown != "" && shown != p.WorkspaceID {
 			httpserver.WriteError(ctx, apperror.WorkspaceChanged())
 			return
@@ -106,6 +120,11 @@ func (a *Auth) Required() huma.Middlewares {
 }
 
 func (a *Auth) resolve(ctx huma.Context) (principal.Principal, bool, credentialRevalidator, error) {
+	// A caller authenticated in-process carries no credentials, and as it never comes with a cookie the CSRF and stale-tab checks don't apply
+	if pre, ok := ctx.Context().Value(authenticatedKey{}).(authenticated); ok {
+		return pre.principal, false, pre.revalidate, nil
+	}
+
 	// A Bearer header carries an API token, which wins over any cookie the client also sends
 	authz := ctx.Header("Authorization")
 	if token, ok := strings.CutPrefix(authz, "Bearer "); ok {

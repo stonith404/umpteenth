@@ -323,8 +323,10 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists the workspace's jobs with their schedule and latest run. */
 		get: operations['list-jobs'];
 		put?: never;
+		/** @description Creates a job. Compile its instruction first and pass the compiled spec, plus cron and timezone from spec.schedule for a recurring job. MCP servers, secrets and skills are attached afterwards with their own operations. */
 		post: operations['create-job'];
 		delete?: never;
 		options?: never;
@@ -341,6 +343,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
+		/** @description Turns a plain-language instruction into a job spec with the workspace's utility model, without saving anything. It also returns open questions for the user, the names of configured skills that fit, and the secrets the job needs, matched to configured secrets by name. */
 		post: operations['compile-job'];
 		delete?: never;
 		options?: never;
@@ -355,12 +358,14 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Returns a job with its spec, settings, next scheduled run and latest run. */
 		get: operations['get-job'];
 		put?: never;
 		post?: never;
 		delete: operations['delete-job'];
 		options?: never;
 		head?: never;
+		/** @description Changes a job's fields, keeping the ones left out. A changed instruction compiles the spec again unless rebuildSpec is false, and an empty string clears cron, timezone, modelId or image. */
 		patch: operations['update-job'];
 		trace?: never;
 	};
@@ -419,7 +424,9 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists the MCP servers a job's runs get, with the tools each one is limited to. */
 		get: operations['get-job-mcp-servers'];
+		/** @description Replaces the MCP servers a job's runs get with the given list, so include the ones it should keep. */
 		put: operations['set-job-mcp-servers'];
 		post?: never;
 		delete?: never;
@@ -501,6 +508,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
+		/** @description Starts a run of a job and returns its ID right away. Follow it with get-run until its status is succeeded, failed, cancelled, timed_out or skipped; a job set to skip overlapping runs records a skipped run while another one is active. */
 		post: operations['run-job'];
 		delete?: never;
 		options?: never;
@@ -515,7 +523,9 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists the secrets a job's runs get and the environment variable each one is set as. */
 		get: operations['get-job-secrets'];
+		/** @description Replaces the secrets a job's runs get with the given list, each set as an environment variable, so include the ones it should keep. */
 		put: operations['set-job-secrets'];
 		post?: never;
 		delete?: never;
@@ -531,7 +541,9 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists the skills a job's runs find in /ump/skills. */
 		get: operations['get-job-skills'];
+		/** @description Replaces the skills a job's runs get with the given list, so include the ones it should keep. */
 		put: operations['set-job-skills'];
 		post?: never;
 		delete?: never;
@@ -611,6 +623,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists the MCP servers configured in the workspace, which jobs can be given. */
 		get: operations['list-mcp-servers'];
 		put?: never;
 		post: operations['create-mcp-server'];
@@ -708,6 +721,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists the models of the workspace's providers. A job's modelId must be an enabled one, and jobs without a model use the workspace's agent model. */
 		get: operations['list-models'];
 		put?: never;
 		/** @description Requires the admin role or above. */
@@ -829,6 +843,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists runs across the workspace's jobs, newest first, filtered by job, status, mode, trigger or time. */
 		get: operations['list-runs'];
 		put?: never;
 		post?: never;
@@ -862,6 +877,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Returns a run with its status, and once it finished its summary, outputs, error, cost and token counts. */
 		get: operations['get-run'];
 		put?: never;
 		post?: never;
@@ -913,6 +929,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
+		/** @description Cancels a queued or active run. An active run is told to stop and records its final status itself. */
 		post: operations['cancel-run'];
 		delete?: never;
 		options?: never;
@@ -927,6 +944,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists a run's timeline in order: model calls, tool calls and their results, sandbox steps and errors. Page through it by passing the last seq as after. */
 		get: operations['list-run-events'];
 		put?: never;
 		post?: never;
@@ -991,6 +1009,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists the secrets stored in the workspace by name, never with their values. */
 		get: operations['list-secrets'];
 		put?: never;
 		post: operations['create-secret'];
@@ -1057,6 +1076,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
+		/** @description Lists the skills uploaded to the workspace, folders of instructions and files that jobs can be given. */
 		get: operations['list-skills'];
 		put?: never;
 		post: operations['create-skill'];
@@ -1861,6 +1881,7 @@ export interface components {
 		IOField: {
 			description?: string;
 			name: string;
+			/** @description JSON type: string, integer, number, boolean, object or array */
 			type: string;
 		};
 		IdOutputBody: {
@@ -1983,20 +2004,34 @@ export interface components {
 		JobFields: {
 			allowPrivateNetwork?: boolean;
 			allowedDomains?: string[] | null;
-			/** @enum {string} */
+			/**
+			 * @description What a trigger during an active run does, skip when omitted
+			 * @enum {string}
+			 */
 			concurrency?: 'skip' | 'queue' | 'parallel';
+			/** @description Five-field cron expression or a descriptor such as @daily, for a job that runs on a schedule */
 			cron?: string;
+			/** @description Whether the job may graduate to a script that runs without the agent, true when omitted */
 			graduate?: boolean;
+			/** @description Base image of the sandbox, the workspace's default image when omitted */
 			image?: string;
+			/** @description What the agent does, which it reads on every run */
 			instruction: string;
 			limits?: components['schemas']['LimitOverrides'];
+			/** @description Model that drives the agent, the workspace's agent model when omitted */
 			modelId?: string;
 			name: string;
-			/** @enum {string} */
+			/**
+			 * @description What the sandbox may reach, internet when omitted; allowlist limits it to allowedDomains
+			 * @enum {string}
+			 */
 			network?: 'none' | 'internet' | 'allowlist' | 'unrestricted';
 			runAsRoot?: boolean;
+			/** @description Whether reflection after runs improves the job's playbook, true when omitted */
 			selfImprove?: boolean;
+			/** @description The spec compiled from the instruction */
 			spec?: components['schemas']['Spec'];
+			/** @description IANA time zone of the schedule, UTC when omitted */
 			timezone?: string;
 		};
 		JobListDto: {
@@ -2033,9 +2068,11 @@ export interface components {
 			allowedDomains?: string[];
 			/** @enum {string} */
 			concurrency?: 'skip' | 'queue' | 'parallel';
+			/** @description Five-field cron expression or a descriptor such as @daily, where an empty string stops the schedule */
 			cron?: string;
 			graduate?: boolean;
 			image?: string;
+			/** @description What the agent does, which it reads on every run */
 			instruction?: string;
 			limits?: components['schemas']['LimitOverrides'];
 			modelId?: string;
@@ -2075,17 +2112,21 @@ export interface components {
 			turns: number;
 		};
 		JobSecret: {
+			/** @description Environment variable the runs get the secret's value in, such as GITHUB_TOKEN */
 			envName: string;
+			/** @description ID of a configured secret */
 			secretId: string;
 			readonly secretName?: string;
 		};
 		JobServer: {
 			/** @description null exposes all tools */
 			allowedTools: string[] | null;
+			/** @description ID of a configured MCP server */
 			serverId: string;
 			readonly serverName?: string;
 		};
 		JobSkill: {
+			/** @description ID of an uploaded skill */
 			skillId: string;
 			readonly skillName?: string;
 		};
@@ -2146,9 +2187,15 @@ export interface components {
 		LimitOverrides: {
 			/** Format: double */
 			cpus?: number;
-			/** Format: double */
+			/**
+			 * Format: double
+			 * @description Spend per run in USD, where 0 turns the limit off
+			 */
 			maxCostUsd?: number;
-			/** Format: int64 */
+			/**
+			 * Format: int64
+			 * @description Model calls the agent may make per run
+			 */
 			maxTurns?: number;
 			/** Format: int64 */
 			memoryMb?: number;
@@ -2190,6 +2237,7 @@ export interface components {
 			type: 'oidc' | 'github' | 'passkey';
 		};
 		MCPNeed: {
+			/** @description Name of a configured MCP server, or of the service when none is configured */
 			server: string;
 			why: string;
 		};
@@ -2659,8 +2707,11 @@ export interface components {
 			version: string;
 		};
 		Schedule: {
+			/** @description Five-field cron expression */
 			cron: string;
+			/** @description The schedule in plain words, such as Weekdays at 08:00 */
 			human: string;
+			/** @description IANA time zone the expression runs in, such as Europe/Berlin */
 			timezone: string;
 		};
 		Script: {
@@ -2822,16 +2873,28 @@ export interface components {
 			size: number;
 		};
 		Spec: {
+			/** @description Dockerfile for jobs that need tools beyond the default sandbox image, null otherwise */
 			dockerfile: string | null;
+			/** @description One sentence on the outcome */
 			goal: string;
+			/** @description Values a run reads from /ump/input.json */
 			inputs: components['schemas']['IOField'][] | null;
+			/** @description MCP servers the job needs */
 			mcp: components['schemas']['MCPNeed'][] | null;
-			/** @enum {string} */
+			/**
+			 * @description Whether the job needs the internet
+			 * @enum {string}
+			 */
 			network: 'none' | 'internet';
+			/** @description Small structured values each run reports */
 			outputs: components['schemas']['IOField'][] | null;
+			/** @description The schedule the instruction asks for, which only takes effect through the job's cron and timezone */
 			schedule?: components['schemas']['Schedule'];
+			/** @description Changes the job makes outside its sandbox, such as posting a message */
 			sideEffects: string[] | null;
+			/** @description Checkable statements a successful run satisfies */
 			successCriteria: string[] | null;
+			/** @description Short name for the job */
 			title: string;
 		};
 		StateEntryDto: {

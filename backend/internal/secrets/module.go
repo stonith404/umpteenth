@@ -50,12 +50,12 @@ func New(deps Dependencies) (*Module, error) {
 func (m *Module) SetJobs(j JobChecker) { m.deps.Jobs = j }
 
 func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
-	httpserver.Register(api, httpserver.Operation("list-secrets", http.MethodGet, "/api/secrets", "Secrets"), auth, m.list)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("list-secrets", http.MethodGet, "/api/secrets", "Secrets"), "Lists the secrets stored in the workspace by name, never with their values."), auth, m.list)
 	httpserver.Register(api, httpserver.Operation("create-secret", http.MethodPost, "/api/secrets", "Secrets"), auth, m.create)
 	httpserver.Register(api, httpserver.Operation("update-secret", http.MethodPut, "/api/secrets/{id}", "Secrets"), auth, m.update)
 	httpserver.Register(api, httpserver.Operation("delete-secret", http.MethodDelete, "/api/secrets/{id}", "Secrets"), auth, m.delete)
-	httpserver.Register(api, httpserver.Operation("get-job-secrets", http.MethodGet, "/api/jobs/{id}/secrets", "Secrets"), auth, m.getJobSecrets)
-	httpserver.Register(api, httpserver.Operation("set-job-secrets", http.MethodPut, "/api/jobs/{id}/secrets", "Secrets"), auth, m.setJobSecrets)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("get-job-secrets", http.MethodGet, "/api/jobs/{id}/secrets", "Secrets"), "Lists the secrets a job's runs get and the environment variable each one is set as."), auth, m.getJobSecrets)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("set-job-secrets", http.MethodPut, "/api/jobs/{id}/secrets", "Secrets"), "Replaces the secrets a job's runs get with the given list, each set as an environment variable, so include the ones it should keep."), auth, m.setJobSecrets)
 }
 
 // Resolve returns the plaintext of a secret by name
@@ -224,9 +224,9 @@ func (m *Module) delete(ctx context.Context, in *idInput) (*struct{}, error) {
 
 // JobSecret maps a secret to an environment variable of a job's sandbox
 type JobSecret struct {
-	SecretID   string `json:"secretId"`
+	SecretID   string `json:"secretId" doc:"ID of a configured secret"`
 	SecretName string `json:"secretName,omitempty" readOnly:"true"`
-	EnvName    string `json:"envName" pattern:"^[A-Za-z_][A-Za-z0-9_]*$" maxLength:"100"`
+	EnvName    string `json:"envName" pattern:"^[A-Za-z_][A-Za-z0-9_]*$" maxLength:"100" doc:"Environment variable the runs get the secret's value in, such as GITHUB_TOKEN"`
 }
 
 type jobSecretsOutput struct {

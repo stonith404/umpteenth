@@ -77,7 +77,7 @@ func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("test-provider", http.MethodPost, "/api/providers/{id}/test", "Providers"), admin), auth, m.testProvider)
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("sync-provider-models", http.MethodPost, "/api/providers/{id}/sync", "Providers"), admin), auth, m.syncProvider)
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("set-provider-models-enabled", http.MethodPut, "/api/providers/{id}/models/enabled", "Providers"), admin), auth, m.setProviderModelsEnabled)
-	httpserver.Register(api, httpserver.Operation("list-models", http.MethodGet, "/api/models", "Providers"), auth, m.listModels)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("list-models", http.MethodGet, "/api/models", "Providers"), "Lists the models of the workspace's providers. A job's modelId must be an enabled one, and jobs without a model use the workspace's agent model."), auth, m.listModels)
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("create-model", http.MethodPost, "/api/models", "Providers"), admin), auth, m.createModel)
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("update-model", http.MethodPatch, "/api/models/{id}", "Providers"), admin), auth, m.updateModel)
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("delete-model", http.MethodDelete, "/api/models/{id}", "Providers"), admin), auth, m.deleteModel)

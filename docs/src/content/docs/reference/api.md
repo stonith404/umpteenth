@@ -6,6 +6,7 @@ description: Automate Umpteenth over HTTP with an API token, from starting a run
 The UI does everything through a JSON API under `/api`, and a script with an API token calls the same routes.
 Your instance serves the OpenAPI spec at `/api/openapi.json` and interactive docs at `/api/docs`, and neither needs a sign-in.
 [API endpoints](../api-endpoints/) lists every route on one page with its parameters and response fields.
+Coding agents such as Claude Code reach the job and run routes over MCP instead, as [Connect an agent](../mcp-server/) shows.
 
 In the examples, `https://umpteenth.example.com` stands for your instance and `$UMPTEENTH_API_TOKEN` holds an API token.
 

@@ -11,6 +11,7 @@ import (
 	"maps"
 	"net/http"
 	"reflect"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -62,6 +63,13 @@ func Operation(id, method, path string, tags ...string) huma.Operation {
 		Path:        path,
 		Tags:        tags,
 	}
+}
+
+// Describe documents what an operation does, which the API reference and the MCP tool built from it show
+// It comes before any access rule Restrict appended, whichever of the two runs first
+func Describe(op huma.Operation, description string) huma.Operation {
+	op.Description = strings.TrimSpace(description + "\n\n" + op.Description)
+	return op
 }
 
 // Register adds an operation with middlewares, keeping module route tables compact

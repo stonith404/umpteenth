@@ -23,44 +23,44 @@ const (
 
 // Schedule is the compiled schedule of a job
 type Schedule struct {
-	Cron     string `json:"cron"`
-	Timezone string `json:"timezone"`
-	Human    string `json:"human"`
+	Cron     string `json:"cron" doc:"Five-field cron expression"`
+	Timezone string `json:"timezone" doc:"IANA time zone the expression runs in, such as Europe/Berlin"`
+	Human    string `json:"human" doc:"The schedule in plain words, such as Weekdays at 08:00"`
 }
 
 // IOField describes one job input or output
 type IOField struct {
 	Name        string `json:"name"`
-	Type        string `json:"type"`
+	Type        string `json:"type" doc:"JSON type: string, integer, number, boolean, object or array"`
 	Description string `json:"description,omitempty"`
 }
 
 // MCPNeed is an MCP server the job needs, with the reason
 type MCPNeed struct {
-	Server string `json:"server"`
+	Server string `json:"server" doc:"Name of a configured MCP server, or of the service when none is configured"`
 	Why    string `json:"why"`
 }
 
 // Spec is the structured data compiled from a job's instruction
 type Spec struct {
-	Title string `json:"title"`
-	Goal  string `json:"goal"`
+	Title string `json:"title" doc:"Short name for the job"`
+	Goal  string `json:"goal" doc:"One sentence on the outcome"`
 	// Schedule is omitted for jobs without a recurring schedule, since Huma cannot mark a struct reference as nullable
-	Schedule        *Schedule `json:"schedule,omitempty"`
-	SuccessCriteria []string  `json:"successCriteria"`
-	Inputs          []IOField `json:"inputs"`
-	Outputs         []IOField `json:"outputs"`
-	MCP             []MCPNeed `json:"mcp"`
-	Network         string    `json:"network" enum:"none,internet"`
-	Dockerfile      *string   `json:"dockerfile"`
-	SideEffects     []string  `json:"sideEffects"`
+	Schedule        *Schedule `json:"schedule,omitempty" doc:"The schedule the instruction asks for, which only takes effect through the job's cron and timezone"`
+	SuccessCriteria []string  `json:"successCriteria" doc:"Checkable statements a successful run satisfies"`
+	Inputs          []IOField `json:"inputs" doc:"Values a run reads from /ump/input.json"`
+	Outputs         []IOField `json:"outputs" doc:"Small structured values each run reports"`
+	MCP             []MCPNeed `json:"mcp" doc:"MCP servers the job needs"`
+	Network         string    `json:"network" enum:"none,internet" doc:"Whether the job needs the internet"`
+	Dockerfile      *string   `json:"dockerfile" doc:"Dockerfile for jobs that need tools beyond the default sandbox image, null otherwise"`
+	SideEffects     []string  `json:"sideEffects" doc:"Changes the job makes outside its sandbox, such as posting a message"`
 }
 
 // LimitOverrides are the per-job limits; unset fields fall back to the workspace defaults
 type LimitOverrides struct {
 	TimeoutSeconds *int     `json:"timeoutSeconds,omitempty" minimum:"30" maximum:"86400"`
-	MaxTurns       *int     `json:"maxTurns,omitempty" minimum:"1" maximum:"1000"`
-	MaxCostUSD     *float64 `json:"maxCostUsd,omitempty" minimum:"0"`
+	MaxTurns       *int     `json:"maxTurns,omitempty" minimum:"1" maximum:"1000" doc:"Model calls the agent may make per run"`
+	MaxCostUSD     *float64 `json:"maxCostUsd,omitempty" minimum:"0" doc:"Spend per run in USD, where 0 turns the limit off"`
 	CPUs           *float64 `json:"cpus,omitempty" minimum:"0.1" maximum:"64"`
 	MemoryMB       *int     `json:"memoryMb,omitempty" minimum:"64" maximum:"262144"`
 }

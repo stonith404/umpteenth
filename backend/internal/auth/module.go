@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -22,6 +23,8 @@ type WorkspaceResolver interface {
 	Get(ctx context.Context, workspaceID string) (workspaces.Summary, error)
 	// CheckInvite fails unless an invite link can still be accepted, which lets someone without an account sign up with a passkey
 	CheckInvite(ctx context.Context, token string) error
+	// AgentAccess picks the workspace and role of an MCP client that signed in as the user
+	AgentAccess(ctx context.Context, userID, requested string) (string, principal.Role, error)
 	Enabled() bool
 }
 
@@ -36,6 +39,8 @@ type Config struct {
 	Providers []ProviderConfig
 	// Passkeys lets people sign in with passkeys of accounts that belong to no sign-in provider
 	Passkeys bool
+	// AccessTokens lets MCP clients sign in with access tokens of a provider, and is nil when they can only use API tokens
+	AccessTokens *AccessTokenConfig
 }
 
 // ProviderConfig is a way users can sign in, whose Type picks the implementation
@@ -86,6 +91,11 @@ func New(deps Dependencies) (*Module, error) {
 	}
 
 	return &Module{service: service, handler: &handler{service: service, settings: deps.Settings}}, nil
+}
+
+// VerifyAccessToken resolves an access token an MCP client got from the identity provider, in the workspace the client names or else where the user last worked
+func (m *Module) VerifyAccessToken(ctx context.Context, raw, workspaceID string) (principal.Principal, time.Time, error) {
+	return m.service.VerifyAccessToken(ctx, raw, workspaceID)
 }
 
 // RegisterRoutes mounts the login flow and the current-user endpoint

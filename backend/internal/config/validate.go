@@ -95,6 +95,17 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// MCP clients sign in through one of the sign-in providers, and only OpenID Connect providers issue access tokens Umpteenth can verify
+	if id := c.MCP.OAuthProvider; id != "" {
+		p, ok := c.Auth.Providers[id]
+		if !ok {
+			return fmt.Errorf("%s names %q, which isn't one of the auth.providers", describe("mcp.oauth_provider"), id)
+		}
+		if strings.ToLower(p.Type) != AuthProviderOIDC {
+			return fmt.Errorf("%s names %q, which has to be an oidc provider", describe("mcp.oauth_provider"), id)
+		}
+	}
+
 	if c.Runs.MaxConcurrent < 1 {
 		c.Runs.MaxConcurrent = 1
 	}

@@ -354,6 +354,23 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 	return i, err
 }
 
+const getUserByIdentity = `-- name: GetUserByIdentity :one
+SELECT id FROM users WHERE issuer = $1 AND subject = $2
+`
+
+type GetUserByIdentityParams struct {
+	Issuer  string
+	Subject string
+}
+
+// unscoped: users are instance-wide and keyed by the issuer and subject of the account they sign in with
+func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getUserByIdentity, arg.Issuer, arg.Subject)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const listUserPasskeys = `-- name: ListUserPasskeys :many
 SELECT id, user_id, credential_id, name, credential, created_at, last_used_at FROM passkeys WHERE user_id = $1 ORDER BY created_at, id
 `

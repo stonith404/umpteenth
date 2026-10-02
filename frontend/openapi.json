@@ -1018,6 +1018,7 @@
 						"type": "string"
 					},
 					"type": {
+						"description": "JSON type: string, integer, number, boolean, object or array",
 						"type": "string"
 					}
 				},
@@ -1370,21 +1371,26 @@
 						"type": ["array", "null"]
 					},
 					"concurrency": {
+						"description": "What a trigger during an active run does, skip when omitted",
 						"enum": ["skip", "queue", "parallel"],
 						"type": "string"
 					},
 					"cron": {
+						"description": "Five-field cron expression or a descriptor such as @daily, for a job that runs on a schedule",
 						"maxLength": 100,
 						"type": "string"
 					},
 					"graduate": {
+						"description": "Whether the job may graduate to a script that runs without the agent, true when omitted",
 						"type": "boolean"
 					},
 					"image": {
+						"description": "Base image of the sandbox, the workspace's default image when omitted",
 						"maxLength": 500,
 						"type": "string"
 					},
 					"instruction": {
+						"description": "What the agent does, which it reads on every run",
 						"maxLength": 20000,
 						"minLength": 1,
 						"type": "string"
@@ -1393,6 +1399,7 @@
 						"$ref": "#/components/schemas/LimitOverrides"
 					},
 					"modelId": {
+						"description": "Model that drives the agent, the workspace's agent model when omitted",
 						"type": "string"
 					},
 					"name": {
@@ -1401,6 +1408,7 @@
 						"type": "string"
 					},
 					"network": {
+						"description": "What the sandbox may reach, internet when omitted; allowlist limits it to allowedDomains",
 						"enum": ["none", "internet", "allowlist", "unrestricted"],
 						"type": "string"
 					},
@@ -1408,12 +1416,15 @@
 						"type": "boolean"
 					},
 					"selfImprove": {
+						"description": "Whether reflection after runs improves the job's playbook, true when omitted",
 						"type": "boolean"
 					},
 					"spec": {
-						"$ref": "#/components/schemas/Spec"
+						"$ref": "#/components/schemas/Spec",
+						"description": "The spec compiled from the instruction"
 					},
 					"timezone": {
+						"description": "IANA time zone of the schedule, UTC when omitted",
 						"maxLength": 100,
 						"type": "string"
 					}
@@ -1524,6 +1535,7 @@
 						"type": "string"
 					},
 					"cron": {
+						"description": "Five-field cron expression or a descriptor such as @daily, where an empty string stops the schedule",
 						"maxLength": 100,
 						"type": "string"
 					},
@@ -1535,6 +1547,7 @@
 						"type": "string"
 					},
 					"instruction": {
+						"description": "What the agent does, which it reads on every run",
 						"maxLength": 20000,
 						"minLength": 1,
 						"type": "string"
@@ -1635,11 +1648,13 @@
 				"additionalProperties": false,
 				"properties": {
 					"envName": {
+						"description": "Environment variable the runs get the secret's value in, such as GITHUB_TOKEN",
 						"maxLength": 100,
 						"pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
 						"type": "string"
 					},
 					"secretId": {
+						"description": "ID of a configured secret",
 						"type": "string"
 					},
 					"secretName": {
@@ -1661,6 +1676,7 @@
 						"type": ["array", "null"]
 					},
 					"serverId": {
+						"description": "ID of a configured MCP server",
 						"type": "string"
 					},
 					"serverName": {
@@ -1675,6 +1691,7 @@
 				"additionalProperties": false,
 				"properties": {
 					"skillId": {
+						"description": "ID of an uploaded skill",
 						"type": "string"
 					},
 					"skillName": {
@@ -1816,11 +1833,13 @@
 						"type": "number"
 					},
 					"maxCostUsd": {
+						"description": "Spend per run in USD, where 0 turns the limit off",
 						"format": "double",
 						"minimum": 0,
 						"type": "number"
 					},
 					"maxTurns": {
+						"description": "Model calls the agent may make per run",
 						"format": "int64",
 						"maximum": 1000,
 						"minimum": 1,
@@ -1934,6 +1953,7 @@
 				"additionalProperties": false,
 				"properties": {
 					"server": {
+						"description": "Name of a configured MCP server, or of the service when none is configured",
 						"type": "string"
 					},
 					"why": {
@@ -3225,12 +3245,15 @@
 				"additionalProperties": false,
 				"properties": {
 					"cron": {
+						"description": "Five-field cron expression",
 						"type": "string"
 					},
 					"human": {
+						"description": "The schedule in plain words, such as Weekdays at 08:00",
 						"type": "string"
 					},
 					"timezone": {
+						"description": "IANA time zone the expression runs in, such as Europe/Berlin",
 						"type": "string"
 					}
 				},
@@ -3665,49 +3688,59 @@
 				"additionalProperties": false,
 				"properties": {
 					"dockerfile": {
+						"description": "Dockerfile for jobs that need tools beyond the default sandbox image, null otherwise",
 						"type": ["string", "null"]
 					},
 					"goal": {
+						"description": "One sentence on the outcome",
 						"type": "string"
 					},
 					"inputs": {
+						"description": "Values a run reads from /ump/input.json",
 						"items": {
 							"$ref": "#/components/schemas/IOField"
 						},
 						"type": ["array", "null"]
 					},
 					"mcp": {
+						"description": "MCP servers the job needs",
 						"items": {
 							"$ref": "#/components/schemas/MCPNeed"
 						},
 						"type": ["array", "null"]
 					},
 					"network": {
+						"description": "Whether the job needs the internet",
 						"enum": ["none", "internet"],
 						"type": "string"
 					},
 					"outputs": {
+						"description": "Small structured values each run reports",
 						"items": {
 							"$ref": "#/components/schemas/IOField"
 						},
 						"type": ["array", "null"]
 					},
 					"schedule": {
-						"$ref": "#/components/schemas/Schedule"
+						"$ref": "#/components/schemas/Schedule",
+						"description": "The schedule the instruction asks for, which only takes effect through the job's cron and timezone"
 					},
 					"sideEffects": {
+						"description": "Changes the job makes outside its sandbox, such as posting a message",
 						"items": {
 							"type": "string"
 						},
 						"type": ["array", "null"]
 					},
 					"successCriteria": {
+						"description": "Checkable statements a successful run satisfies",
 						"items": {
 							"type": "string"
 						},
 						"type": ["array", "null"]
 					},
 					"title": {
+						"description": "Short name for the job",
 						"type": "string"
 					}
 				},
@@ -5375,6 +5408,7 @@
 		},
 		"/api/jobs": {
 			"get": {
+				"description": "Lists the workspace's jobs with their schedule and latest run.",
 				"operationId": "list-jobs",
 				"parameters": [
 					{
@@ -5452,6 +5486,7 @@
 				"tags": ["Jobs"]
 			},
 			"post": {
+				"description": "Creates a job. Compile its instruction first and pass the compiled spec, plus cron and timezone from spec.schedule for a recurring job. MCP servers, secrets and skills are attached afterwards with their own operations.",
 				"operationId": "create-job",
 				"requestBody": {
 					"content": {
@@ -5490,6 +5525,7 @@
 		},
 		"/api/jobs/compile": {
 			"post": {
+				"description": "Turns a plain-language instruction into a job spec with the workspace's utility model, without saving anything. It also returns open questions for the user, the names of configured skills that fit, and the secrets the job needs, matched to configured secrets by name.",
 				"operationId": "compile-job",
 				"requestBody": {
 					"content": {
@@ -5557,6 +5593,7 @@
 				"tags": ["Jobs"]
 			},
 			"get": {
+				"description": "Returns a job with its spec, settings, next scheduled run and latest run.",
 				"operationId": "get-job",
 				"parameters": [
 					{
@@ -5593,6 +5630,7 @@
 				"tags": ["Jobs"]
 			},
 			"patch": {
+				"description": "Changes a job's fields, keeping the ones left out. A changed instruction compiles the spec again unless rebuildSpec is false, and an empty string clears cron, timezone, modelId or image.",
 				"operationId": "update-job",
 				"parameters": [
 					{
@@ -5820,6 +5858,7 @@
 		},
 		"/api/jobs/{id}/mcp-servers": {
 			"get": {
+				"description": "Lists the MCP servers a job's runs get, with the tools each one is limited to.",
 				"operationId": "get-job-mcp-servers",
 				"parameters": [
 					{
@@ -5859,6 +5898,7 @@
 				"tags": ["MCP"]
 			},
 			"put": {
+				"description": "Replaces the MCP servers a job's runs get with the given list, so include the ones it should keep.",
 				"operationId": "set-job-mcp-servers",
 				"parameters": [
 					{
@@ -6179,6 +6219,7 @@
 		},
 		"/api/jobs/{id}/runs": {
 			"post": {
+				"description": "Starts a run of a job and returns its ID right away. Follow it with get-run until its status is succeeded, failed, cancelled, timed_out or skipped; a job set to skip overlapping runs records a skipped run while another one is active.",
 				"operationId": "run-job",
 				"parameters": [
 					{
@@ -6227,6 +6268,7 @@
 		},
 		"/api/jobs/{id}/secrets": {
 			"get": {
+				"description": "Lists the secrets a job's runs get and the environment variable each one is set as.",
 				"operationId": "get-job-secrets",
 				"parameters": [
 					{
@@ -6266,6 +6308,7 @@
 				"tags": ["Secrets"]
 			},
 			"put": {
+				"description": "Replaces the secrets a job's runs get with the given list, each set as an environment variable, so include the ones it should keep.",
 				"operationId": "set-job-secrets",
 				"parameters": [
 					{
@@ -6320,6 +6363,7 @@
 		},
 		"/api/jobs/{id}/skills": {
 			"get": {
+				"description": "Lists the skills a job's runs find in /ump/skills.",
 				"operationId": "get-job-skills",
 				"parameters": [
 					{
@@ -6359,6 +6403,7 @@
 				"tags": ["Skills"]
 			},
 			"put": {
+				"description": "Replaces the skills a job's runs get with the given list, so include the ones it should keep.",
 				"operationId": "set-job-skills",
 				"parameters": [
 					{
@@ -6717,6 +6762,7 @@
 		},
 		"/api/mcp-servers": {
 			"get": {
+				"description": "Lists the MCP servers configured in the workspace, which jobs can be given.",
 				"operationId": "list-mcp-servers",
 				"parameters": [
 					{
@@ -7146,6 +7192,7 @@
 		},
 		"/api/models": {
 			"get": {
+				"description": "Lists the models of the workspace's providers. A job's modelId must be an enabled one, and jobs without a model use the workspace's agent model.",
 				"operationId": "list-models",
 				"parameters": [
 					{
@@ -7679,6 +7726,7 @@
 		},
 		"/api/runs": {
 			"get": {
+				"description": "Lists runs across the workspace's jobs, newest first, filtered by job, status, mode, trigger or time.",
 				"operationId": "list-runs",
 				"parameters": [
 					{
@@ -7889,6 +7937,7 @@
 				"tags": ["Runs"]
 			},
 			"get": {
+				"description": "Returns a run with its status, and once it finished its summary, outputs, error, cost and token counts.",
 				"operationId": "get-run",
 				"parameters": [
 					{
@@ -8008,6 +8057,7 @@
 		},
 		"/api/runs/{id}/cancel": {
 			"post": {
+				"description": "Cancels a queued or active run. An active run is told to stop and records its final status itself.",
 				"operationId": "cancel-run",
 				"parameters": [
 					{
@@ -8039,6 +8089,7 @@
 		},
 		"/api/runs/{id}/events": {
 			"get": {
+				"description": "Lists a run's timeline in order: model calls, tool calls and their results, sandbox steps and errors. Page through it by passing the last seq as after.",
 				"operationId": "list-run-events",
 				"parameters": [
 					{
@@ -8346,6 +8397,7 @@
 		},
 		"/api/secrets": {
 			"get": {
+				"description": "Lists the secrets stored in the workspace by name, never with their values.",
 				"operationId": "list-secrets",
 				"parameters": [
 					{
@@ -8618,6 +8670,7 @@
 		},
 		"/api/skills": {
 			"get": {
+				"description": "Lists the skills uploaded to the workspace, folders of instructions and files that jobs can be given.",
 				"operationId": "list-skills",
 				"parameters": [
 					{

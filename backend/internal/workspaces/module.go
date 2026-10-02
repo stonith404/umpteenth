@@ -156,6 +156,52 @@ func (m *Module) TokenAccess(ctx context.Context, workspaceID, creatorID string)
 	return principal.Role(*row.Role), nil
 }
 
+// AgentAccess resolves the workspace and role of an MCP client that signed in as the user, which is the requested workspace when the client names one
+// Without one the client works where the user last worked in the browser, or in their oldest workspace
+// The role is the user's membership role and never an instance admin's, as for API tokens
+func (m *Module) AgentAccess(ctx context.Context, userID, requested string) (string, principal.Role, error) {
+	workspaceID, err := m.agentWorkspace(ctx, userID, requested)
+	if err != nil {
+		return "", "", err
+	}
+	role, err := m.TokenAccess(ctx, workspaceID, userID)
+	if apperror.IsCode(err, apperror.CodeInvalidToken) {
+		return "", "", apperror.New(apperror.CodeInvalidToken, http.StatusUnauthorized, "You have no access to this workspace, or your account is deactivated")
+	}
+	return workspaceID, role, err
+}
+
+func (m *Module) agentWorkspace(ctx context.Context, userID, requested string) (string, error) {
+	// With workspaces turned off everyone shares the default one, whatever the client asks for
+	if !m.enabled {
+		return DefaultID, nil
+	}
+	if requested != "" {
+		return requested, nil
+	}
+
+	// The workspace the user last switched to only counts while they are still a member there
+	user, err := m.queries.GetLoginUser(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to load the user: %w", err)
+	}
+	if last := user.LastWorkspaceID; last != nil {
+		_, err = m.queries.GetMemberRole(ctx, workspacesdb.GetMemberRoleParams{WorkspaceID: *last, UserID: userID})
+		if err == nil {
+			return *last, nil
+		} else if !database.IsNotFound(err) {
+			return "", fmt.Errorf("failed to check the last workspace: %w", err)
+		}
+	}
+	oldest, err := m.queries.OldestMembership(ctx, userID)
+	if database.IsNotFound(err) {
+		return "", apperror.New(apperror.CodeInvalidToken, http.StatusUnauthorized, "You aren't a member of any workspace")
+	} else if err != nil {
+		return "", fmt.Errorf("failed to find a workspace: %w", err)
+	}
+	return oldest, nil
+}
+
 // access loads the user's standing in the workspace, failing with NotSignedIn for a user who is gone or deactivated or a workspace that is gone or turned off
 func (m *Module) access(ctx context.Context, workspaceID, userID string) (workspacesdb.GetAccessRow, error) {
 	if userID == "" || (!m.enabled && workspaceID != DefaultID) {

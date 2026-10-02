@@ -28,17 +28,31 @@ func (r Role) AtLeast(minimum Role) bool {
 	return roleRanks[r] > 0 && roleRanks[r] >= roleRanks[minimum]
 }
 
+// Credential is how a caller authenticated
+type Credential string
+
+const (
+	// CredentialSession is a browser session cookie
+	CredentialSession Credential = "session"
+	// CredentialAPIToken is an API token, which acts with its creator's role
+	CredentialAPIToken Credential = "api_token"
+	// CredentialOAuth is an access token an MCP client got from the identity provider, which acts as the user who signed in
+	CredentialOAuth Credential = "oauth"
+)
+
 // Principal is who is calling and in which workspace
 // Every field is comparable, so the auth middleware can tell when a revalidated credential changed
 type Principal struct {
 	WorkspaceID string
-	// UserID is set for browser sessions and empty for API tokens
+	// Credential is how the caller authenticated, and the zero value counts as no session so a principal built without it never passes as one
+	Credential Credential
+	// UserID is set for browser sessions and OAuth access tokens, and empty for API tokens
 	UserID string
 	// TokenID is set when the caller authenticated with an API token
 	TokenID string
 	// TokenCreatorID is the user who created the API token, whose role the token acts with
 	TokenCreatorID string
-	// LoginProvider is the ID of the sign-in provider a browser session signed in with
+	// LoginProvider is the ID of the sign-in provider a browser session or an OAuth access token comes from
 	LoginProvider string
 	// SessionExpiresAt is when a browser session ends in Unix seconds, which a session moved to another workspace keeps
 	SessionExpiresAt int64
@@ -48,6 +62,11 @@ type Principal struct {
 	Role Role
 	// InstanceAdmin is set for browser sessions of instance admins, who manage every user and workspace
 	InstanceAdmin bool
+}
+
+// IsSession reports whether the caller signed in through the browser, which some operations require
+func (p Principal) IsSession() bool {
+	return p.Credential == CredentialSession
 }
 
 type ctxKey struct{}

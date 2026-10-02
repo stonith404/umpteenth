@@ -59,7 +59,15 @@ func initRouter(cfg *config.Config, db *database.DB, svc *services) (huma.API, h
 		mux.Handle("/", spa)
 	}
 
-	return api, httpserver.RequestIDMiddleware(logRequests(securityHeaders(mux))), nil
+	handler := httpserver.RequestIDMiddleware(logRequests(securityHeaders(mux)))
+
+	// The MCP endpoint comes last, since its tools are built from the finished spec and served through the full handler like any REST request
+	err = svc.mcpAPI.RegisterRoutes(mux, api, handler)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return api, handler, nil
 }
 
 func securityHeaders(next http.Handler) http.Handler {

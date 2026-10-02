@@ -426,10 +426,10 @@ func (m *Module) pruneWorkspace(ctx context.Context, wid string, cutoff time.Tim
 func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
 	// Every member works with runs, and only admins delete them, since that erases the transcript and the usage for everyone
 	admin := httpserver.Access{MinRole: principal.RoleAdmin}
-	httpserver.Register(api, httpserver.Operation("list-runs", http.MethodGet, "/api/runs", "Runs"), auth, m.list)
-	httpserver.Register(api, httpserver.Operation("get-run", http.MethodGet, "/api/runs/{id}", "Runs"), auth, m.get)
-	httpserver.Register(api, httpserver.Operation("list-run-events", http.MethodGet, "/api/runs/{id}/events", "Runs"), auth, m.listEvents)
-	httpserver.Register(api, httpserver.Operation("cancel-run", http.MethodPost, "/api/runs/{id}/cancel", "Runs"), auth, m.cancel)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("list-runs", http.MethodGet, "/api/runs", "Runs"), "Lists runs across the workspace's jobs, newest first, filtered by job, status, mode, trigger or time."), auth, m.list)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("get-run", http.MethodGet, "/api/runs/{id}", "Runs"), "Returns a run with its status, and once it finished its summary, outputs, error, cost and token counts."), auth, m.get)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("list-run-events", http.MethodGet, "/api/runs/{id}/events", "Runs"), "Lists a run's timeline in order: model calls, tool calls and their results, sandbox steps and errors. Page through it by passing the last seq as after."), auth, m.listEvents)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("cancel-run", http.MethodPost, "/api/runs/{id}/cancel", "Runs"), "Cancels a queued or active run. An active run is told to stop and records its final status itself."), auth, m.cancel)
 	httpserver.Register(api, httpserver.Operation("retry-run", http.MethodPost, "/api/runs/{id}/retry", "Runs"), auth, m.retry)
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("delete-run", http.MethodDelete, "/api/runs/{id}", "Runs"), admin), auth, m.deleteOne)
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("delete-runs", http.MethodPost, "/api/runs/delete", "Runs"), admin), auth, m.deleteMany)

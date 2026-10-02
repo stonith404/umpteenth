@@ -106,13 +106,13 @@ func New(deps Dependencies) (*Module, error) {
 const maxWebhookBody = 1 << 20
 
 func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
-	httpserver.Register(api, httpserver.Operation("list-jobs", http.MethodGet, "/api/jobs", "Jobs"), auth, m.list)
-	httpserver.Register(api, httpserver.Operation("create-job", http.MethodPost, "/api/jobs", "Jobs"), auth, m.create)
-	httpserver.Register(api, httpserver.Operation("compile-job", http.MethodPost, "/api/jobs/compile", "Jobs"), auth, m.compile)
-	httpserver.Register(api, httpserver.Operation("get-job", http.MethodGet, "/api/jobs/{id}", "Jobs"), auth, m.get)
-	httpserver.Register(api, httpserver.Operation("update-job", http.MethodPatch, "/api/jobs/{id}", "Jobs"), auth, m.update)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("list-jobs", http.MethodGet, "/api/jobs", "Jobs"), "Lists the workspace's jobs with their schedule and latest run."), auth, m.list)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("create-job", http.MethodPost, "/api/jobs", "Jobs"), "Creates a job. Compile its instruction first and pass the compiled spec, plus cron and timezone from spec.schedule for a recurring job. MCP servers, secrets and skills are attached afterwards with their own operations."), auth, m.create)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("compile-job", http.MethodPost, "/api/jobs/compile", "Jobs"), "Turns a plain-language instruction into a job spec with the workspace's utility model, without saving anything. It also returns open questions for the user, the names of configured skills that fit, and the secrets the job needs, matched to configured secrets by name."), auth, m.compile)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("get-job", http.MethodGet, "/api/jobs/{id}", "Jobs"), "Returns a job with its spec, settings, next scheduled run and latest run."), auth, m.get)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("update-job", http.MethodPatch, "/api/jobs/{id}", "Jobs"), "Changes a job's fields, keeping the ones left out. A changed instruction compiles the spec again unless rebuildSpec is false, and an empty string clears cron, timezone, modelId or image."), auth, m.update)
 	httpserver.Register(api, httpserver.Operation("delete-job", http.MethodDelete, "/api/jobs/{id}", "Jobs"), auth, m.archive)
-	httpserver.Register(api, httpserver.Operation("run-job", http.MethodPost, "/api/jobs/{id}/runs", "Jobs"), auth, m.runNow)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("run-job", http.MethodPost, "/api/jobs/{id}/runs", "Jobs"), "Starts a run of a job and returns its ID right away. Follow it with get-run until its status is succeeded, failed, cancelled, timed_out or skipped; a job set to skip overlapping runs records a skipped run while another one is active."), auth, m.runNow)
 	httpserver.Register(api, httpserver.Operation("rotate-webhook-token", http.MethodPost, "/api/jobs/{id}/webhook-token", "Jobs"), auth, m.rotateWebhookToken)
 	httpserver.Register(api, httpserver.Operation("list-job-state", http.MethodGet, "/api/jobs/{id}/state", "Job state"), auth, m.listState)
 	httpserver.Register(api, httpserver.Operation("get-job-state", http.MethodGet, "/api/jobs/{id}/state/{key}", "Job state"), auth, m.getState)

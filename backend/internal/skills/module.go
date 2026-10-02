@@ -70,7 +70,7 @@ func New(deps Dependencies) *Module {
 func (m *Module) SetJobs(j JobChecker) { m.deps.Jobs = j }
 
 func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
-	httpserver.Register(api, httpserver.Operation("list-skills", http.MethodGet, "/api/skills", "Skills"), auth, m.list)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("list-skills", http.MethodGet, "/api/skills", "Skills"), "Lists the skills uploaded to the workspace, folders of instructions and files that jobs can be given."), auth, m.list)
 	httpserver.Register(api, uploadOperation("create-skill", http.MethodPost, "/api/skills"), auth, m.create)
 	httpserver.Register(api, httpserver.Operation("get-skill", http.MethodGet, "/api/skills/{id}", "Skills"), auth, m.get)
 	httpserver.Register(api, httpserver.Operation("import-skill", http.MethodPost, "/api/skills/import", "Skills"), auth, m.importSkill)
@@ -81,8 +81,8 @@ func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
 	httpserver.Register(api, httpserver.Operation("delete-skills", http.MethodPost, "/api/skills/delete", "Skills"), auth, m.deleteMany)
 	httpserver.Register(api, httpserver.Operation("get-skill-file", http.MethodGet, "/api/skills/{id}/file", "Skills"), auth, m.getFile)
 	httpserver.Register(api, httpserver.Operation("download-skill", http.MethodGet, "/api/skills/{id}/download", "Skills"), auth, m.download)
-	httpserver.Register(api, httpserver.Operation("get-job-skills", http.MethodGet, "/api/jobs/{id}/skills", "Skills"), auth, m.getJobSkills)
-	httpserver.Register(api, httpserver.Operation("set-job-skills", http.MethodPut, "/api/jobs/{id}/skills", "Skills"), auth, m.setJobSkills)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("get-job-skills", http.MethodGet, "/api/jobs/{id}/skills", "Skills"), "Lists the skills a job's runs find in /ump/skills."), auth, m.getJobSkills)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("set-job-skills", http.MethodPut, "/api/jobs/{id}/skills", "Skills"), "Replaces the skills a job's runs get with the given list, so include the ones it should keep."), auth, m.setJobSkills)
 }
 
 // uploadOperation takes a zip as the raw request body
@@ -589,7 +589,7 @@ func attachment(name, contentType string, content []byte) *huma.StreamResponse {
 
 // JobSkill attaches a skill to a job
 type JobSkill struct {
-	SkillID   string `json:"skillId"`
+	SkillID   string `json:"skillId" doc:"ID of an uploaded skill"`
 	SkillName string `json:"skillName,omitempty" readOnly:"true"`
 }
 

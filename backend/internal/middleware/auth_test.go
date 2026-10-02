@@ -103,11 +103,12 @@ func (s fixedTokens) ValidateAPIToken(context.Context, string) (principal.Princi
 func (s fixedTokens) ValidateAPITokenID(context.Context, string, string) error { return nil }
 
 func TestRequiredEnforcesTheOperationsAccessRule(t *testing.T) {
-	member := principal.Principal{WorkspaceID: "ws", UserID: "user", Role: principal.RoleMember}
-	admin := principal.Principal{WorkspaceID: "ws", UserID: "user", Role: principal.RoleAdmin}
-	owner := principal.Principal{WorkspaceID: "ws", UserID: "user", Role: principal.RoleOwner}
-	instanceAdmin := principal.Principal{WorkspaceID: "ws", UserID: "user", Role: principal.RoleOwner, InstanceAdmin: true}
-	adminToken := principal.Principal{WorkspaceID: "ws", TokenID: "token", TokenCreatorID: "user", Role: principal.RoleAdmin}
+	member := principal.Principal{WorkspaceID: "ws", Credential: principal.CredentialSession, UserID: "user", Role: principal.RoleMember}
+	admin := principal.Principal{WorkspaceID: "ws", Credential: principal.CredentialSession, UserID: "user", Role: principal.RoleAdmin}
+	owner := principal.Principal{WorkspaceID: "ws", Credential: principal.CredentialSession, UserID: "user", Role: principal.RoleOwner}
+	instanceAdmin := principal.Principal{WorkspaceID: "ws", Credential: principal.CredentialSession, UserID: "user", Role: principal.RoleOwner, InstanceAdmin: true}
+	oauthUser := principal.Principal{WorkspaceID: "ws", Credential: principal.CredentialOAuth, UserID: "user", Role: principal.RoleAdmin}
+	adminToken := principal.Principal{WorkspaceID: "ws", Credential: principal.CredentialAPIToken, TokenID: "token", TokenCreatorID: "user", Role: principal.RoleAdmin}
 
 	cases := []struct {
 		name   string
@@ -123,6 +124,8 @@ func TestRequiredEnforcesTheOperationsAccessRule(t *testing.T) {
 		{"admin below owner", httpserver.Access{MinRole: principal.RoleOwner}, admin, false, http.StatusForbidden},
 		{"token of an admin", httpserver.Access{MinRole: principal.RoleAdmin}, adminToken, true, http.StatusNoContent},
 		{"token where a session is needed", httpserver.Access{SessionOnly: true}, adminToken, true, http.StatusForbidden},
+		{"OAuth access token where a session is needed", httpserver.Access{SessionOnly: true}, oauthUser, true, http.StatusForbidden},
+		{"OAuth access token of an admin", httpserver.Access{MinRole: principal.RoleAdmin}, oauthUser, true, http.StatusNoContent},
 		{"workspace owner who isn't an instance admin", httpserver.Access{InstanceAdmin: true}, owner, false, http.StatusForbidden},
 		{"instance admin", httpserver.Access{InstanceAdmin: true, SessionOnly: true}, instanceAdmin, false, http.StatusNoContent},
 	}
@@ -154,7 +157,7 @@ func (s *rejectingTokens) ValidateAPIToken(context.Context, string) (principal.P
 func (s *rejectingTokens) ValidateAPITokenID(context.Context, string, string) error { return nil }
 
 func TestRequiredFallsBackToTheCookieForNonBearerAuthorization(t *testing.T) {
-	member := principal.Principal{WorkspaceID: "ws", UserID: "user", Role: principal.RoleMember}
+	member := principal.Principal{WorkspaceID: "ws", Credential: principal.CredentialSession, UserID: "user", Role: principal.RoleMember}
 	tokens := &rejectingTokens{}
 	_, api := humatest.New(t)
 	auth := NewAuth(fixedSessions{member}, tokens, "session", "https://example.com").Required()
@@ -184,4 +187,38 @@ func TestRequiredFallsBackToTheCookieForNonBearerAuthorization(t *testing.T) {
 	resp = api.Get("/test", "Cookie: session=value", "Authorization: Bearer ump_bad")
 	require.Equal(t, http.StatusUnauthorized, resp.Code, resp.Body.String())
 	require.Equal(t, 1, tokens.calls)
+}
+
+func TestRequiredTrustsACallerAuthenticatedInProcess(t *testing.T) {
+	caller := principal.Principal{WorkspaceID: "ws", Credential: principal.CredentialAPIToken, TokenID: "token", TokenCreatorID: "user", Role: principal.RoleMember}
+	_, api := humatest.New(t)
+	auth := NewAuth(nil, nil, "session", "https://example.com").Required()
+	var seen principal.Principal
+	huma.Register(api, huma.Operation{OperationID: "test-member", Method: http.MethodPost, Path: "/member", Middlewares: auth},
+		func(ctx context.Context, _ *struct{}) (*struct{}, error) {
+			seen, _ = principal.From(ctx)
+			return nil, RevalidateCredential(ctx)
+		})
+	huma.Register(api, httpserver.Restrict(huma.Operation{OperationID: "test-admin", Method: http.MethodPost, Path: "/admin", Middlewares: auth}, httpserver.Access{MinRole: principal.RoleAdmin}),
+		func(context.Context, *struct{}) (*struct{}, error) { return nil, nil })
+
+	revalidated := false
+	ctx := WithAuthenticated(t.Context(), caller, func(context.Context) error {
+		revalidated = true
+		return nil
+	})
+
+	// A cross-site write passes, since an in-process caller never comes with a cookie, and the credential stays revalidatable
+	resp := api.PostCtx(ctx, "/member", "Sec-Fetch-Site: cross-site", "X-Umpteenth-Workspace: other")
+	require.Equal(t, http.StatusNoContent, resp.Code, resp.Body.String())
+	require.Equal(t, caller, seen)
+	require.True(t, revalidated)
+
+	// The operation's access rule still applies
+	resp = api.PostCtx(ctx, "/admin")
+	require.Equal(t, http.StatusForbidden, resp.Code, resp.Body.String())
+
+	// Without the context value the same request has no credentials at all
+	resp = api.Post("/member")
+	require.Equal(t, http.StatusUnauthorized, resp.Code, resp.Body.String())
 }

@@ -41,7 +41,7 @@ func (s plainSessions) VerifySession(ctx context.Context, value string) (princip
 	if err != nil {
 		return principal.Principal{}, err
 	}
-	return principal.Principal{UserID: userID, WorkspaceID: workspaceID, Role: access.Role, InstanceAdmin: access.InstanceAdmin}, nil
+	return principal.Principal{Credential: principal.CredentialSession, UserID: userID, WorkspaceID: workspaceID, Role: access.Role, InstanceAdmin: access.InstanceAdmin}, nil
 }
 
 // tabs is one browser, whose tabs all share its cookie jar and so its session

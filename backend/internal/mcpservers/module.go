@@ -90,7 +90,7 @@ func New(deps Dependencies) (*Module, error) {
 func (m *Module) SetJobs(j JobChecker) { m.deps.Jobs = j }
 
 func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
-	httpserver.Register(api, httpserver.Operation("list-mcp-servers", http.MethodGet, "/api/mcp-servers", "MCP"), auth, m.list)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("list-mcp-servers", http.MethodGet, "/api/mcp-servers", "MCP"), "Lists the MCP servers configured in the workspace, which jobs can be given."), auth, m.list)
 	httpserver.Register(api, httpserver.Operation("create-mcp-server", http.MethodPost, "/api/mcp-servers", "MCP"), auth, m.create)
 	httpserver.Register(api, httpserver.Operation("get-mcp-server", http.MethodGet, "/api/mcp-servers/{id}", "MCP"), auth, m.get)
 	httpserver.Register(api, httpserver.Operation("update-mcp-server", http.MethodPut, "/api/mcp-servers/{id}", "MCP"), auth, m.update)
@@ -99,8 +99,8 @@ func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
 	httpserver.Register(api, httpserver.Restrict(httpserver.Operation("login-mcp-server", http.MethodPost, "/api/mcp-servers/{id}/oauth/login", "MCP"), httpserver.Access{SessionOnly: true}), auth, m.login)
 	httpserver.Register(api, httpserver.Operation("mcp-server-oauth-callback", http.MethodGet, "/api/mcp-servers/{id}/oauth/callback", "MCP"), auth, m.callback)
 	httpserver.Register(api, httpserver.Operation("logout-mcp-server", http.MethodDelete, "/api/mcp-servers/{id}/oauth", "MCP"), auth, m.logout)
-	httpserver.Register(api, httpserver.Operation("get-job-mcp-servers", http.MethodGet, "/api/jobs/{id}/mcp-servers", "MCP"), auth, m.getJobServers)
-	httpserver.Register(api, httpserver.Operation("set-job-mcp-servers", http.MethodPut, "/api/jobs/{id}/mcp-servers", "MCP"), auth, m.setJobServers)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("get-job-mcp-servers", http.MethodGet, "/api/jobs/{id}/mcp-servers", "MCP"), "Lists the MCP servers a job's runs get, with the tools each one is limited to."), auth, m.getJobServers)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("set-job-mcp-servers", http.MethodPut, "/api/jobs/{id}/mcp-servers", "MCP"), "Replaces the MCP servers a job's runs get with the given list, so include the ones it should keep."), auth, m.setJobServers)
 }
 
 // ServerNames lists enabled servers, used by the compile step
@@ -568,7 +568,7 @@ func (m *Module) test(ctx context.Context, in *idInput) (*testOutput, error) {
 
 // JobServer attaches a server to a job, optionally limited to some tools
 type JobServer struct {
-	ServerID     string   `json:"serverId"`
+	ServerID     string   `json:"serverId" doc:"ID of a configured MCP server"`
 	ServerName   string   `json:"serverName,omitempty" readOnly:"true"`
 	AllowedTools []string `json:"allowedTools" doc:"null exposes all tools"`
 }
