@@ -181,6 +181,7 @@ A refusal ends the command with exit code `1` and an error such as `the egress p
 | `/ump/PLAYBOOK.md` | The job's current playbook as Markdown |
 | `/ump/toolkit/<name>` | The playbook's toolkit scripts, which take their arguments as `--name value` flags |
 | `/ump/main` | The main script of a graduated job |
+| `/ump/skills/<name>/` | The job's [skills](../../guides/skills/), read-only for the agent |
 | `/ump/logs/` | The full output of each command the agent runs and of the main script |
 
 Commands run as the user `agent` (uid 1000) unless the job has **Run as root** on.

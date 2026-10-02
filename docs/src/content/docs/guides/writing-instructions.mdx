@@ -15,9 +15,9 @@ Click **Create job** on the **Jobs** page and write up to 20,000 characters into
 While the box is empty, the buttons next to **Examples:** fill it with a ready-made job, such as **Stale PR digest** or **Uptime check**.
 
 **Compile** sends the text to the utility model, or to the agent model if the workspace has no utility model.
-Its answer fills the review screen: a name and goal, a schedule, success criteria, inputs and outputs, the MCP servers, the network and the side effects.
+Its answer fills the review screen: a name and goal, a schedule, success criteria, inputs and outputs, the MCP servers, the secrets, the network and the side effects.
 A schedule without a named time zone runs in UTC.
-Umpteenth matches each service to your MCP servers by name, ignoring case, and marks a service without a match as **Not configured**.
+Umpteenth matches each service to your MCP servers by name, ignoring case, and leaves out a service without a match.
 **Custom environment** comes on with a Dockerfile only if the job needs tools beyond the default image.
 
 **Compile again** on the review screen replaces the whole spec, and if you edited it, you confirm with **Discard and compile** first.

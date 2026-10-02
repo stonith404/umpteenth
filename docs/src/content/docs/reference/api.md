@@ -177,6 +177,38 @@ curl -H "Authorization: Bearer $UMPTEENTH_API_TOKEN" -o digest.md \
   "https://umpteenth.example.com/api/runs/$RUN_ID/artifact?path=digest.md"
 ```
 
+## Skills
+
+`POST /api/skills` uploads a skill, with the zip as the request body:
+
+```bash
+curl -H "Authorization: Bearer $UMPTEENTH_API_TOKEN" -H "Content-Type: application/zip" \
+  --data-binary @pdf-forms.zip https://umpteenth.example.com/api/skills
+```
+
+`POST /api/skills/import` adds one from a link, like the **Link** tab of **Add skill**:
+
+```bash
+curl -H "Authorization: Bearer $UMPTEENTH_API_TOKEN" -H "Content-Type: application/json" \
+  -d '{"url":"https://github.com/anthropics/skills/tree/main/skills/pdf"}' \
+  https://umpteenth.example.com/api/skills/import
+```
+
+It answers with the added skills in `skills`.
+For a GitHub folder of several skills, `POST /api/skills/import/preview` with the same body lists them, and `paths` in the import's body picks some by the `path` the preview gives each:
+
+```json
+{ "url": "https://github.com/crowdin/skills", "paths": ["skills/crowdin-cli", "skills/translate"] }
+```
+
+`PUT /api/skills/<skill ID>` takes a new version as a zip, and `POST /api/skills/<skill ID>/import` takes one from the `url` in its body, or from the skill's own link without one.
+A skill that fails the checks in [Skills](../../guides/skills/#add-a-skill) answers `400` with the reason in `fields`.
+`PUT /api/jobs/<job ID>/skills` sets a job's skills, replacing the ones it had:
+
+```json
+[{ "skillId": "01998412-9a5d-7e01-b3c6-2f8e7d6a5b40" }]
+```
+
 ## Cancel, retry and learn
 
 The run page's **Stop**, **Retry** and **Learn from this run** buttons call these routes:

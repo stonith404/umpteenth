@@ -77,7 +77,7 @@ export default defineConfig({
 				},
 				{
 					label: 'Workspace',
-					items: ['guides/models', 'guides/mcp', 'guides/notifications', 'guides/workspaces']
+					items: ['guides/models', 'guides/mcp', 'guides/skills', 'guides/notifications', 'guides/workspaces']
 				},
 				{
 					label: 'Self-hosting',

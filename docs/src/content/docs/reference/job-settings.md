@@ -75,6 +75,14 @@ You add and test servers on the **MCP servers** page first ([MCP servers](../../
 | **Attach server** | No servers attached | Picks a server from the **MCP servers** page, whose tools the job gets once you save the card. The × on a server's row detaches it. |
 | Tools button | **All tools** | Limits the job to the tools you tick, with a count such as **3 of 12 tools**. The list appears once you have tested the server. |
 
+## Skills
+
+You upload skills on the **Skills** page first ([Skills](../../guides/skills/)).
+
+| Control | Default | Effect |
+|---|---|---|
+| **Attach skill** | No skills attached | Picks a skill from the **Skills** page, which the job's runs find in `/ump/skills/<name>` once you save the card. The × on a skill's row detaches it. A job takes up to 20 skills with 64 MiB of files in total. |
+
 ## Secrets
 
 Each row hands one secret to the job's runs as an environment variable ([Sandboxes](../../guides/sandboxes/#secrets)).

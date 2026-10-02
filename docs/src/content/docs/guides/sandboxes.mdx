@@ -139,7 +139,12 @@ Umpteenth encrypts the values at rest, and neither the UI nor the API shows a va
 A secret reaches a run only after you map it in the job's **Secrets** card: click **Add secret**, pick the secret and name the environment variable.
 Umpteenth reads the values when each run starts, so an updated secret applies from the next run.
 The variables exist for every command in the sandbox, from the agent's shell to the playbook's scripts.
-The agent gets no list of them, so name them in the instruction:
+On the **New job** review screen, the **Secrets** card lists the variables the compile step found in your instruction, with the secret that holds each one already picked.
+A variable without a match shows **Pick a secret**.
+Create the secret in another tab, and the card picks it once you come back if its name matches the variable, as `github-token` matches `GITHUB_TOKEN`.
+Saving the job maps the picked secrets.
+
+The agent gets no list of the variables, so name them in the instruction:
 
 ```txt
 Fetch the open pull requests of acme/api from the GitHub API with curl, using $GITHUB_TOKEN as the bearer token.
@@ -161,5 +166,6 @@ The run's timeline and the agent's model receive whatever a command prints, so `
 | `/ump/input.json` | The run's input: a webhook body, the **Input** of **Run now** or the API, or `{}` |
 | `/ump/outputs/` | Files to keep, which Umpteenth collects as the run's artifacts, up to 50 MiB, even from a failed run |
 | `/ump/PLAYBOOK.md` | The job's current playbook as Markdown |
+| `/ump/skills/<name>/` | The job's [skills](../skills/), owned by root |
 
 You download artifacts from the run's **Outputs** tab ([Reading a run](../runs/#outputs-learned-and-raw)), and the [ump CLI](../../reference/ump-cli/#paths) reference lists the other paths.
