@@ -1,0 +1,84 @@
+
+Running 80 tests using 1 worker, shard 1 of 3
+
+[1/80] [browser-chrome] › specs/admin.spec.ts:9:1 › Only instance admins see the admin area
+[2/80] [browser-chrome] › specs/admin.spec.ts:30:1 › A deactivated user is signed out everywhere and can sign in again once reactivated
+[3/80] [browser-chrome] › specs/admin.spec.ts:69:1 › Instance admins open and delete any workspace
+[4/80] [browser-chrome] › specs/api-tokens.spec.ts:64:1 › An API token authenticates scripts with a Bearer header, cannot mint tokens, records its use and stops working once deleted
+[5/80] [browser-chrome] › specs/api-tokens.spec.ts:159:1 › A job a script creates and runs with an API token records the run as triggered via the API
+[6/80] [browser-chrome] › specs/api-tokens.spec.ts:192:1 › Members see and revoke only their own API tokens, while admins see everyone's with its creator
+[7/80] [browser-chrome] › specs/api-tokens.spec.ts:223:1 › An API token acts with its creator's current role and can never change who has access
+[8/80] [browser-chrome] › specs/api-tokens.spec.ts:302:1 › An expired API token is refused and marked Expired, and a token cannot be created already expired
+[9/80] [browser-chrome] › specs/api-tokens.spec.ts:350:1 › A token given an expiry date in the dialog expires at the start of that day, and the picker offers no day before tomorrow
+[10/80] [browser-chrome] › specs/api-tokens.spec.ts:396:1 › A token name made only of spaces is refused next to the Name field
+[11/80] [browser-chrome] › specs/concurrency.spec.ts:33:1 › Under the default Skip policy a trigger during an active run is recorded as a skipped run that the job's stats leave out, and a retry only runs once the active run is gone
+[12/80] [browser-chrome] › specs/concurrency.spec.ts:112:1 › Under the Queue policy chosen in the Schedule card a trigger during an active run waits as queued, can be stopped before it starts, and starts once the active run ends
+[13/80] [browser-chrome] › specs/concurrency.spec.ts:184:1 › Under the Parallel policy a trigger during an active run starts a second run right away
+[14/80] [browser-chrome] › specs/dashboard.spec.ts:14:1 › The dashboard welcomes a fresh workspace and fills in once runs exist
+[15/80] [browser-chrome] › specs/dashboard.spec.ts:42:1 › The command palette jumps to a run
+[16/80] [browser-chrome] › specs/dashboard.spec.ts:61:1 › The dashboard counts outcomes by the lifecycle rules and follows running and cancelled runs live
+[17/80] [browser-chrome] › specs/environment.spec.ts:40:1 › A failed image build shows its log and fails runs until a fixed Dockerfile builds
+[18/80] [browser-chrome] › specs/environment.spec.ts:109:1 › Rebuild builds the saved Dockerfile again, opens the new build and the next run uses it
+[19/80] [browser-chrome] › specs/environment.spec.ts:155:1 › Saving a Dockerfile over a newer playbook version fails without losing the text
+[20/80] [browser-chrome] › specs/environment.spec.ts:227:1 › Using the base image removes the Dockerfile but keeps its builds and history
+[21/80] [browser-chrome] › specs/general-settings.spec.ts:42:1 › General settings cards refuse out-of-range values without saving them, keep the edits and save once they are fixed
+[22/80] [browser-chrome] › specs/general-settings.spec.ts:121:1 › Out-of-range values are explained next to their fields, and the first one gets the focus
+[23/80] [browser-chrome] › specs/general-settings.spec.ts:171:1 › The workspace can't be renamed to an empty name
+[24/80] [browser-chrome] › specs/general-settings.spec.ts:190:1 › Members see the workspace settings as plain text, with the webhook URL cut down to its origin and nothing to save
+[25/80] [browser-chrome] › specs/graduation.spec.ts:64:1 › A job graduates to a main script, falls back when it breaks, and gets repaired
+[26/80] [browser-chrome] › specs/job-overview.spec.ts:66:1 › The Spec card refuses duplicate input names inline and drops blank rows when saving
+[27/80] [browser-chrome] › specs/job-overview.spec.ts:116:1 › A job's declared inputs shape the Run now dialog, which refuses invalid JSON and passes the input and extra instructions to the run
+[28/80] [browser-chrome] › specs/job-overview.spec.ts:179:1 › The overview reports performance tiles and a per-run chart for the chosen period, keeping the period in the URL
+[29/80] [browser-chrome] › specs/job-overview.spec.ts:284:1 › A job that never ran shows its schedule, facts and an empty performance state with a Run now shortcut
+[30/80] [browser-chrome] › specs/job-overview.spec.ts:347:1 › The job page swaps Never run and the empty performance state for the new run live when a run starts elsewhere, and counts it in its tiles and chart
+[31/80] [browser-chrome] › specs/job-settings.spec.ts:83:1 › The Secrets card refuses incomplete, invalid and duplicate mappings, drops empty rows and stores the rest without values
+[32/80] [browser-chrome] › specs/job-settings.spec.ts:149:1 › Mapped secrets reach the sandbox with the value they have when the run starts, and a deleted secret is no longer passed
+[33/80] [browser-chrome] › specs/job-settings.spec.ts:191:1 › An allow-list set in the Sandbox card is validated, stored tidied and enforced by the egress proxy
+[34/80] [browser-chrome] › specs/job-settings.spec.ts:276:1 › A saved allow-list shows in the Allowed domains field as it was stored
+[35/80] [browser-chrome] › specs/job-settings.spec.ts:289:1 › Out-of-range limits show an error next to each field of the Sandbox card
+[36/80] [browser-chrome] › specs/job-settings.spec.ts:308:1 › Out-of-range limits are never stored, and saved limits and Run as root reach the next run
+[37/80] [browser-chrome] › specs/job-settings.spec.ts:381:1 › Changing the instruction rebuilds the spec unless the user opts out, and a failed compile saves nothing
+[38/80] [browser-chrome] › specs/job-settings.spec.ts:447:1 › Another workspace can neither change a job's secret mappings nor map that workspace's secrets to its own job
+[39/80] [browser-chrome] › specs/job-settings.spec.ts:490:1 › A failed request only disables the card it feeds, and Try again recovers it in place
+[40/80] [browser-chrome] › specs/job-state.spec.ts:94:1 › Adding a state entry by hand needs a key that is new, trims it, and stores empty and JSON values as typed
+[41/80] [browser-chrome] › specs/job-state.spec.ts:148:1 › State entries open in the editor their value suits, are changed, searched by value and deleted after a confirmation
+[42/80] [browser-chrome] › specs/job-state.spec.ts:217:1 › State a run writes carries into the next run, and hand edits to the state and to the main script change what the next run does
+[43/80] [browser-chrome] › specs/job-state.spec.ts:282:1 › State the agent writes with its tools and with ump persists even from a failed run, and a missing key reads as not set
+[44/80] [browser-chrome] › specs/job-state.spec.ts:335:1 › Another workspace can neither read nor change a job's state, playbook or images, and another job can't reach its image
+[45/80] [browser-chrome] › specs/jobs-list.spec.ts:41:1 › The jobs list shows the latest ten runs of a job as a strip that updates live and opens the runs
+[46/80] [browser-chrome] › specs/jobs-list.spec.ts:99:1 › The job's Runs tab lists only that job's runs, filters them by trigger and offers new runs while sorted
+[47/80] [browser-chrome] › specs/jobs-list.spec.ts:175:1 › The jobs list has no search while empty, then searches names and instructions on the server, case-insensitively and with literal wildcards
+[48/80] [browser-chrome] › specs/jobs-list.spec.ts:239:1 › The jobs list sorts by name and by next run with unscheduled jobs last, and pages with the view in the URL
+[49/80] [browser-chrome] › specs/jobs-list.spec.ts:319:1 › A job of another workspace is not found in the UI, and the job's endpoints refuse reads and writes
+[50/80] [browser-chrome] › specs/jobs.spec.ts:31:1 › Create a job by compiling a description, then save and run it
+[51/80] [browser-chrome] › specs/jobs.spec.ts:75:1 › Open questions are answered before the review and become part of the instruction
+[52/80] [browser-chrome] › specs/jobs.spec.ts:119:1 › The compile step matches the credentials a job needs to secrets, and saving passes them to the job
+[53/80] [browser-chrome] › specs/jobs.spec.ts:181:1 › A failed compile can be skipped by filling in the spec by hand
+[54/80] [browser-chrome] › specs/jobs.spec.ts:198:1 › Edit job settings including the schedule
+[55/80] [browser-chrome] › specs/login.spec.ts:9:1 › Login page offers every sign-in provider with the primary one first
+[56/80] [browser-chrome] › specs/login.spec.ts:32:1 › Login page points out the provider used last
+[57/80] [browser-chrome] › specs/login.spec.ts:45:1 › Login page explains an unknown provider
+[58/80] [browser-chrome] › specs/markdown.spec.ts:14:1 › Markup in a run summary cannot load remote content, draw overlays or submit forms
+[59/80] [browser-chrome] › specs/mcp-oauth.spec.ts:83:1 › Adding a server that needs an OAuth login opens the login right away
+[60/80] [browser-chrome] › specs/mcp-oauth.spec.ts:117:1 › A job run calls the tools of a server it reaches through the OAuth login
+[61/80] [browser-chrome] › specs/mcp-oauth.spec.ts:156:1 › A provider that rejects the advertised scopes is asked again without scopes
+[62/80] [browser-chrome] › specs/mcp-oauth.spec.ts:170:1 › Logging out and refusing a login leave the server asking for a login
+[63/80] [browser-chrome] › specs/mcp-oauth.spec.ts:199:1 › A revoked login makes the test ask for a new login
+[64/80] [browser-chrome] › specs/mcp-oauth.spec.ts:214:1 › A server with an Authorization header uses it instead of an OAuth login
+[65/80] [browser-chrome] › specs/mcp-oauth.spec.ts:230:1 › The callback of a finished login cannot be replayed
+[66/80] [browser-chrome] › specs/mcp-oauth.spec.ts:255:1 › A login callback opened by another member is refused without using up the login
+[67/80] [browser-chrome] › specs/mcp-servers.spec.ts:88:1 › A plain HTTP server is added, tested right away and lists its tools with their read-only and destructive annotations
+[68/80] [browser-chrome] › specs/mcp-servers.spec.ts:163:1 › A server without an OAuth login offers none, and editing it from its sheet saves without testing again
+[69/80] [browser-chrome] › specs/mcp-servers.spec.ts:224:1 › The server search matches descriptions too
+[70/80] [browser-chrome] › specs/mcp-servers.spec.ts:249:1 › The add dialog checks the name, the command, the URL and the OAuth client before it saves anything
+[71/80] [browser-chrome] › specs/mcp-servers.spec.ts:294:1 › Only the fields of the chosen transport are saved
+[72/80] [browser-chrome] › specs/mcp-servers.spec.ts:333:1 › The add dialog stays open with the backend's reason when it refuses a taken name or a scope
+[73/80] [browser-chrome] › specs/mcp-servers.spec.ts:370:1 › The API refuses invalid servers from clients that skip the dialog
+[74/80] [browser-chrome] › specs/mcp-servers.spec.ts:399:1 › A URL without a scheme is reported next to the URL field
+[75/80] [browser-chrome] › specs/mcp-servers.spec.ts:411:1 › A scope the backend refuses is reported next to the scopes
+[76/80] [browser-chrome] › specs/mcp-servers.spec.ts:425:1 › Header values that reference a secret reach the server but never the browser, and follow the secret when it changes
+[77/80] [browser-chrome] › specs/mcp-servers.spec.ts:509:1 › The compile step marks needed services as configured when a server matches, preselects it and saves the chosen servers
+[78/80] [browser-chrome] › specs/mcp-servers.spec.ts:589:1 › Disabling a server keeps its settings, marks it disabled everywhere and leaves it out of runs until it is enabled again
+[79/80] [browser-chrome] › specs/mcp-servers.spec.ts:655:1 › An unreachable server shows the connection error in its test, stays Unknown, refuses a login and is reported on the run timeline
+[80/80] [browser-chrome] › specs/mcp-servers.spec.ts:708:1 › The servers of one workspace are invisible to another workspace and cannot be attached from it
+  80 passed (3.0m)

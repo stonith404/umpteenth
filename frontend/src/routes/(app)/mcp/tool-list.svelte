@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { McpToolInfo } from '$lib/api/types';
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Collapsible from '$lib/components/ui/collapsible';
+	import type { McpToolInfo } from '#lib/api/types.js';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import WrenchIcon from '@lucide/svelte/icons/wrench';
 	import { SvelteSet } from 'svelte/reactivity';

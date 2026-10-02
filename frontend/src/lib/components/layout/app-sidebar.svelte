@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import type { User } from '$lib/api/types';
-	import Logo from '$lib/components/logo.svelte';
-	import Wordmark from '$lib/components/wordmark.svelte';
-	import * as Sidebar from '$lib/components/ui/sidebar';
-	import { isNavItemActive, navGroups, secondaryNav, type NavItem } from '$lib/navigation';
-	import RunService from '$lib/services/run-service';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
+	import type { User } from '#lib/api/types.js';
+	import Logo from '#lib/components/logo.svelte';
+	import Wordmark from '#lib/components/wordmark.svelte';
+	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
+	import { isNavItemActive, navGroups, secondaryNav, type NavItem } from '#lib/navigation.js';
+	import RunService from '#lib/services/run-service.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import { onMount } from 'svelte';
 	import { commandPalette } from './command-palette.svelte';
@@ -19,7 +19,10 @@
 	const sidebar = Sidebar.useSidebar();
 
 	// A sidebar covering the page gets out of the way of any new page, also one reached from the command palette or the browser's back button
-	afterNavigate(() => sidebar.dismiss());
+	// Shallow navigations such as switching a tab only change the URL hash, so they leave the sidebar open
+	afterNavigate(({ shallow }) => {
+		if (!shallow) sidebar.dismiss();
+	});
 
 	// The palette opens with ⌘K on Apple devices and Ctrl+K elsewhere, so the hint names the key people actually press
 	const shortcutLabel = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { collapseUnchanged, diffLines, diffStats } from '$lib/utils/diff-util';
-	import { cn } from '$lib/utils/style';
+	import { collapseUnchanged, diffLines, diffStats } from '#lib/utils/diff-util.js';
+	import { cn } from '#lib/utils/style.js';
 
 	let {
 		before,

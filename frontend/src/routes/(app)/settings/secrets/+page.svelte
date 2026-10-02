@@ -1,15 +1,20 @@
 <script lang="ts">
-	import type { Secret } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import { DataTable, RowActions, actionsColumn, renderSnippet } from '$lib/components/data-table';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import SecretService from '$lib/services/secret-service';
-	import { relativeTimeClock } from '$lib/utils/clock.svelte';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { formatDateTime, formatRelative } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { Secret } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
+	import {
+		DataTable,
+		RowActions,
+		actionsColumn,
+		renderSnippet
+	} from '#lib/components/data-table/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import SecretService from '#lib/services/secret-service.js';
+	import { relativeTimeClock } from '#lib/utils/clock.svelte.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { formatDateTime, formatRelative } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PlusIcon from '@lucide/svelte/icons/plus';

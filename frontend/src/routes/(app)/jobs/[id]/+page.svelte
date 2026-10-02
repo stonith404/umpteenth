@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import RunNowDialog from '$lib/components/jobs/run-now-dialog.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import { formatDuration, formatRelative, formatShortDate } from '$lib/utils/format-util';
-	import { cn } from '$lib/utils/style';
-	import { usageFormat } from '$lib/utils/usage-util';
+	import RunNowDialog from '#lib/components/jobs/run-now-dialog.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import { formatDuration, formatRelative, formatShortDate } from '#lib/utils/format-util.js';
+	import { cn } from '#lib/utils/style.js';
+	import { usageFormat } from '#lib/utils/usage-util.js';
 	import ChartColumnIcon from '@lucide/svelte/icons/chart-column';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import GraduationChart from './graduation-chart.svelte';
@@ -72,10 +72,10 @@
 	let runNowOpen = $state(false);
 
 	function setRange(range: string) {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (range === DEFAULT_STATS_RANGE) url.searchParams.delete('range');
 		else url.searchParams.set('range', range);
-		void goto(url, { noScroll: true, keepFocus: true, replaceState: true });
+		void goto(url, { reset: false, replace: true });
 	}
 </script>
 

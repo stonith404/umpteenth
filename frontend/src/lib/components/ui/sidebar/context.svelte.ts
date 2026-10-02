@@ -1,6 +1,6 @@
 import { getContext, setContext } from 'svelte';
 import { MediaQuery } from 'svelte/reactivity';
-import { IsMobile } from '$lib/hooks/is-mobile.svelte.js';
+import { IsMobile } from '#lib/hooks/is-mobile.svelte.js';
 import { SIDEBAR_KEYBOARD_SHORTCUT, SIDEBAR_WIDE_BREAKPOINT } from './constants.js';
 
 type Getter<T> = () => T;

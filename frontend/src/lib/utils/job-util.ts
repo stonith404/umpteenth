@@ -1,5 +1,5 @@
-import type { Job, JobListItem, JobSpec, User } from '$lib/api/types';
-import { describeCron } from '$lib/utils/cron-util';
+import type { Job, JobListItem, JobSpec, User } from '#lib/api/types.js';
+import { describeCron } from '#lib/utils/cron-util.js';
 
 const NEW_JOB_DRAFT_PREFIX = 'umpteenth:new-job-draft:';
 

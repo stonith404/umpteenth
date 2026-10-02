@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import type { BadgeVariant } from '$lib/components/ui/badge';
+	import type { BadgeVariant } from '#lib/components/ui/badge/index.js';
 	import type { RunStatus } from './run-meta';
 
 	// Colour means outcome only: succeeded green, failed red, timed out amber, live blue, everything else neutral
@@ -56,8 +56,8 @@
 </script>
 
 <script lang="ts">
-	import { badgeVariants } from '$lib/components/ui/badge';
-	import { cn } from '$lib/utils/style';
+	import { badgeVariants } from '#lib/components/ui/badge/index.js';
+	import { cn } from '#lib/utils/style.js';
 	import BanIcon from '@lucide/svelte/icons/ban';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';

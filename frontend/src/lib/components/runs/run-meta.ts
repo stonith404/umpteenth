@@ -1,4 +1,4 @@
-import type { TableFilterOption } from '$lib/components/data-table';
+import type { TableFilterOption } from '#lib/components/data-table/index.js';
 import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
 import CodeIcon from '@lucide/svelte/icons/code';
 import CompassIcon from '@lucide/svelte/icons/compass';

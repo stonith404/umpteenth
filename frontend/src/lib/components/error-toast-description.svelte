@@ -2,7 +2,7 @@
 	The description of an error toast: why the action in its title failed, and the request ID operators match against the server log
 -->
 <script lang="ts">
-	import RequestId from '$lib/components/request-id.svelte';
+	import RequestId from '#lib/components/request-id.svelte';
 
 	let { reason, requestId }: { reason?: string; requestId?: string } = $props();
 </script>

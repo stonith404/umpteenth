@@ -1,19 +1,19 @@
 <script lang="ts">
-	import type { JobImageDetail } from '$lib/api/types';
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import CopyButton from '$lib/components/copy-button.svelte';
+	import type { JobImageDetail } from '#lib/api/types.js';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import CopyButton from '#lib/components/copy-button.svelte';
 	import ImageStatusBadge, {
 		isImageBuilding
-	} from '$lib/components/jobs/image-status-badge.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import * as InputGroup from '$lib/components/ui/input-group';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import ImageService from '$lib/services/image-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { formatBytes, formatDuration } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	} from '#lib/components/jobs/image-status-badge.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import * as InputGroup from '#lib/components/ui/input-group/index.js';
+	import * as Sheet from '#lib/components/ui/sheet/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import ImageService from '#lib/services/image-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { formatBytes, formatDuration } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import { tick } from 'svelte';
 

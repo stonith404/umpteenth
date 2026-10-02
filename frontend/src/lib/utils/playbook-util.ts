@@ -1,6 +1,6 @@
-import type { PlaybookAppliedOp, PlaybookContent, PlaybookLearning } from '$lib/api/types';
-import { languageForScript, type CodeLanguage } from '$lib/components/code/script-language';
-import { humanize } from '$lib/utils/format-util';
+import type { PlaybookAppliedOp, PlaybookContent, PlaybookLearning } from '#lib/api/types.js';
+import { languageForScript, type CodeLanguage } from '#lib/components/code/script-language.js';
+import { humanize } from '#lib/utils/format-util.js';
 
 const authorLabels: Record<string, string> = {
 	user: 'Manual edit',

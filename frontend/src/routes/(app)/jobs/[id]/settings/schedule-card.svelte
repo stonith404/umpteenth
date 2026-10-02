@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import type { Job } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import ScheduleEditor from '$lib/components/jobs/schedule-editor.svelte';
-	import * as Field from '$lib/components/ui/field';
-	import * as Select from '$lib/components/ui/select';
-	import JobService from '$lib/services/job-service';
-	import { describeCron } from '$lib/utils/cron-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { cleanSpec, concurrencyOptions, type ConcurrencyPolicy } from '$lib/utils/job-util';
+	import type { Job } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import ScheduleEditor from '#lib/components/jobs/schedule-editor.svelte';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { describeCron } from '#lib/utils/cron-util.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { cleanSpec, concurrencyOptions, type ConcurrencyPolicy } from '#lib/utils/job-util.js';
 	import { untrack } from 'svelte';
 	import { z } from 'zod/v4';
 

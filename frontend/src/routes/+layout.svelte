@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { ConfirmDialog } from '$lib/components/confirm-dialog';
-	import { Toaster } from '$lib/components/ui/sonner';
+	import { ConfirmDialog } from '#lib/components/confirm-dialog/index.js';
+	import { Toaster } from '#lib/components/ui/sonner/index.js';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { Snippet } from 'svelte';
 	import '../app.css';

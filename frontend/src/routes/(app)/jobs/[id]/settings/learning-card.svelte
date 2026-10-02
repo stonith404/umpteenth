@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import type { Job } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import * as Field from '$lib/components/ui/field';
-	import { Switch } from '$lib/components/ui/switch';
-	import JobService from '$lib/services/job-service';
-	import { createForm } from '$lib/utils/form-util';
+	import type { Job } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { createForm } from '#lib/utils/form-util.js';
 	import { z } from 'zod/v4';
 
 	let { job }: { job: Job } = $props();

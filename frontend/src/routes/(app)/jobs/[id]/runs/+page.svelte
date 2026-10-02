@@ -1,5 +1,5 @@
 <script lang="ts">
-	import RunsTable from '$lib/components/runs/runs-table.svelte';
+	import RunsTable from '#lib/components/runs/runs-table.svelte';
 
 	let { data } = $props();
 </script>

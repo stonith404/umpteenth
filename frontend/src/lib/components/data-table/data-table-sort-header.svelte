@@ -1,5 +1,5 @@
 <script lang="ts" generics="TData">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.js';
 	import type { Column } from '@tanstack/table-core';
 	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';

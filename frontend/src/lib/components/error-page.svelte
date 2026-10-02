@@ -3,20 +3,20 @@
 	Inside the app it sits in the shell under the header, the root error page shows it full screen in the frame of the sign-in and invite pages
 -->
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import ErrorMark from '$lib/components/error-mark.svelte';
-	import Logo from '$lib/components/logo.svelte';
-	import RequestId from '$lib/components/request-id.svelte';
-	import Wordmark from '$lib/components/wordmark.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
+	import ErrorMark from '#lib/components/error-mark.svelte';
+	import Logo from '#lib/components/logo.svelte';
+	import RequestId from '#lib/components/request-id.svelte';
+	import Wordmark from '#lib/components/wordmark.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
 	import {
 		errorPageContent,
 		recentlyRedirectedToLogin,
 		rememberLoginRedirect
-	} from '$lib/utils/error-util';
-	import { LOGIN_PATH, loginUrl } from '$lib/utils/redirection-util';
+	} from '#lib/utils/error-util.js';
+	import { LOGIN_PATH, loginUrl } from '#lib/utils/redirection-util.js';
 	import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
 
 	let {
@@ -39,14 +39,14 @@
 	$effect(() => {
 		if (!redirecting) return;
 		rememberLoginRedirect(returnTo);
-		void goto(loginUrl(returnTo), { replaceState: true, invalidateAll: true });
+		void goto(loginUrl(returnTo), { replace: true, refreshAll: true });
 	});
 
 	// The way back of the full-screen page can lead straight into the same failure: it links to the page that failed, or it needs a session a signed-out visitor doesn't have, e.g. when the sign-in page's providers can't load
 	// Trying again is then the only way out, so it replaces the way back
 	const backIsDeadEnd = $derived.by(() => {
 		if (!branded) return false;
-		if (new URL(content.back.href, page.url).pathname === page.url.pathname) return true;
+		if (new URL(content.back.href, page.url.href).pathname === page.url.pathname) return true;
 		return !page.data.user && !content.sessionLost;
 	});
 	const showRetry = $derived(content.retry || backIsDeadEnd);
@@ -57,7 +57,7 @@
 	async function retry() {
 		retrying = true;
 		try {
-			await invalidateAll();
+			await refreshAll();
 		} finally {
 			retrying = false;
 		}

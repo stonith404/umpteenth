@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.js';
 	import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 	import { Compartment, EditorState, type Extension } from '@codemirror/state';
 	import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';

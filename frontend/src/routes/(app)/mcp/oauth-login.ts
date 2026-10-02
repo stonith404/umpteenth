@@ -1,7 +1,7 @@
-import type { McpServer } from '$lib/api/types';
-import McpService from '$lib/services/mcp-service';
-import { apiErrorToast } from '$lib/utils/error-util';
-import { tryCatch } from '$lib/utils/try-catch-util';
+import type { McpServer } from '#lib/api/types.js';
+import McpService from '#lib/services/mcp-service.js';
+import { apiErrorToast } from '#lib/utils/error-util.js';
+import { tryCatch } from '#lib/utils/try-catch-util.js';
 
 // Sends the browser to the server's authorization server, which returns it to the MCP servers page with the outcome
 export async function startOAuthLogin(server: Pick<McpServer, 'id' | 'name'>) {

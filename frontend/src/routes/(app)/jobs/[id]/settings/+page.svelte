@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import DangerZone from '$lib/components/danger-zone.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import JobService from '$lib/services/job-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
+	import DangerZone from '#lib/components/danger-zone.svelte';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';
 	import GeneralCard from './general-card.svelte';

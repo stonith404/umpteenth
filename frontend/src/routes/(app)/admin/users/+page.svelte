@@ -1,21 +1,21 @@
 <script lang="ts">
-	import type { AdminUser, AdminUserCreated, SignInLink } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import type { AdminUser, AdminUserCreated, SignInLink } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		DataTable,
 		RowActions,
 		actionsColumn,
 		renderComponent,
 		renderSnippet
-	} from '$lib/components/data-table';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import AdminService from '$lib/services/admin-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	} from '#lib/components/data-table/index.js';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import * as Avatar from '#lib/components/ui/avatar/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import AdminService from '#lib/services/admin-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import ShieldIcon from '@lucide/svelte/icons/shield';
 	import ShieldOffIcon from '@lucide/svelte/icons/shield-off';

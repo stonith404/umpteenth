@@ -1,8 +1,8 @@
 <script lang="ts">
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { relativeTimeClock } from '$lib/utils/clock.svelte';
-	import { formatDateTime, formatRelative } from '$lib/utils/format-util';
-	import { cn } from '$lib/utils/style';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { relativeTimeClock } from '#lib/utils/clock.svelte.js';
+	import { formatDateTime, formatRelative } from '#lib/utils/format-util.js';
+	import { cn } from '#lib/utils/style.js';
 
 	let {
 		value,

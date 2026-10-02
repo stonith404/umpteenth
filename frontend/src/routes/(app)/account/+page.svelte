@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { invalidate, invalidateAll } from '$app/navigation';
-	import type { Passkey } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import { RowActions } from '$lib/components/data-table';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import * as Table from '$lib/components/ui/table';
-	import UserService from '$lib/services/user-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { invalidate, refreshAll } from '$app/navigation';
+	import type { Passkey } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
+	import { RowActions } from '#lib/components/data-table/index.js';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
+	import UserService from '#lib/services/user-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PlusIcon from '@lucide/svelte/icons/plus';
@@ -43,7 +43,7 @@
 		}
 		if (!result.data) return;
 		toast.success(`Added "${result.data.name}"`);
-		await invalidateAll();
+		await refreshAll();
 	}
 
 	function confirmDelete(passkey: Passkey) {
@@ -61,7 +61,7 @@
 						return;
 					}
 					toast.success(`Removed "${passkey.name}"`);
-					await invalidateAll();
+					await refreshAll();
 				}
 			}
 		});
@@ -164,4 +164,4 @@
 	</p>
 {/if}
 
-<RenamePasskeyDialog bind:passkey={renaming} onRenamed={() => invalidateAll()} />
+<RenamePasskeyDialog bind:passkey={renaming} onRenamed={() => refreshAll()} />

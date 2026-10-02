@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { JobServer, McpServer } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import JobService from '$lib/services/job-service';
-	import { createForm } from '$lib/utils/form-util';
-	import { mergeListChanges } from '$lib/utils/job-util';
-	import { transportLabel } from '$lib/utils/mcp-util';
+	import type { JobServer, McpServer } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { mergeListChanges } from '#lib/utils/job-util.js';
+	import { transportLabel } from '#lib/utils/mcp-util.js';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import ServerIcon from '@lucide/svelte/icons/server';
 	import XIcon from '@lucide/svelte/icons/x';

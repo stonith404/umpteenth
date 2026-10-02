@@ -1,5 +1,5 @@
-import { ApiError } from '$lib/api/api-error';
-import type { paths } from '$lib/api/schema';
+import { ApiError } from '#lib/api/api-error.js';
+import type { paths } from '#lib/api/schema.js';
 import createClient, { type Client } from 'openapi-fetch';
 
 // The largest page the list endpoints return, larger requests are capped by the backend

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { WithElementRef } from '$lib/utils/style.js';
-	import { cn } from '$lib/utils/style.js';
+	import type { WithElementRef } from '#lib/utils/style.js';
+	import { cn } from '#lib/utils/style.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {

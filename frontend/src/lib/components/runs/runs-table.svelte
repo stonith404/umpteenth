@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import type { Run, RunListQuery, WorkspaceEvent } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import type { Run, RunListQuery, WorkspaceEvent } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		DataTable,
 		RowActions,
@@ -12,20 +12,20 @@
 		type TableFilter,
 		type TableFilterControlProps,
 		type TableQuery
-	} from '$lib/components/data-table';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import UsageAmount from '$lib/components/usage-amount.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import RunService from '$lib/services/run-service';
-	import { relativeTimeClock } from '$lib/utils/clock.svelte';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { formatDateTime, formatRelative } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { usageFormat } from '$lib/utils/usage-util';
-	import { subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
-	import { hasRole } from '$lib/utils/workspace-util';
+	} from '#lib/components/data-table/index.js';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import UsageAmount from '#lib/components/usage-amount.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import RunService from '#lib/services/run-service.js';
+	import { relativeTimeClock } from '#lib/utils/clock.svelte.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { formatDateTime, formatRelative } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { usageFormat } from '#lib/utils/usage-util.js';
+	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
+	import { hasRole } from '#lib/utils/workspace-util.js';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
@@ -292,14 +292,14 @@
 	// Shows the new runs by going to the first page in the default sort, keeping search and filters
 	function showNewRuns() {
 		newRunIds.clear();
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		url.searchParams.delete('page');
 		url.searchParams.delete('sort');
 		if (url.search === page.url.search) {
 			void dataTable?.refresh();
 			return;
 		}
-		void goto(url, { keepFocus: true, noScroll: true });
+		void goto(url, { reset: false });
 	}
 </script>
 

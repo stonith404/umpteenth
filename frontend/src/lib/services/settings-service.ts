@@ -1,4 +1,4 @@
-import type { WorkspaceSettingsUpdate } from '$lib/api/types';
+import type { WorkspaceSettingsUpdate } from '#lib/api/types.js';
 import APIService from './api-service';
 
 export default class SettingsService extends APIService {

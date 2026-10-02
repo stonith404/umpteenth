@@ -1,6 +1,6 @@
 // The backend of the demo: it answers the app's requests and streams from recorded runs, so the real pages render without a server
 // A live replay sends the recorded events at their recorded moments on the demo's clock, with the streaming deltas a real run sends in between
-import type { Run, RunDelta, RunDetail, RunEvent, WorkspaceEvent } from '$lib/api/types';
+import type { Run, RunDelta, RunDetail, RunEvent, WorkspaceEvent } from '#lib/api/types.js';
 import { clock } from './clock';
 import { exploreRun, scriptedRun, type RecordedRun } from './fixtures';
 

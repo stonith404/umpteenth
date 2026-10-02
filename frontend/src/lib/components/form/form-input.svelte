@@ -1,9 +1,9 @@
 <script lang="ts">
-	import DatePicker from '$lib/components/form/date-picker.svelte';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import type { FormInput } from '$lib/utils/form-util';
-	import { cn } from '$lib/utils/style';
+	import DatePicker from '#lib/components/form/date-picker.svelte';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import type { FormInput } from '#lib/utils/form-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import { untrack, type Snippet } from 'svelte';
 	import type { HTMLAttributes, HTMLInputAttributes } from 'svelte/elements';
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Collapsible from '$lib/components/ui/collapsible';
-	import { cn } from '$lib/utils/style';
+	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
+	import { cn } from '#lib/utils/style.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import type { Snippet } from 'svelte';
 

@@ -5,7 +5,7 @@ import type {
 	ProviderKind,
 	ProviderUpdate,
 	QueryOf
-} from '$lib/api/types';
+} from '#lib/api/types.js';
 import APIService from './api-service';
 
 export default class ProviderService extends APIService {

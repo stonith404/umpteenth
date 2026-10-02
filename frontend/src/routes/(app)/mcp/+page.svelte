@@ -1,25 +1,25 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import type { McpServer, McpServerBody } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import type { McpServer, McpServerBody } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		DataTable,
 		RowActions,
 		actionsColumn,
 		renderSnippet,
 		type RowAction
-	} from '$lib/components/data-table';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import { Switch } from '$lib/components/ui/switch';
-	import McpService from '$lib/services/mcp-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { canLogIn, transportLabel } from '$lib/utils/mcp-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	} from '#lib/components/data-table/index.js';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
+	import McpService from '#lib/services/mcp-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { canLogIn, transportLabel } from '#lib/utils/mcp-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
@@ -159,9 +159,9 @@
 		const error = params.get('oauthError');
 		if (!serverId || (!outcome && error === null)) return;
 
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		for (const key of ['server', 'oauth', 'oauthError']) url.searchParams.delete(key);
-		void goto(url, { replaceState: true, noScroll: true, keepFocus: true });
+		void goto(url, { replace: true, reset: false });
 
 		const server = await tryCatch(mcpService.get(serverId));
 		const name = server.data ? `"${server.data.name}"` : 'the server';

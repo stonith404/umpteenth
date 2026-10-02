@@ -1,30 +1,33 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
+	import { isApiError } from '#lib/api/api-error.js';
 	import { invalidate } from '$app/navigation';
-	import type { JobImage } from '$lib/api/types';
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import type { JobImage } from '#lib/api/types.js';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		actionsColumn,
 		DataTable,
 		renderComponent,
 		renderSnippet,
 		RowActions
-	} from '$lib/components/data-table';
+	} from '#lib/components/data-table/index.js';
 	import ImageStatusBadge, {
 		isImageBuilding
-	} from '$lib/components/jobs/image-status-badge.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Empty from '$lib/components/ui/empty';
-	import ImageService from '$lib/services/image-service';
-	import PlaybookService from '$lib/services/playbook-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { formatBytes, formatDateTime, formatDuration } from '$lib/utils/format-util';
-	import { DEFAULT_IMAGE_TOOLS } from '$lib/utils/job-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { invalidateAfterNavigation, subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
+	} from '#lib/components/jobs/image-status-badge.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import ImageService from '#lib/services/image-service.js';
+	import PlaybookService from '#lib/services/playbook-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { formatBytes, formatDateTime, formatDuration } from '#lib/utils/format-util.js';
+	import { DEFAULT_IMAGE_TOOLS } from '#lib/utils/job-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import {
+		invalidateAfterNavigation,
+		subscribeWorkspaceEvents
+	} from '#lib/utils/workspace-events.js';
 	import ContainerIcon from '@lucide/svelte/icons/container';
 	import HammerIcon from '@lucide/svelte/icons/hammer';
 	import PlusIcon from '@lucide/svelte/icons/plus';

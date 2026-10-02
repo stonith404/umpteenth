@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import type { Job, JobIOField } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import IoFieldsEditor from '$lib/components/form/io-fields-editor.svelte';
-	import StringListEditor from '$lib/components/form/string-list-editor.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import * as Field from '$lib/components/ui/field';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import JobService from '$lib/services/job-service';
-	import { createForm } from '$lib/utils/form-util';
-	import { cleanSpec } from '$lib/utils/job-util';
+	import type { Job, JobIOField } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import IoFieldsEditor from '#lib/components/form/io-fields-editor.svelte';
+	import StringListEditor from '#lib/components/form/string-list-editor.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { cleanSpec } from '#lib/utils/job-util.js';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import { untrack } from 'svelte';
 	import { z } from 'zod/v4';

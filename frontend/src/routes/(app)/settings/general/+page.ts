@@ -1,7 +1,7 @@
-import ProviderService from '$lib/services/provider-service';
-import SecretService from '$lib/services/secret-service';
-import SettingsService from '$lib/services/settings-service';
-import { tryCatch } from '$lib/utils/try-catch-util';
+import ProviderService from '#lib/services/provider-service.js';
+import SecretService from '#lib/services/secret-service.js';
+import SettingsService from '#lib/services/settings-service.js';
+import { tryCatch } from '#lib/utils/try-catch-util.js';
 import type { PageLoad } from './$types';
 
 // The secrets only feed the notifications card, so their failure leaves the rest of the page usable

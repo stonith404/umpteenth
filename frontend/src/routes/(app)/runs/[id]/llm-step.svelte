@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { RunEvent } from '$lib/api/types';
-	import Markdown from '$lib/components/markdown.svelte';
-	import UsageAmount from '$lib/components/usage-amount.svelte';
-	import { formatDuration, sentenceCase } from '$lib/utils/format-util';
-	import { usageFormat } from '$lib/utils/usage-util';
+	import type { RunEvent } from '#lib/api/types.js';
+	import Markdown from '#lib/components/markdown.svelte';
+	import UsageAmount from '#lib/components/usage-amount.svelte';
+	import { formatDuration, sentenceCase } from '#lib/utils/format-util.js';
+	import { usageFormat } from '#lib/utils/usage-util.js';
 	import Disclosure from './disclosure.svelte';
 	import StepShell from './step-shell.svelte';
 	import type { LlmCallPayload } from './timeline-model';

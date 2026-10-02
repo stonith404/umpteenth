@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import PageTabs, { activePageTab } from '$lib/components/page-tabs.svelte';
-	import { settingsTabs } from '$lib/navigation';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import PageTabs, { activePageTab } from '#lib/components/page-tabs.svelte';
+	import { settingsTabs } from '#lib/navigation.js';
 	import type { Snippet } from 'svelte';
 
 	let { children }: { children: Snippet } = $props();

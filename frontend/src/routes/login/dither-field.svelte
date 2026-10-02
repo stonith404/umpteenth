@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.js';
 	import type { Attachment } from 'svelte/attachments';
 	import { createNoise2D } from './simplex-noise';
 

@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import type { BadgeVariant } from '$lib/components/ui/badge';
+	import type { BadgeVariant } from '#lib/components/ui/badge/index.js';
 
 	// Build states of a job image, toned like run statuses: live blue, ready green, failed red
 	const tones: Record<string, { badge: BadgeVariant; icon: string; label: string }> = {
@@ -23,8 +23,8 @@
 </script>
 
 <script lang="ts">
-	import { badgeVariants } from '$lib/components/ui/badge';
-	import { cn } from '$lib/utils/style';
+	import { badgeVariants } from '#lib/components/ui/badge/index.js';
+	import { cn } from '#lib/utils/style.js';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
 	import CircleXIcon from '@lucide/svelte/icons/circle-x';

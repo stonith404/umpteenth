@@ -1,18 +1,18 @@
 <script lang="ts">
-	import type { JobStateEntry } from '$lib/api/types';
+	import type { JobStateEntry } from '#lib/api/types.js';
 	import {
 		actionsColumn,
 		DataTable,
 		renderComponent,
 		renderSnippet,
 		RowActions
-	} from '$lib/components/data-table';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import JobService from '$lib/services/job-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	} from '#lib/components/data-table/index.js';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import PlusIcon from '@lucide/svelte/icons/plus';

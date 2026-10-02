@@ -1,10 +1,10 @@
 <script lang="ts">
-	import CopyButton from '$lib/components/copy-button.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import * as InputGroup from '$lib/components/ui/input-group';
+	import CopyButton from '#lib/components/copy-button.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as InputGroup from '#lib/components/ui/input-group/index.js';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 
 	// The link is only known right after creation, closing the dialog forgets it for good

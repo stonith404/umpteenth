@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
-	import type { Provider, ProviderCreate, ProviderUpdate } from '$lib/api/types';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import ProviderService from '$lib/services/provider-service';
-	import { apiErrorToast, getErrorMessage } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { Provider, ProviderCreate, ProviderUpdate } from '#lib/api/types.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import ProviderService from '#lib/services/provider-service.js';
+	import { apiErrorToast, getErrorMessage } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { isOfficialApi, openAiPresets, providerKindLabel, usesCatalog } from './provider-meta';

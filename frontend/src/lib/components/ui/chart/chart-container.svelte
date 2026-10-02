@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from '$lib/utils/style.js';
+	import { cn, type WithElementRef } from '#lib/utils/style.js';
 	import ChartStyle from './chart-style.svelte';
 	import { setChartContext, type ChartConfig } from './chart-utils.js';
 	import type { HTMLAttributes } from 'svelte/elements';

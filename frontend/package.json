@@ -43,8 +43,8 @@
 		"@internationalized/date": "^3.12.1",
 		"@lucide/svelte": "^1.48.0",
 		"@shadcn/lint": "^0.2.0",
-		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.70.3",
+		"@sveltejs/adapter-static": "^4.0.0",
+		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@types/node": "^25.9.0",
 		"@typescript-eslint/parser": "^8.71.0",
@@ -61,7 +61,7 @@
 		"prettier-plugin-tailwindcss": "^0.8.0",
 		"shadcn-svelte": "^1.7.0",
 		"svelte": "^5.57.1",
-		"svelte-check": "^4.4.8",
+		"svelte-check": "^4.7.5",
 		"svelte-sonner": "^1.2.1",
 		"tailwind-variants": "^3.3.0",
 		"tailwindcss": "^4.3.0",
@@ -69,5 +69,9 @@
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.59.4",
 		"vite": "^8.3.1"
+	},
+	"imports": {
+		"#lib": "./src/lib/index.js",
+		"#lib/*": "./src/lib/*"
 	}
 }

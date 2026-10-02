@@ -1,9 +1,9 @@
 import { goto } from '$app/navigation';
-import { ApiError, isApiError } from '$lib/api/api-error';
-import ErrorToastDescription from '$lib/components/error-toast-description.svelte';
-import { PasskeyError } from '$lib/utils/passkey-util';
-import { LOGIN_PATH, loginUrl } from '$lib/utils/redirection-util';
-import { enterWorkspace } from '$lib/utils/workspace-util';
+import { ApiError, isApiError } from '#lib/api/api-error.js';
+import ErrorToastDescription from '#lib/components/error-toast-description.svelte';
+import { PasskeyError } from '#lib/utils/passkey-util.js';
+import { LOGIN_PATH, loginUrl } from '#lib/utils/redirection-util.js';
+import { enterWorkspace } from '#lib/utils/workspace-util.js';
 import { toast } from 'svelte-sonner';
 
 const DEFAULT_MESSAGE = 'An unknown error occurred';
@@ -102,7 +102,7 @@ export function redirectToLogin(): boolean {
 
 	rememberLoginRedirect(path);
 	loginRedirectPending = true;
-	void goto(loginUrl(path), { invalidateAll: true }).finally(() => {
+	void goto(loginUrl(path), { refreshAll: true }).finally(() => {
 		loginRedirectPending = false;
 	});
 	return true;

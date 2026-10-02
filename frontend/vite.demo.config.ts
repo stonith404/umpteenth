@@ -1,4 +1,4 @@
-import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { svelte, vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -12,19 +12,27 @@ export default defineConfig({
 	// The docs serve the build from a subdirectory, so every asset is referenced relative to the page
 	base: './',
 	publicDir: false,
-	plugins: [svelte({ configFile: path('./svelte.config.js') }), tailwindcss()],
+	plugins: [
+		// The app's own Svelte options, which live in the sveltekit plugin in vite.config.ts
+		svelte({
+			preprocess: vitePreprocess(),
+			compilerOptions: {
+				warningFilter: (warning) => warning.code !== 'state_referenced_locally'
+			}
+		}),
+		tailwindcss()
+	],
 	resolve: {
 		alias: [
 			// The code editor and the workspace dialog bring CodeMirror and zod, which the demo only needs on demand, so they load lazily
 			{
-				find: '$lib/components/code/code-editor.svelte',
+				find: '#lib/components/code/code-editor.svelte',
 				replacement: path('./src/demo/lazy/code-editor.svelte')
 			},
 			{
-				find: '$lib/components/workspaces/create-workspace-dialog.svelte',
+				find: '#lib/components/workspaces/create-workspace-dialog.svelte',
 				replacement: path('./src/demo/lazy/create-workspace-dialog.svelte')
 			},
-			{ find: '$lib', replacement: path('./src/lib') },
 			{ find: '$app/state', replacement: path('./src/demo/kit/state.svelte.ts') },
 			{ find: '$app/navigation', replacement: path('./src/demo/kit/navigation.ts') }
 		]

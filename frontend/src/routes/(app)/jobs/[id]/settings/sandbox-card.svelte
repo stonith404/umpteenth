@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import type { Job, WorkspaceSettings } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import NetworkSelect, { type NetworkChoice } from '$lib/components/form/network-select.svelte';
-	import * as Field from '$lib/components/ui/field';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import JobService from '$lib/services/job-service';
-	import { createForm } from '$lib/utils/form-util';
-	import { cleanSpec } from '$lib/utils/job-util';
+	import type { Job, WorkspaceSettings } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import NetworkSelect, { type NetworkChoice } from '#lib/components/form/network-select.svelte';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { cleanSpec } from '#lib/utils/job-util.js';
 	import { z } from 'zod/v4';
 
 	let {

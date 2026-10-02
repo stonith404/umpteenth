@@ -1,21 +1,21 @@
 <script lang="ts">
-	import type { Skill } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import type { Skill } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		DataTable,
 		RowActions,
 		actionsColumn,
 		renderSnippet,
 		type TableQuery
-	} from '$lib/components/data-table';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import SkillService from '$lib/services/skill-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { formatBytes } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	} from '#lib/components/data-table/index.js';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import SkillService from '#lib/services/skill-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { formatBytes } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import EyeIcon from '@lucide/svelte/icons/eye';
 	import PlusIcon from '@lucide/svelte/icons/plus';

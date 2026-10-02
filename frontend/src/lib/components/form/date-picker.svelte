@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Calendar } from '$lib/components/ui/calendar';
-	import * as Popover from '$lib/components/ui/popover';
-	import { cn } from '$lib/utils/style';
+	import { Calendar } from '#lib/components/ui/calendar/index.js';
+	import * as Popover from '#lib/components/ui/popover/index.js';
+	import { cn } from '#lib/utils/style.js';
 	import {
 		CalendarDate,
 		DateFormatter,

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { McpServerAuth } from '$lib/api/types';
-	import { Badge } from '$lib/components/ui/badge';
-	import { authBadge } from '$lib/utils/mcp-util';
+	import type { McpServerAuth } from '#lib/api/types.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { authBadge } from '#lib/utils/mcp-util.js';
 
 	let { auth }: { auth: McpServerAuth } = $props();
 

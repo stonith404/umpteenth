@@ -1,4 +1,4 @@
-import { segmentLabels } from '$lib/navigation';
+import { segmentLabels } from '#lib/navigation.js';
 
 export type Breadcrumb = {
 	label: string;

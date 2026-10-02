@@ -1,4 +1,4 @@
-import ProviderService from '$lib/services/provider-service';
+import ProviderService from '#lib/services/provider-service.js';
 import type { PageLoad } from './$types';
 
 // Every provider is loaded for the models table's provider filter and the model dialog's provider picker

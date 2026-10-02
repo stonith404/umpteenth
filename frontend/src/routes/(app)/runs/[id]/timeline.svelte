@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { RunDetail } from '$lib/api/types';
-	import Markdown from '$lib/components/markdown.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import RunService from '$lib/services/run-service';
-	import { getErrorMessage } from '$lib/utils/error-util';
+	import type { RunDetail } from '#lib/api/types.js';
+	import Markdown from '#lib/components/markdown.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import RunService from '#lib/services/run-service.js';
+	import { getErrorMessage } from '#lib/utils/error-util.js';
 	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
 	import ListTreeIcon from '@lucide/svelte/icons/list-tree';
 	import EventStep from './event-step.svelte';

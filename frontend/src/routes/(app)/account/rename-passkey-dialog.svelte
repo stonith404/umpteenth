@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
-	import type { Passkey } from '$lib/api/types';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import UserService from '$lib/services/user-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { Passkey } from '#lib/api/types.js';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import UserService from '#lib/services/user-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { z } from 'zod/v4';
 
 	// The dialog is open while it has a passkey to rename

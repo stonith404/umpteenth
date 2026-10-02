@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
-import type { User, WorkspaceRole } from '$lib/api/types';
-import { clearNewJobDrafts } from '$lib/utils/job-util';
-import { resetWorkspaceEvents } from '$lib/utils/workspace-events';
+import type { User, WorkspaceRole } from '#lib/api/types.js';
+import { clearNewJobDrafts } from '#lib/utils/job-util.js';
+import { resetWorkspaceEvents } from '#lib/utils/workspace-events.js';
 
 const roleRanks: Record<WorkspaceRole, number> = { member: 1, admin: 2, owner: 3 };
 
@@ -31,5 +31,5 @@ export function workspaceInitial(name: string) {
 export async function enterWorkspace() {
 	clearNewJobDrafts();
 	resetWorkspaceEvents();
-	await goto('/', { invalidateAll: true });
+	await goto('/', { refreshAll: true });
 }

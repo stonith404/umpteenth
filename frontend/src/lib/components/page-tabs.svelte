@@ -28,7 +28,7 @@
 
 <script lang="ts">
 	import { navigating, page } from '$app/state';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -78,8 +78,7 @@
 					<a
 						{...props}
 						href={tab.href}
-						data-sveltekit-keepfocus
-						data-sveltekit-noscroll
+						data-sveltekit-reset="false"
 						onclick={undefined}
 						onkeydown={(event) => handleKeydown(event, props.onkeydown)}
 					>

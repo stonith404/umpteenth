@@ -1,0 +1,66 @@
+
+Running 61 tests using 1 worker, shard 3 of 3
+
+[1/61] [browser-chrome] › specs/reflection.spec.ts:45:1 › Reflection turns a run into a playbook version whose script the next run calls as a tool
+[2/61] [browser-chrome] › specs/reflection.spec.ts:104:1 › Learning from one run works when the job does not learn automatically
+[3/61] [browser-chrome] › specs/reflection.spec.ts:131:1 › Rolling back a learned Dockerfile restores the environment of later runs
+[4/61] [browser-chrome] › specs/run-failures.spec.ts:33:1 › A run the agent reported as failed explains why in its header and hides the restated error
+[5/61] [browser-chrome] › specs/run-failures.spec.ts:60:1 › Learning from a failed run can be retried after reflection failed, and the run can't be deleted meanwhile
+[6/61] [browser-chrome] › specs/run-failures.spec.ts:109:1 › A rejected model call fails the run with its error, an overloaded model is asked again and the run goes on, and the runs list finds the failed run by its error
+[7/61] [browser-chrome] › specs/run-failures.spec.ts:182:1 › A repeated model call stays the same turn while the run is live
+[8/61] [browser-chrome] › specs/run-failures.spec.ts:213:1 › A model that ends its turn without calling finish is reminded once, then the run fails, and a refusal fails it right away
+[9/61] [browser-chrome] › specs/run-failures.spec.ts:288:1 › A script that calls ump fail fails the run with its reason, even though the agent finished successfully
+[10/61] [browser-chrome] › specs/run-limits.spec.ts:42:1 › Sandbox defaults bound every run, and a job's own limit wins over them
+[11/61] [browser-chrome] › specs/run-limits.spec.ts:97:1 › A run stops at its cost limit, and the daily spend limit refuses runs before they start
+[12/61] [browser-chrome] › specs/run-limits.spec.ts:171:1 › A killed command lets the run go on until the job's timeout ends it as timed out, and it can still be learned from
+[13/61] [browser-chrome] › specs/run-page.spec.ts:23:1 › Retrying a run starts a new run with the same input and instructions and opens it
+[14/61] [browser-chrome] › specs/run-page.spec.ts:106:1 › Files in /ump/outputs and ump outputs show on the Outputs tab and download under their names
+[15/61] [browser-chrome] › specs/run-page.spec.ts:187:1 › Several tool calls in one turn show as separate steps with their exit codes, JSON results and errors
+[16/61] [browser-chrome] › specs/run-page.spec.ts:260:1 › A turn streams its reasoning live and keeps it collapsed once persisted
+[17/61] [browser-chrome] › specs/run-page.spec.ts:330:1 › The Raw tab exports the run with its events, and tab deep links survive a reload
+[18/61] [browser-chrome] › specs/run-page.spec.ts:390:1 › A run is not found from another workspace, neither on its page nor through the API
+[19/61] [browser-chrome] › specs/run-page.spec.ts:447:1 › A run deleted elsewhere turns into the not-found page
+[20/61] [browser-chrome] › specs/runs.spec.ts:14:1 › A scripted run streams its timeline live and ends with outputs
+[21/61] [browser-chrome] › specs/runs.spec.ts:61:1 › A running run can be cancelled from its page
+[22/61] [browser-chrome] › specs/runs.spec.ts:91:1 › The runs table filters by status and search, keeping both in the URL
+[23/61] [browser-chrome] › specs/runs.spec.ts:143:1 › The runs table shows new runs and their status changes live
+[24/61] [browser-chrome] › specs/runs.spec.ts:163:1 › Admins delete finished runs from their page and from the runs table
+[25/61] [browser-chrome] › specs/runs.spec.ts:197:1 › A running run cannot be deleted until it has finished
+[26/61] [browser-chrome] › specs/schedule.spec.ts:25:1 › A run the schedule fires says the schedule started it, and the job keeps its next run
+[27/61] [browser-chrome] › specs/schedule.spec.ts:55:1 › A scheduled trigger while a run is active is recorded as skipped, and the job's runs show it live
+[28/61] [browser-chrome] › specs/schedule.spec.ts:87:1 › Invalid cron expressions are refused next to the field, and the job stays unscheduled until a valid one is saved
+[29/61] [browser-chrome] › specs/schedule.spec.ts:148:1 › The API refuses a timezone that is not an IANA name, including the server's own Local
+[30/61] [browser-chrome] › specs/schedule.spec.ts:175:1 › An @every interval is flagged while typing, since the scheduler refuses it
+[31/61] [browser-chrome] › specs/schedule.spec.ts:189:1 › Editing a refused cron expression clears its error and reads the new expression back
+[32/61] [browser-chrome] › specs/schedule.spec.ts:209:1 › The Webhook card generates a token without asking, asks before rotating, and a rotated token stops working at once
+[33/61] [browser-chrome] › specs/schedule.spec.ts:291:1 › Deleting a job from the Danger zone confirms first, cancels its queued run, lets the active one finish and keeps its runs
+[34/61] [browser-chrome] › specs/schedule.spec.ts:356:1 › A deleted job starts nothing through the API, its webhook or its schedule
+[35/61] [browser-chrome] › specs/schedule.spec.ts:390:1 › A run of a deleted job offers no Retry
+[36/61] [browser-chrome] › specs/settings.spec.ts:12:1 › Create, update and delete a secret without ever showing its value
+[37/61] [browser-chrome] › specs/settings.spec.ts:49:1 › Add and edit a provider, then add a model with prices
+[38/61] [browser-chrome] › specs/settings.spec.ts:100:1 › Disable a synced model so it can no longer be picked, though it can't be deleted
+[39/61] [browser-chrome] › specs/settings.spec.ts:144:1 › Show usage in tokens instead of dollars, then switch back
+[40/61] [browser-chrome] › specs/skills.spec.ts:43:1 › Upload a skill and look through its files
+[41/61] [browser-chrome] › specs/skills.spec.ts:76:1 › Uploads that are not skills are refused next to the file
+[42/61] [browser-chrome] › specs/skills.spec.ts:138:1 › Add a skill from a link and update it from there
+[43/61] [browser-chrome] › specs/skills.spec.ts:181:1 › Pick skills from a GitHub repository that holds several
+[44/61] [browser-chrome] › specs/skills.spec.ts:239:1 › Replacing a skill keeps its name
+[45/61] [browser-chrome] › specs/skills.spec.ts:269:1 › A run gets its job's skills read-only
+[46/61] [browser-chrome] › specs/skills.spec.ts:303:1 › Deleting a skill detaches it from its jobs
+[47/61] [browser-chrome] › specs/skills.spec.ts:323:1 › Delete several skills at once
+[48/61] [browser-chrome] › specs/skills.spec.ts:349:1 › A new job gets the skills the compile step suggests
+[49/61] [browser-chrome] › specs/smoke.spec.ts:10:1 › Signed-in user sees the app shell
+[50/61] [browser-chrome] › specs/smoke.spec.ts:21:1 › Create, search and delete an API token
+[51/61] [browser-chrome] › specs/webhooks.spec.ts:14:1 › A webhook starts a run with its body as input, with or without a body
+[52/61] [browser-chrome] › specs/workspace-links.spec.ts:13:1 › A notification link opened without a session leads to the run after signing in
+[53/61] [browser-chrome] › specs/workspaces-disabled.spec.ts:12:1 › Everyone who signs in joins the one workspace, the first as its owner
+[54/61] [browser-chrome] › specs/workspaces.spec.ts:33:1 › Create a workspace and switch between workspaces
+[55/61] [browser-chrome] › specs/workspaces.spec.ts:63:1 › Someone joins through an invite link, which only works once
+[56/61] [browser-chrome] › specs/workspaces.spec.ts:100:1 › A sign-in from an invite link joins right away without a personal workspace
+[57/61] [browser-chrome] › specs/workspaces.spec.ts:116:1 › An email invite waits for a sign-in with the verified address
+[58/61] [browser-chrome] › specs/workspaces.spec.ts:153:1 › Members can look at the settings but only admins change them
+[59/61] [browser-chrome] › specs/workspaces.spec.ts:183:1 › Only admins delete runs
+[60/61] [browser-chrome] › specs/workspaces.spec.ts:209:1 › The owner hands over the workspace and can leave it then
+[61/61] [browser-chrome] › specs/workspaces.spec.ts:238:1 › The owner deletes a workspace with everything in it
+  1 skipped
+  60 passed (3.3m)

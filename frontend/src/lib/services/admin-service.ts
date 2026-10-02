@@ -1,4 +1,4 @@
-import type { AdminUserCreate, QueryOf } from '$lib/api/types';
+import type { AdminUserCreate, QueryOf } from '#lib/api/types.js';
 import APIService from './api-service';
 
 // Every user and workspace of the instance, for instance admins

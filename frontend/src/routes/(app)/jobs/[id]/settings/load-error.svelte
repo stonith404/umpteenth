@@ -5,9 +5,9 @@
 
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import { getErrorMessage } from '$lib/utils/error-util';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { getErrorMessage } from '#lib/utils/error-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
 

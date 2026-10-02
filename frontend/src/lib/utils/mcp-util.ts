@@ -1,5 +1,5 @@
-import type { McpServerAuth } from '$lib/api/types';
-import type { BadgeVariant } from '$lib/components/ui/badge';
+import type { McpServerAuth } from '#lib/api/types.js';
+import type { BadgeVariant } from '#lib/components/ui/badge/index.js';
 
 const transportLabels: Record<string, string> = {
 	http: 'HTTP',

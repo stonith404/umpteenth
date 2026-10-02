@@ -1,18 +1,23 @@
 <script lang="ts">
-	import type { JobListItem } from '$lib/api/types';
-	import { actionsColumn, DataTable, renderSnippet, RowActions } from '$lib/components/data-table';
-	import RunHistory from '$lib/components/jobs/run-history.svelte';
-	import RunNowDialog from '$lib/components/jobs/run-now-dialog.svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import ModeBadge from '$lib/components/runs/mode-badge.svelte';
-	import StatusBadge from '$lib/components/runs/status-badge.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import JobService from '$lib/services/job-service';
-	import { GRADUATION_OFF_NOTE, scheduleParts } from '$lib/utils/job-util';
-	import { subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
+	import type { JobListItem } from '#lib/api/types.js';
+	import {
+		actionsColumn,
+		DataTable,
+		renderSnippet,
+		RowActions
+	} from '#lib/components/data-table/index.js';
+	import RunHistory from '#lib/components/jobs/run-history.svelte';
+	import RunNowDialog from '#lib/components/jobs/run-now-dialog.svelte';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import ModeBadge from '#lib/components/runs/mode-badge.svelte';
+	import StatusBadge from '#lib/components/runs/status-badge.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { GRADUATION_OFF_NOTE, scheduleParts } from '#lib/utils/job-util.js';
+	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
 	import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
 	import CircleIcon from '@lucide/svelte/icons/circle';
 	import PinIcon from '@lucide/svelte/icons/pin';

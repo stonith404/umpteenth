@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { RunDetail } from '$lib/api/types';
-	import RunDuration from '$lib/components/runs/run-duration.svelte';
-	import StatusBadge from '$lib/components/runs/status-badge.svelte';
-	import { Button } from '$lib/components/ui/button';
+	import type { RunDetail } from '#lib/api/types.js';
+	import RunDuration from '#lib/components/runs/run-duration.svelte';
+	import StatusBadge from '#lib/components/runs/status-badge.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import CircleStopIcon from '@lucide/svelte/icons/circle-stop';
 
 	// A compact stand-in for the run header while a live run's timeline has scrolled it away

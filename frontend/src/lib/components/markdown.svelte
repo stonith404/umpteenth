@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { renderMarkdown } from '$lib/utils/markdown-util';
+	import { renderMarkdown } from '#lib/utils/markdown-util.js';
 
 	let { source }: { source: string } = $props();
 

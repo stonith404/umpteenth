@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authorLabel } from '$lib/utils/playbook-util';
+	import { authorLabel } from '#lib/utils/playbook-util.js';
 	import HammerIcon from '@lucide/svelte/icons/hammer';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';

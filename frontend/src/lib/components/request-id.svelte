@@ -3,7 +3,7 @@
 	Toasts and error pages show it the same way: small, muted and in the code font, with a click selecting the whole ID for copying
 -->
 <script lang="ts">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.js';
 
 	let { id, class: className }: { id: string; class?: string } = $props();
 </script>

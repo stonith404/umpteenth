@@ -1,9 +1,9 @@
-import { ApiError } from '$lib/api/api-error';
-import WorkspaceService from '$lib/services/workspace-service';
-import { getErrorMessage, isSessionError } from '$lib/utils/error-util';
-import { tryCatch } from '$lib/utils/try-catch-util';
-import { configureZodMessages } from '$lib/utils/zod-util';
-import type { ClientInit, HandleClientError } from '@sveltejs/kit';
+import type { ClientInit, HandleClientError } from '@sveltejs/kit/hooks';
+import { ApiError } from '#lib/api/api-error.js';
+import WorkspaceService from '#lib/services/workspace-service.js';
+import { getErrorMessage, isSessionError } from '#lib/utils/error-util.js';
+import { tryCatch } from '#lib/utils/try-catch-util.js';
+import { configureZodMessages } from '#lib/utils/zod-util.js';
 
 export const init: ClientInit = async () => {
 	configureZodMessages();
@@ -27,20 +27,22 @@ async function followWorkspaceLink() {
 
 // Errors thrown by load functions end up on the error page, so API errors keep their status, code and a readable message
 // The code lets the error page tell a lost session, which goes to the login page, from a real failure
-export const handleError: HandleClientError = ({ error, message, status }) => {
+export const handleError: HandleClientError = ({ kind, error }) => {
+	// Errors raised with `error(...)` and SvelteKit's own, such as a 404, are already safe to show as they are
+	if (kind !== 'unknown') return;
+
 	if (error instanceof ApiError) {
 		console.error(`API error ${error.status} ${error.code}: ${error.message}`, {
 			requestId: error.requestId
 		});
 		return {
-			message: getErrorMessage(error, message),
+			message: getErrorMessage(error),
 			// Status 0 marks a request that never got a response, which the error page treats like a server error
-			status: error.status || status,
+			status: error.status || 500,
 			code: error.code,
 			requestId: error.requestId
 		};
 	}
 
 	console.error(error);
-	return { message, status };
 };

@@ -1,4 +1,4 @@
-import type { QueryOf } from '$lib/api/types';
+import type { QueryOf } from '#lib/api/types.js';
 import APIService from './api-service';
 
 export default class RunService extends APIService {

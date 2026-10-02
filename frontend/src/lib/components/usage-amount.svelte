@@ -13,9 +13,9 @@
 </script>
 
 <script lang="ts">
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { formatTokens } from '$lib/utils/format-util';
-	import { usageFormat, type Usage } from '$lib/utils/usage-util';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { formatTokens } from '#lib/utils/format-util.js';
+	import { usageFormat, type Usage } from '#lib/utils/usage-util.js';
 
 	let {
 		usage,

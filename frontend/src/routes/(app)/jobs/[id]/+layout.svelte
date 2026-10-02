@@ -1,21 +1,29 @@
 <script lang="ts">
-	import RunNowDialog from '$lib/components/jobs/run-now-dialog.svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import PageTabs from '$lib/components/page-tabs.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { modeIconClasses } from '$lib/components/runs/mode-badge.svelte';
-	import { modeIcons, modeLabel, statusLabel, type RunMode } from '$lib/components/runs/run-meta';
+	import RunNowDialog from '#lib/components/jobs/run-now-dialog.svelte';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import PageTabs from '#lib/components/page-tabs.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { modeIconClasses } from '#lib/components/runs/mode-badge.svelte';
+	import {
+		modeIcons,
+		modeLabel,
+		statusLabel,
+		type RunMode
+	} from '#lib/components/runs/run-meta.js';
 	import StatusBadge, {
 		statusTone,
 		statusToneClasses
-	} from '$lib/components/runs/status-badge.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { relativeTimeClock } from '$lib/utils/clock.svelte';
-	import { GRADUATION_OFF_NOTE, jobScheduleParts } from '$lib/utils/job-util';
-	import { cn } from '$lib/utils/style';
-	import { invalidateAfterNavigation, subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
+	} from '#lib/components/runs/status-badge.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { relativeTimeClock } from '#lib/utils/clock.svelte.js';
+	import { GRADUATION_OFF_NOTE, jobScheduleParts } from '#lib/utils/job-util.js';
+	import { cn } from '#lib/utils/style.js';
+	import {
+		invalidateAfterNavigation,
+		subscribeWorkspaceEvents
+	} from '#lib/utils/workspace-events.js';
 	import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
 	import CalendarOffIcon from '@lucide/svelte/icons/calendar-off';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';

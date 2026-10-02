@@ -1,6 +1,6 @@
 <script lang="ts">
-	import AuthorLabel from '$lib/components/playbook/author-label.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
+	import AuthorLabel from '#lib/components/playbook/author-label.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
 	import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';
 	import ClockIcon from '@lucide/svelte/icons/clock';
 

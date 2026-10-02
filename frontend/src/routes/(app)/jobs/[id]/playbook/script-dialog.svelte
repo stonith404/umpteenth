@@ -12,10 +12,10 @@
 </script>
 
 <script lang="ts">
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import { languageForScript } from '$lib/components/code/script-language';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import { languageForScript } from '#lib/components/code/script-language.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
 
 	let {
 		target = $bindable(null),

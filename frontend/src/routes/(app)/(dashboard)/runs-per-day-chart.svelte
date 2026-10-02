@@ -1,6 +1,6 @@
 <script lang="ts" module>
-	import type { StatsDayBucket } from '$lib/api/types';
-	import type { ChartConfig } from '$lib/components/ui/chart';
+	import type { StatsDayBucket } from '#lib/api/types.js';
+	import type { ChartConfig } from '#lib/components/ui/chart/index.js';
 	import { NEUTRAL_CHART_COLOR } from './chart-util';
 
 	// Kumo's semantic chart colours, taken from the status tokens so the bars match the badges and the jobs list's run history in both themes
@@ -23,7 +23,7 @@
 </script>
 
 <script lang="ts">
-	import type { StatsBucket } from '$lib/api/types';
+	import type { StatsBucket } from '#lib/api/types.js';
 	import BucketBarChart from './bucket-bar-chart.svelte';
 	import { formatBucketMoment } from './chart-util';
 

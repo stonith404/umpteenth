@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { formatBytes } from '$lib/utils/format-util';
-	import { cn } from '$lib/utils/style';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { formatBytes } from '#lib/utils/format-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import FileArchiveIcon from '@lucide/svelte/icons/file-archive';
 	import UploadIcon from '@lucide/svelte/icons/upload';
 	import XIcon from '@lucide/svelte/icons/x';

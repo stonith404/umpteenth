@@ -57,12 +57,12 @@
 </script>
 
 <script lang="ts">
-	import type { RunDetail, RunEvent } from '$lib/api/types';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { secondClock } from '$lib/utils/clock.svelte';
-	import { cn } from '$lib/utils/style';
-	import { usageFormat } from '$lib/utils/usage-util';
+	import type { RunDetail, RunEvent } from '#lib/api/types.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { secondClock } from '#lib/utils/clock.svelte.js';
+	import { cn } from '#lib/utils/style.js';
+	import { usageFormat } from '#lib/utils/usage-util.js';
 	import ChartGanttIcon from '@lucide/svelte/icons/chart-gantt';
 	import {
 		commandOf,

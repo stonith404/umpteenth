@@ -1,4 +1,4 @@
-import PlaybookService from '$lib/services/playbook-service';
+import PlaybookService from '#lib/services/playbook-service.js';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params, fetch, depends }) => {

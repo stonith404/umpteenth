@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { User } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import DangerZone from '$lib/components/danger-zone.svelte';
-	import WorkspaceService from '$lib/services/workspace-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { enterWorkspace } from '$lib/utils/workspace-util';
+	import type { User } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
+	import DangerZone from '#lib/components/danger-zone.svelte';
+	import WorkspaceService from '#lib/services/workspace-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { enterWorkspace } from '#lib/utils/workspace-util.js';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';

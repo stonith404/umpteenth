@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { mark } from '$lib/brand';
-	import { cn } from '$lib/utils/style';
+	import { mark } from '#lib/brand.js';
+	import { cn } from '#lib/utils/style.js';
 
 	let { class: className }: { class?: string } = $props();
 </script>

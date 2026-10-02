@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { isApiError } from '$lib/api/api-error';
-	import type { InvitePreview } from '$lib/api/types';
-	import Logo from '$lib/components/logo.svelte';
-	import Wordmark from '$lib/components/wordmark.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import UserService from '$lib/services/user-service';
-	import WorkspaceService from '$lib/services/workspace-service';
-	import { apiErrorToast, getErrorMessage } from '$lib/utils/error-util';
-	import { formatRelative } from '$lib/utils/format-util';
-	import { loginUrl } from '$lib/utils/redirection-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { enterWorkspace, roleLabels, workspaceInitial } from '$lib/utils/workspace-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { InvitePreview } from '#lib/api/types.js';
+	import Logo from '#lib/components/logo.svelte';
+	import Wordmark from '#lib/components/wordmark.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import UserService from '#lib/services/user-service.js';
+	import WorkspaceService from '#lib/services/workspace-service.js';
+	import { apiErrorToast, getErrorMessage } from '#lib/utils/error-util.js';
+	import { formatRelative } from '#lib/utils/format-util.js';
+	import { loginUrl } from '#lib/utils/redirection-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { enterWorkspace, roleLabels, workspaceInitial } from '#lib/utils/workspace-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -74,7 +74,7 @@
 			apiErrorToast(result.error, 'Failed to sign out');
 			return;
 		}
-		await goto(loginUrl(page.url.pathname), { invalidateAll: true });
+		await goto(loginUrl(page.url.pathname), { refreshAll: true });
 	}
 </script>
 

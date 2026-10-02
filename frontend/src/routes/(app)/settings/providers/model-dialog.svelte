@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
-	import type { CatalogModel, Model, ModelCaps, Provider } from '$lib/api/types';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
-	import { Switch } from '$lib/components/ui/switch';
-	import ProviderService from '$lib/services/provider-service';
-	import { apiErrorToast, getErrorMessage } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { formatPricePerMillion, formatTokens } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { CatalogModel, Model, ModelCaps, Provider } from '#lib/api/types.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
+	import ProviderService from '#lib/services/provider-service.js';
+	import { apiErrorToast, getErrorMessage } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { formatPricePerMillion, formatTokens } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { untrack } from 'svelte';
 	import { capabilityLabels, type Capability } from './provider-meta';
 

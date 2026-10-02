@@ -1,6 +1,6 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/page-header.svelte';
-	import RunsTable from '$lib/components/runs/runs-table.svelte';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import RunsTable from '#lib/components/runs/runs-table.svelte';
 </script>
 
 <svelte:head>

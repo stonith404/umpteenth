@@ -1,4 +1,4 @@
-import { settingsTabs } from '$lib/navigation';
+import { settingsTabs } from '#lib/navigation.js';
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 

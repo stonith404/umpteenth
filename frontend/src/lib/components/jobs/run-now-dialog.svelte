@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { Job, JobIOField } from '$lib/api/types';
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Textarea } from '$lib/components/ui/textarea';
+	import type { Job, JobIOField } from '#lib/api/types.js';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import BracesIcon from '@lucide/svelte/icons/braces';
-	import JobService from '$lib/services/job-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import JobService from '#lib/services/job-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { tick, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 

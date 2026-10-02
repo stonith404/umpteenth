@@ -1,4 +1,4 @@
-import JobService from '$lib/services/job-service';
+import JobService from '#lib/services/job-service.js';
 import type { PageLoad } from './$types';
 import { DEFAULT_STATS_RANGE, statsRanges } from './stats-ranges';
 

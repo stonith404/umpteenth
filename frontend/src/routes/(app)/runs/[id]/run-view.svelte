@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import type { RunDetail } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import { isLiveStatus } from '$lib/components/runs/run-meta';
-	import * as Alert from '$lib/components/ui/alert';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import RunService from '$lib/services/run-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
-	import { hasRole } from '$lib/utils/workspace-util';
+	import type { RunDetail } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
+	import { isLiveStatus } from '#lib/components/runs/run-meta.js';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import RunService from '#lib/services/run-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
+	import { hasRole } from '#lib/utils/workspace-util.js';
 	import { onMount } from 'svelte';
 	import WifiOffIcon from '@lucide/svelte/icons/wifi-off';
 	import { toast } from 'svelte-sonner';
@@ -71,7 +71,7 @@
 			},
 			// A run deleted in another tab or by someone else can't be shown anymore, so the page reloads into its not-found state
 			onRun: (event) => {
-				if (event.runId === run.id && event.deleted && !deleting) void invalidateAll();
+				if (event.runId === run.id && event.deleted && !deleting) void refreshAll();
 			},
 			onReconnect: () => void refetch()
 		});
@@ -174,10 +174,10 @@
 	});
 
 	function onTabChange(value: string) {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (value === 'timeline') url.searchParams.delete('tab');
 		else url.searchParams.set('tab', value);
-		void goto(url, { replaceState: true, noScroll: true, keepFocus: true });
+		void goto(url, { replace: true, reset: false });
 	}
 
 	// The action is Stop throughout, so the dialog's own Cancel can only mean leaving the run alone

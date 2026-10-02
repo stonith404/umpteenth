@@ -1,18 +1,18 @@
 <script lang="ts">
-	import type { PlaybookVersion, RunDetail } from '$lib/api/types';
-	import DiffView from '$lib/components/diff-view.svelte';
-	import OpsList from '$lib/components/playbook/ops-list.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Empty from '$lib/components/ui/empty';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import PlaybookService from '$lib/services/playbook-service';
-	import { getErrorMessage } from '$lib/utils/error-util';
-	import { changedSections } from '$lib/utils/playbook-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { usageFormat } from '$lib/utils/usage-util';
+	import type { PlaybookVersion, RunDetail } from '#lib/api/types.js';
+	import DiffView from '#lib/components/diff-view.svelte';
+	import OpsList from '#lib/components/playbook/ops-list.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import PlaybookService from '#lib/services/playbook-service.js';
+	import { getErrorMessage } from '#lib/utils/error-util.js';
+	import { changedSections } from '#lib/utils/playbook-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { usageFormat } from '#lib/utils/usage-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import GraduationCapIcon from '@lucide/svelte/icons/graduation-cap';
 

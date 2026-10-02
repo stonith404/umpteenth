@@ -1,9 +1,9 @@
-import McpService from '$lib/services/mcp-service';
-import SecretService from '$lib/services/secret-service';
-import SettingsService from '$lib/services/settings-service';
-import SkillService from '$lib/services/skill-service';
-import SystemService from '$lib/services/system-service';
-import { tryCatch } from '$lib/utils/try-catch-util';
+import McpService from '#lib/services/mcp-service.js';
+import SecretService from '#lib/services/secret-service.js';
+import SettingsService from '#lib/services/settings-service.js';
+import SkillService from '#lib/services/skill-service.js';
+import SystemService from '#lib/services/system-service.js';
+import { tryCatch } from '#lib/utils/try-catch-util.js';
 import type { PageLoad } from './$types';
 
 // The configured MCP servers are matched against the services the compiled spec needs, and the default image seeds the Dockerfile template

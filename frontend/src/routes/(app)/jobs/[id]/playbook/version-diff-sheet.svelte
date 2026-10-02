@@ -1,15 +1,15 @@
 <script lang="ts">
-	import type { PlaybookAppliedOp, PlaybookVersion } from '$lib/api/types';
-	import VersionChange from '$lib/components/playbook/version-change.svelte';
-	import VersionMeta from '$lib/components/playbook/version-meta.svelte';
-	import VersionSummary from '$lib/components/playbook/version-summary.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import PlaybookService from '$lib/services/playbook-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { opStatusLabel, versionChanges } from '$lib/utils/playbook-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { PlaybookAppliedOp, PlaybookVersion } from '#lib/api/types.js';
+	import VersionChange from '#lib/components/playbook/version-change.svelte';
+	import VersionMeta from '#lib/components/playbook/version-meta.svelte';
+	import VersionSummary from '#lib/components/playbook/version-summary.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Sheet from '#lib/components/ui/sheet/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import PlaybookService from '#lib/services/playbook-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { opStatusLabel, versionChanges } from '#lib/utils/playbook-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 
 	let {

@@ -1,8 +1,8 @@
 <script lang="ts" generics="TData">
-	import { Button } from '$lib/components/ui/button';
-	import { ButtonGroup } from '$lib/components/ui/button-group';
-	import * as Select from '$lib/components/ui/select';
-	import { cn } from '$lib/utils/style';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { ButtonGroup } from '#lib/components/ui/button-group/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { cn } from '#lib/utils/style.js';
 	import type { Table } from '@tanstack/table-core';
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';

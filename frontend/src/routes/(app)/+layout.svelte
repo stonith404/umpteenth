@@ -1,8 +1,8 @@
 <script lang="ts">
-	import AppHeader from '$lib/components/layout/app-header.svelte';
-	import AppSidebar from '$lib/components/layout/app-sidebar.svelte';
-	import CommandPalette from '$lib/components/layout/command-palette.svelte';
-	import * as Sidebar from '$lib/components/ui/sidebar';
+	import AppHeader from '#lib/components/layout/app-header.svelte';
+	import AppSidebar from '#lib/components/layout/app-sidebar.svelte';
+	import CommandPalette from '#lib/components/layout/command-palette.svelte';
+	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 

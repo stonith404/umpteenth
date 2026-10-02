@@ -1,12 +1,12 @@
 <script lang="ts">
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import DiffView from '$lib/components/diff-view.svelte';
-	import KindIcon from '$lib/components/playbook/kind-icon.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Collapsible from '$lib/components/ui/collapsible';
-	import { diffLines, diffStats } from '$lib/utils/diff-util';
-	import { opLanguage, opStatusLabel, type PlaybookChange } from '$lib/utils/playbook-util';
-	import { cn } from '$lib/utils/style';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import DiffView from '#lib/components/diff-view.svelte';
+	import KindIcon from '#lib/components/playbook/kind-icon.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
+	import { diffLines, diffStats } from '#lib/utils/diff-util.js';
+	import { opLanguage, opStatusLabel, type PlaybookChange } from '#lib/utils/playbook-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';

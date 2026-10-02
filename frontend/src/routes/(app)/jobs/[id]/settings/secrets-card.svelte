@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { JobSecret, Secret } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
-	import JobService from '$lib/services/job-service';
-	import { createForm } from '$lib/utils/form-util';
-	import { envNameOf, mergeListChanges } from '$lib/utils/job-util';
+	import type { JobSecret, Secret } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { envNameOf, mergeListChanges } from '#lib/utils/job-util.js';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { z } from 'zod/v4';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Alert from '$lib/components/ui/alert';
+	import * as Alert from '#lib/components/ui/alert/index.js';
 	import LockIcon from '@lucide/svelte/icons/lock';
 
 	// Explains why a page a member can read has nothing to click

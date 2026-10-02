@@ -62,13 +62,13 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { JobRunPoint, JobVersionMarker } from '$lib/api/types';
-	import ModeBadge, { modeFillClasses } from '$lib/components/runs/mode-badge.svelte';
-	import { modeLabel, statusLabel, type RunMode } from '$lib/components/runs/run-meta';
-	import StatusBadge from '$lib/components/runs/status-badge.svelte';
-	import { formatDateTime, formatDuration } from '$lib/utils/format-util';
-	import { cn } from '$lib/utils/style';
-	import type { UsageFormat } from '$lib/utils/usage-util';
+	import type { JobRunPoint, JobVersionMarker } from '#lib/api/types.js';
+	import ModeBadge, { modeFillClasses } from '#lib/components/runs/mode-badge.svelte';
+	import { modeLabel, statusLabel, type RunMode } from '#lib/components/runs/run-meta.js';
+	import StatusBadge from '#lib/components/runs/status-badge.svelte';
+	import { formatDateTime, formatDuration } from '#lib/utils/format-util.js';
+	import { cn } from '#lib/utils/style.js';
+	import type { UsageFormat } from '#lib/utils/usage-util.js';
 
 	let {
 		runs,

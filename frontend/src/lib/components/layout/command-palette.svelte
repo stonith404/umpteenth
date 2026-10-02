@@ -5,18 +5,18 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { JobListItem, Run, User } from '$lib/api/types';
-	import StatusBadge from '$lib/components/runs/status-badge.svelte';
-	import * as Command from '$lib/components/ui/command';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { searchablePages, type SearchablePage } from '$lib/navigation';
-	import JobService from '$lib/services/job-service';
-	import RunService from '$lib/services/run-service';
-	import { debounced } from '$lib/utils/debounce-util';
-	import { formatRelative } from '$lib/utils/format-util';
-	import { scheduleLabel } from '$lib/utils/job-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { JobListItem, Run, User } from '#lib/api/types.js';
+	import StatusBadge from '#lib/components/runs/status-badge.svelte';
+	import * as Command from '#lib/components/ui/command/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import { searchablePages, type SearchablePage } from '#lib/navigation.js';
+	import JobService from '#lib/services/job-service.js';
+	import RunService from '#lib/services/run-service.js';
+	import { debounced } from '#lib/utils/debounce-util.js';
+	import { formatRelative } from '#lib/utils/format-util.js';
+	import { scheduleLabel } from '#lib/utils/job-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import SearchIcon from '@lucide/svelte/icons/search';

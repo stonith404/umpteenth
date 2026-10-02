@@ -1,4 +1,4 @@
-import type { QueryOf, WorkspaceInviteCreate, WorkspaceRole } from '$lib/api/types';
+import type { QueryOf, WorkspaceInviteCreate, WorkspaceRole } from '#lib/api/types.js';
 import APIService from './api-service';
 
 // The session's workspace lives in the session cookie, so every call that moves to another workspace answers with a new cookie

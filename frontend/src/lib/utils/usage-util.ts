@@ -1,6 +1,6 @@
 import { page } from '$app/state';
-import type { UsageUnit, User } from '$lib/api/types';
-import { formatMicroCost, formatMicroCostTick, formatTokens } from '$lib/utils/format-util';
+import type { UsageUnit, User } from '#lib/api/types.js';
+import { formatMicroCost, formatMicroCostTick, formatTokens } from '#lib/utils/format-util.js';
 
 // A usage figure as the API reports it: the price in integer micro-USD next to the input and output tokens behind it
 export type Usage = { cost: number; tokens: number };

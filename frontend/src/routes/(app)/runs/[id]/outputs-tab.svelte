@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { RunArtifact, RunDetail } from '$lib/api/types';
-	import Markdown from '$lib/components/markdown.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import RunService from '$lib/services/run-service';
-	import { getErrorMessage } from '$lib/utils/error-util';
-	import { formatBytes } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { RunArtifact, RunDetail } from '#lib/api/types.js';
+	import Markdown from '#lib/components/markdown.svelte';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import RunService from '#lib/services/run-service.js';
+	import { getErrorMessage } from '#lib/utils/error-util.js';
+	import { formatBytes } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import FileIcon from '@lucide/svelte/icons/file';
 	import JsonView from './json-view.svelte';

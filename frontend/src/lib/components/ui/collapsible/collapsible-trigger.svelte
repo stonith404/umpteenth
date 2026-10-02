@@ -23,7 +23,7 @@
 
 <script lang="ts">
 	import { Collapsible as CollapsiblePrimitive } from 'bits-ui';
-	import { cn } from '$lib/utils/style.js';
+	import { cn } from '#lib/utils/style.js';
 
 	let {
 		ref = $bindable(null),

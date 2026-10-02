@@ -4,11 +4,11 @@
 </script>
 
 <script lang="ts">
-	import type { Secret } from '$lib/api/types';
-	import * as Select from '$lib/components/ui/select';
-	import SecretService from '$lib/services/secret-service';
-	import { envNameOf } from '$lib/utils/job-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { Secret } from '#lib/api/types.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import SecretService from '#lib/services/secret-service.js';
+	import { envNameOf } from '#lib/utils/job-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 

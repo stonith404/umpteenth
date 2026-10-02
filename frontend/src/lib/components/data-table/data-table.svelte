@@ -19,20 +19,20 @@
 <script lang="ts" generics="TData">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as InputGroup from '$lib/components/ui/input-group';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Table from '$lib/components/ui/table';
-	import { debounced } from '$lib/utils/debounce-util';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import * as InputGroup from '#lib/components/ui/input-group/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
+	import { debounced } from '#lib/utils/debounce-util.js';
 	import {
 		apiErrorToast,
 		getErrorMessage,
 		isSessionError,
 		redirectToLogin
-	} from '$lib/utils/error-util';
-	import { cn } from '$lib/utils/style';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	} from '#lib/utils/error-util.js';
+	import { cn } from '#lib/utils/style.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import {
 		getCoreRowModel,
 		type Column,
@@ -412,10 +412,10 @@
 	}
 
 	function navigate(next: TableUrlState, replace = false) {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		writeTableUrlState(url.searchParams, next, urlConfig);
 		if (url.search === page.url.search) return;
-		void goto(url, { replaceState: replace, keepFocus: true, noScroll: true });
+		void goto(url, { replace, reset: false });
 	}
 
 	function onSearchInput(value: string) {

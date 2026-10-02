@@ -41,7 +41,9 @@ func init() {
 				if _, err := fake.Shared().Script(ctx, true, nil); err != nil {
 					return err
 				}
-				svc.skills.SetGitHubArchives("")
+				if err := svc.skills.SetGitHubArchives(ctx, ""); err != nil {
+					return err
+				}
 				return seedFakeProvider(ctx, svc, workspaces.DefaultID)
 			},
 		})

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Model } from '$lib/api/types';
-	import * as Select from '$lib/components/ui/select';
+	import type { Model } from '#lib/api/types.js';
+	import * as Select from '#lib/components/ui/select/index.js';
 
 	let {
 		models,

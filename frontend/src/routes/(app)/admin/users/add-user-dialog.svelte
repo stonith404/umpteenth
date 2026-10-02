@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
-	import type { AdminUserCreated } from '$lib/api/types';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import AdminService from '$lib/services/admin-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { passkeyAccountSchema } from '$lib/utils/passkey-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { AdminUserCreated } from '#lib/api/types.js';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import AdminService from '#lib/services/admin-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { passkeyAccountSchema } from '#lib/utils/passkey-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 
 	let {
 		open = $bindable(false),

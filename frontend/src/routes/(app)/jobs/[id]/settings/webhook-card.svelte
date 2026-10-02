@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import type { Job } from '$lib/api/types';
-	import CopyButton from '$lib/components/copy-button.svelte';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import * as InputGroup from '$lib/components/ui/input-group';
-	import JobService from '$lib/services/job-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { Job } from '#lib/api/types.js';
+	import CopyButton from '#lib/components/copy-button.svelte';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as InputGroup from '#lib/components/ui/input-group/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 

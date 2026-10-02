@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { User } from '$lib/api/types';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import UserService from '$lib/services/user-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { clearNewJobDrafts } from '$lib/utils/job-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { DOCS_URL } from '$lib/navigation';
+	import type { User } from '#lib/api/types.js';
+	import * as Avatar from '#lib/components/ui/avatar/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import UserService from '#lib/services/user-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { clearNewJobDrafts } from '#lib/utils/job-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { DOCS_URL } from '#lib/navigation.js';
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
@@ -34,7 +34,7 @@
 			return;
 		}
 		clearNewJobDrafts();
-		await goto('/login', { invalidateAll: true });
+		await goto('/login', { refreshAll: true });
 	}
 </script>
 

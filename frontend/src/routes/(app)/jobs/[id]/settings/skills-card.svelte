@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { JobSkill, Skill } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import AttachedSkillList from '$lib/components/skills/attached-skill-list.svelte';
-	import SkillAttachMenu from '$lib/components/skills/skill-attach-menu.svelte';
-	import JobService from '$lib/services/job-service';
-	import { createForm } from '$lib/utils/form-util';
-	import { mergeListChanges } from '$lib/utils/job-util';
+	import type { JobSkill, Skill } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import AttachedSkillList from '#lib/components/skills/attached-skill-list.svelte';
+	import SkillAttachMenu from '#lib/components/skills/skill-attach-menu.svelte';
+	import JobService from '#lib/services/job-service.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { mergeListChanges } from '#lib/utils/job-util.js';
 	import { z } from 'zod/v4';
 	import LoadError from './load-error.svelte';
 

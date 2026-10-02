@@ -1,4 +1,4 @@
-import { formatShortDate } from '$lib/utils/format-util';
+import { formatShortDate } from '#lib/utils/format-util.js';
 import { CalendarDate, getLocalTimeZone, parseDate } from '@internationalized/date';
 
 // The date range filter of run tables lives in the URL as either a relative preset (`7d`) or two ISO dates (`2026-09-01,2026-09-20`)

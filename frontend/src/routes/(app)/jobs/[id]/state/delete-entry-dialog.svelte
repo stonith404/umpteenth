@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { JobStateEntry } from '$lib/api/types';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Button } from '$lib/components/ui/button';
+	import type { JobStateEntry } from '#lib/api/types.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
 
 	let {
 		entry = $bindable(),

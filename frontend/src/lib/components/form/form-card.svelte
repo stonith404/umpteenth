@@ -3,9 +3,9 @@
 	Save stays disabled until the values differ from the saved ones, and there is no cancel, since leaving the page simply drops the edits
 -->
 <script lang="ts">
-	import { revealFirstInvalidField } from '$lib/components/form/reveal-invalid-field';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
+	import { revealFirstInvalidField } from '#lib/components/form/reveal-invalid-field.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
 	import type { Snippet } from 'svelte';
 
 	let {

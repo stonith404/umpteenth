@@ -1,5 +1,5 @@
-import type { StatsBucket } from '$lib/api/types';
-import { formatShortDate, formatTime } from '$lib/utils/format-util';
+import type { StatsBucket } from '#lib/api/types.js';
+import { formatShortDate, formatTime } from '#lib/utils/format-util.js';
 
 // Both charts share one plot frame, so side by side their baselines, top lines and left edges line up
 // The left gutter fits the widest y tick label either chart draws, e.g. `$0.60` or `1,000`

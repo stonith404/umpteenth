@@ -1,21 +1,21 @@
 <script lang="ts">
-	import type { AdminWorkspace } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import type { AdminWorkspace } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		DataTable,
 		RowActions,
 		actionsColumn,
 		renderComponent,
 		renderSnippet
-	} from '$lib/components/data-table';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Empty from '$lib/components/ui/empty';
-	import AdminService from '$lib/services/admin-service';
-	import WorkspaceService from '$lib/services/workspace-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { enterWorkspace, workspaceInitial } from '$lib/utils/workspace-util';
+	} from '#lib/components/data-table/index.js';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import AdminService from '#lib/services/admin-service.js';
+	import WorkspaceService from '#lib/services/workspace-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { enterWorkspace, workspaceInitial } from '#lib/utils/workspace-util.js';
 	import LayersIcon from '@lucide/svelte/icons/layers';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';

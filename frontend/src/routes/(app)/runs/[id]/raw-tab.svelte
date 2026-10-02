@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { RunDetail, RunEvent } from '$lib/api/types';
-	import { Button } from '$lib/components/ui/button';
+	import type { RunDetail, RunEvent } from '#lib/api/types.js';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import { toast } from 'svelte-sonner';

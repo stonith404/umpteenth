@@ -1,7 +1,7 @@
 <script lang="ts" module>
-	import type { GlyphName } from '$lib/components/pixel-glyph.svelte';
-	import type { RunStatus } from '$lib/components/runs/run-meta';
-	import type { StatusTone } from '$lib/components/runs/status-badge.svelte';
+	import type { GlyphName } from '#lib/components/pixel-glyph.svelte';
+	import type { RunStatus } from '#lib/components/runs/run-meta.js';
+	import type { StatusTone } from '#lib/components/runs/status-badge.svelte';
 	import type { StepTone } from './step-shell.svelte';
 
 	// History doesn't pulse, so a live status is a still dot and an outcome has a glyph of its own
@@ -28,14 +28,14 @@
 </script>
 
 <script lang="ts">
-	import type { RunEvent } from '$lib/api/types';
-	import Markdown from '$lib/components/markdown.svelte';
-	import { isLiveStatus, statusLabel } from '$lib/components/runs/run-meta';
-	import { statusTone } from '$lib/components/runs/status-badge.svelte';
-	import UsageAmount from '$lib/components/usage-amount.svelte';
-	import { transportLabel } from '$lib/utils/mcp-util';
-	import { formatDuration, formatTokens, sentenceCase } from '$lib/utils/format-util';
-	import { usageFormat } from '$lib/utils/usage-util';
+	import type { RunEvent } from '#lib/api/types.js';
+	import Markdown from '#lib/components/markdown.svelte';
+	import { isLiveStatus, statusLabel } from '#lib/components/runs/run-meta.js';
+	import { statusTone } from '#lib/components/runs/status-badge.svelte';
+	import UsageAmount from '#lib/components/usage-amount.svelte';
+	import { transportLabel } from '#lib/utils/mcp-util.js';
+	import { formatDuration, formatTokens, sentenceCase } from '#lib/utils/format-util.js';
+	import { usageFormat } from '#lib/utils/usage-util.js';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import CircleXIcon from '@lucide/svelte/icons/circle-x';
 	import Disclosure from './disclosure.svelte';

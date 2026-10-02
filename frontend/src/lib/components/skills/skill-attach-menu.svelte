@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { Skill } from '$lib/api/types';
-	import { Button } from '$lib/components/ui/button';
-	import * as Command from '$lib/components/ui/command';
-	import * as Popover from '$lib/components/ui/popover';
+	import type { Skill } from '#lib/api/types.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Command from '#lib/components/ui/command/index.js';
+	import * as Popover from '#lib/components/ui/popover/index.js';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 
 	let {

@@ -1,15 +1,15 @@
-import { isApiError } from '$lib/api/api-error';
-import type { User } from '$lib/api/types';
-import { setShownWorkspace } from '$lib/services/api-service';
-import UserService from '$lib/services/user-service';
-import { rememberLoginProvider } from '$lib/utils/login-provider-util';
+import { isApiError } from '#lib/api/api-error.js';
+import type { User } from '#lib/api/types.js';
+import { setShownWorkspace } from '#lib/services/api-service.js';
+import UserService from '#lib/services/user-service.js';
+import { rememberLoginProvider } from '#lib/utils/login-provider-util.js';
 import {
 	LOGIN_PATH,
 	SIGN_IN_LINK_PATH,
 	loginUrl,
 	safeRedirectPath
-} from '$lib/utils/redirection-util';
-import { tryCatch } from '$lib/utils/try-catch-util';
+} from '#lib/utils/redirection-util.js';
+import { tryCatch } from '#lib/utils/try-catch-util.js';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 

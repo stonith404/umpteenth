@@ -1,4 +1,4 @@
-import { loginUrl } from '$lib/utils/redirection-util';
+import { loginUrl } from '#lib/utils/redirection-util.js';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 

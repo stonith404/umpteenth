@@ -1,28 +1,28 @@
 <script lang="ts">
-	import { newJobDraftKey } from '$lib/utils/job-util';
+	import { newJobDraftKey } from '#lib/utils/job-util.js';
 	import { goto } from '$app/navigation';
-	import { isApiError } from '$lib/api/api-error';
-	import type { JobIOField, JobQuestion, JobSecretNeed, JobSpec } from '$lib/api/types';
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import IoFieldsEditor from '$lib/components/form/io-fields-editor.svelte';
-	import NetworkSelect, { networkLabel } from '$lib/components/form/network-select.svelte';
-	import { revealFirstInvalidField } from '$lib/components/form/reveal-invalid-field';
-	import StringListEditor from '$lib/components/form/string-list-editor.svelte';
-	import ScheduleEditor from '$lib/components/jobs/schedule-editor.svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import AttachedSkillList from '$lib/components/skills/attached-skill-list.svelte';
-	import SkillAttachMenu from '$lib/components/skills/skill-attach-menu.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import JobService from '$lib/services/job-service';
-	import { describeCron, isValidCron } from '$lib/utils/cron-util';
-	import { apiErrorToast, getErrorMessage } from '$lib/utils/error-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { JobIOField, JobQuestion, JobSecretNeed, JobSpec } from '#lib/api/types.js';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
+	import IoFieldsEditor from '#lib/components/form/io-fields-editor.svelte';
+	import NetworkSelect, { networkLabel } from '#lib/components/form/network-select.svelte';
+	import { revealFirstInvalidField } from '#lib/components/form/reveal-invalid-field.js';
+	import StringListEditor from '#lib/components/form/string-list-editor.svelte';
+	import ScheduleEditor from '#lib/components/jobs/schedule-editor.svelte';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import AttachedSkillList from '#lib/components/skills/attached-skill-list.svelte';
+	import SkillAttachMenu from '#lib/components/skills/skill-attach-menu.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import JobService from '#lib/services/job-service.js';
+	import { describeCron, isValidCron } from '#lib/utils/cron-util.js';
+	import { apiErrorToast, getErrorMessage } from '#lib/utils/error-util.js';
 	import {
 		cleanSpec,
 		DEFAULT_IMAGE_TOOLS,
@@ -30,9 +30,9 @@
 		localTimezone,
 		scheduleParts,
 		type NetworkPolicy
-	} from '$lib/utils/job-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { hasRole } from '$lib/utils/workspace-util';
+	} from '#lib/utils/job-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { hasRole } from '#lib/utils/workspace-util.js';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import InfoIcon from '@lucide/svelte/icons/info';

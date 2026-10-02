@@ -1,4 +1,4 @@
-import type { PageTab } from '$lib/components/page-tabs.svelte';
+import type { PageTab } from '#lib/components/page-tabs.svelte';
 
 // The tabs of the job page, each its own route so they are linkable and load only their own data
 const jobTabs = [

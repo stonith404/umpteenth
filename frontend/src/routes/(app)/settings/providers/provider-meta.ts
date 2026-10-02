@@ -1,4 +1,4 @@
-import type { Provider } from '$lib/api/types';
+import type { Provider } from '#lib/api/types.js';
 
 // UI vocabulary of provider kinds, the API types the kind as a plain string
 const providerKindLabels: Record<string, string> = {

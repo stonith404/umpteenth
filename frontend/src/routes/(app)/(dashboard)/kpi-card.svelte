@@ -46,8 +46,8 @@
 </script>
 
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
-	import { cn } from '$lib/utils/style';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { cn } from '#lib/utils/style.js';
 	import ArrowDownRightIcon from '@lucide/svelte/icons/arrow-down-right';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';

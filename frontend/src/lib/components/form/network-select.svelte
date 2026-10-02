@@ -32,7 +32,7 @@
 </script>
 
 <script lang="ts" generics="T extends NetworkChoice">
-	import * as Select from '$lib/components/ui/select';
+	import * as Select from '#lib/components/ui/select/index.js';
 
 	let {
 		value = $bindable(),

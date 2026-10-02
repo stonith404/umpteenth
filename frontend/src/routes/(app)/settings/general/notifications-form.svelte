@@ -1,16 +1,16 @@
 <script lang="ts">
-	import type { Secret, WorkspaceSettings, WorkspaceSettingsUpdate } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Field from '$lib/components/ui/field';
-	import * as Select from '$lib/components/ui/select';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import SettingsService from '$lib/services/settings-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { Secret, WorkspaceSettings, WorkspaceSettingsUpdate } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import SettingsService from '#lib/services/settings-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import SendIcon from '@lucide/svelte/icons/send';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';

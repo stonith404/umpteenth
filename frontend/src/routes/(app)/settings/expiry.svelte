@@ -4,11 +4,11 @@ When an API token or an invite stops working, shown alike on both settings tabs.
 Relative while it is near ('in 3 days'), a short date beyond a week ('Oct 11'), and a neutral 'Expired' badge once it passed, each with the exact time in its tooltip.
 -->
 <script lang="ts">
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { relativeTimeClock } from '$lib/utils/clock.svelte';
-	import { formatDateTime } from '$lib/utils/format-util';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { relativeTimeClock } from '#lib/utils/clock.svelte.js';
+	import { formatDateTime } from '#lib/utils/format-util.js';
 
 	let {
 		value

@@ -1,15 +1,15 @@
 <script lang="ts">
-	import type { McpServer, McpTestResult } from '$lib/api/types';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import McpService from '$lib/services/mcp-service';
-	import { Clock } from '$lib/utils/clock.svelte';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { formatDuration } from '$lib/utils/format-util';
-	import { authDescription } from '$lib/utils/mcp-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { McpServer, McpTestResult } from '#lib/api/types.js';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import McpService from '#lib/services/mcp-service.js';
+	import { Clock } from '#lib/utils/clock.svelte.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { formatDuration } from '#lib/utils/format-util.js';
+	import { authDescription } from '#lib/utils/mcp-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import LogInIcon from '@lucide/svelte/icons/log-in';

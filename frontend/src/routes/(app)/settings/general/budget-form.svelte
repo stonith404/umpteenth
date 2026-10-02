@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { WorkspaceSettings, WorkspaceSettingsUpdate } from '$lib/api/types';
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import * as Field from '$lib/components/ui/field';
-	import { formatCost } from '$lib/utils/format-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { requiredNumber } from '$lib/utils/zod-util';
+	import type { WorkspaceSettings, WorkspaceSettingsUpdate } from '#lib/api/types.js';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { formatCost } from '#lib/utils/format-util.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { requiredNumber } from '#lib/utils/zod-util.js';
 	import { z } from 'zod/v4';
 	import ReadOnlyValues from './read-only-values.svelte';
 

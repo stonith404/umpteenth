@@ -1,26 +1,26 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import type { RunDetail } from '$lib/api/types';
-	import Markdown from '$lib/components/markdown.svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import ModeBadge from '$lib/components/runs/mode-badge.svelte';
-	import RunDuration from '$lib/components/runs/run-duration.svelte';
+	import type { RunDetail } from '#lib/api/types.js';
+	import Markdown from '#lib/components/markdown.svelte';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import ModeBadge from '#lib/components/runs/mode-badge.svelte';
+	import RunDuration from '#lib/components/runs/run-duration.svelte';
 	import {
 		AGENT_FAILURE_PATTERN,
 		statusLabel,
 		triggerIcon,
 		triggerPhrase
-	} from '$lib/components/runs/run-meta';
-	import StatusBadge from '$lib/components/runs/status-badge.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import UsageAmount from '$lib/components/usage-amount.svelte';
-	import { sentenceCase } from '$lib/utils/format-util';
-	import { cn } from '$lib/utils/style';
-	import { usageFormat } from '$lib/utils/usage-util';
+	} from '#lib/components/runs/run-meta.js';
+	import StatusBadge from '#lib/components/runs/status-badge.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import UsageAmount from '#lib/components/usage-amount.svelte';
+	import { sentenceCase } from '#lib/utils/format-util.js';
+	import { cn } from '#lib/utils/style.js';
+	import { usageFormat } from '#lib/utils/usage-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import CircleStopIcon from '@lucide/svelte/icons/circle-stop';
 	import ClockIcon from '@lucide/svelte/icons/clock';

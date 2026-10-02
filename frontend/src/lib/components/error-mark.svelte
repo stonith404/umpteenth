@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import { mark } from '$lib/brand';
+	import { mark } from '#lib/brand.js';
 
 	// Splits a path of the mark into its eight rows of cells, so each row can slip sideways on its own
 	function byRow(d: string) {
@@ -16,7 +16,7 @@
 </script>
 
 <script lang="ts">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.js';
 
 	let { class: className }: { class?: string } = $props();
 </script>

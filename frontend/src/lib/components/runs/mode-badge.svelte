@@ -17,7 +17,7 @@
 </script>
 
 <script lang="ts">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.js';
 	import { modeIcons, modeLabel } from './run-meta';
 
 	type Props = {

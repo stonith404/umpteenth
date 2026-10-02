@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
-	import type { PlaybookContent } from '$lib/api/types';
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import { apiErrorToast, getErrorMessage } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { playbookToJson } from '$lib/utils/playbook-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { PlaybookContent } from '#lib/api/types.js';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { apiErrorToast, getErrorMessage } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { playbookToJson } from '#lib/utils/playbook-util.js';
 	import { untrack } from 'svelte';
 
 	let {

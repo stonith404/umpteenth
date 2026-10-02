@@ -1,24 +1,24 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
-	import type { McpServer, McpServerBody } from '$lib/api/types';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { McpServer, McpServerBody } from '#lib/api/types.js';
 	import KeyValueEditor, {
 		entriesToRecord,
 		recordToEntries,
 		type KeyValueEntry
-	} from '$lib/components/form/key-value-editor.svelte';
-	import StringListEditor from '$lib/components/form/string-list-editor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Collapsible from '$lib/components/ui/collapsible';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import McpService from '$lib/services/mcp-service';
-	import SecretService from '$lib/services/secret-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { cn } from '$lib/utils/style';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	} from '#lib/components/form/key-value-editor.svelte';
+	import StringListEditor from '#lib/components/form/string-list-editor.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import McpService from '#lib/services/mcp-service.js';
+	import SecretService from '#lib/services/secret-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { cn } from '#lib/utils/style.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import { untrack } from 'svelte';
 

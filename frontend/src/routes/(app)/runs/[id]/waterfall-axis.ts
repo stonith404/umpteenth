@@ -1,4 +1,4 @@
-import { formatDuration } from '$lib/utils/format-util';
+import { formatDuration } from '#lib/utils/format-util.js';
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;

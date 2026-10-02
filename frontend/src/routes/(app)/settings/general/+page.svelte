@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { invalidate, invalidateAll } from '$app/navigation';
-	import type { WorkspaceSettingsUpdate } from '$lib/api/types';
-	import AdminOnlyNotice from '$lib/components/workspaces/admin-only-notice.svelte';
-	import SettingsService from '$lib/services/settings-service';
-	import WorkspaceService from '$lib/services/workspace-service';
-	import { hasRole } from '$lib/utils/workspace-util';
+	import { invalidate, refreshAll } from '$app/navigation';
+	import type { WorkspaceSettingsUpdate } from '#lib/api/types.js';
+	import AdminOnlyNotice from '#lib/components/workspaces/admin-only-notice.svelte';
+	import SettingsService from '#lib/services/settings-service.js';
+	import WorkspaceService from '#lib/services/workspace-service.js';
+	import { hasRole } from '#lib/utils/workspace-util.js';
 	import BudgetForm from './budget-form.svelte';
 	import DangerZone from './danger-zone.svelte';
 	import ModelsForm from './models-form.svelte';
@@ -34,7 +34,7 @@
 	// The name also shows in the switcher, which reads it from the session's user
 	async function rename(name: string) {
 		await workspaceService.rename(name);
-		await invalidateAll();
+		await refreshAll();
 	}
 </script>
 

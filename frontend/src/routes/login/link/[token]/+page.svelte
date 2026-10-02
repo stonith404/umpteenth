@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { isApiError } from '$lib/api/api-error';
-	import Logo from '$lib/components/logo.svelte';
-	import Wordmark from '$lib/components/wordmark.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import UserService from '$lib/services/user-service';
-	import { getErrorMessage } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import Logo from '#lib/components/logo.svelte';
+	import Wordmark from '#lib/components/wordmark.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import UserService from '#lib/services/user-service.js';
+	import { getErrorMessage } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import { onMount } from 'svelte';
 
@@ -29,7 +29,7 @@
 				: { title: "This sign-in link can't be used", message: getErrorMessage(result.error) };
 			return;
 		}
-		await goto(result.data.redirect, { invalidateAll: true, replaceState: true });
+		await goto(result.data.redirect, { refreshAll: true, replace: true });
 	});
 </script>
 

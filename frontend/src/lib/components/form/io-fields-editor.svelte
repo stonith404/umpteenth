@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { JobIOField } from '$lib/api/types';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
-	import { IO_FIELD_TYPES } from '$lib/utils/job-util';
+	import type { JobIOField } from '#lib/api/types.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { IO_FIELD_TYPES } from '#lib/utils/job-util.js';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
 

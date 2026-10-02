@@ -1,41 +1,41 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
+	import { isApiError } from '#lib/api/api-error.js';
 	import { invalidate } from '$app/navigation';
 	import type {
 		PlaybookContent,
 		PlaybookLearning,
 		PlaybookScript,
 		PlaybookVersionListItem
-	} from '$lib/api/types';
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import { languageForScript, type CodeLanguage } from '$lib/components/code/script-language';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	} from '#lib/api/types.js';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import { languageForScript, type CodeLanguage } from '#lib/components/code/script-language.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		actionsColumn,
 		DataTable,
 		renderComponent,
 		renderSnippet,
 		RowActions
-	} from '$lib/components/data-table';
-	import AuthorLabel from '$lib/components/playbook/author-label.svelte';
-	import KindIcon from '$lib/components/playbook/kind-icon.svelte';
-	import VersionMeta from '$lib/components/playbook/version-meta.svelte';
-	import VersionSummary from '$lib/components/playbook/version-summary.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Collapsible from '$lib/components/ui/collapsible';
-	import PlaybookService from '$lib/services/playbook-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
+	} from '#lib/components/data-table/index.js';
+	import AuthorLabel from '#lib/components/playbook/author-label.svelte';
+	import KindIcon from '#lib/components/playbook/kind-icon.svelte';
+	import VersionMeta from '#lib/components/playbook/version-meta.svelte';
+	import VersionSummary from '#lib/components/playbook/version-summary.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
+	import PlaybookService from '#lib/services/playbook-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import {
 		learningKindLabel,
 		scriptLanguageLabel,
 		type PlaybookChangeKind
-	} from '$lib/utils/playbook-util';
-	import { cn } from '$lib/utils/style';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
+	} from '#lib/utils/playbook-util.js';
+	import { cn } from '#lib/utils/style.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
 	import { onMount, type Snippet } from 'svelte';
 	import ArchiveIcon from '@lucide/svelte/icons/archive';
 	import ArchiveRestoreIcon from '@lucide/svelte/icons/archive-restore';

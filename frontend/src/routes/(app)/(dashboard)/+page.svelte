@@ -1,24 +1,24 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import type { StatsOverview, StatsRange, StatsTotals } from '$lib/api/types';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { timeRanges } from '$lib/components/runs/date-range';
-	import StatusBadge from '$lib/components/runs/status-badge.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Empty from '$lib/components/ui/empty';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import StatsService from '$lib/services/stats-service';
-	import { secondClock } from '$lib/utils/clock.svelte';
-	import { apiErrorToast, getErrorMessage } from '$lib/utils/error-util';
-	import { AGENT_FAILURE_PATTERN } from '$lib/components/runs/run-meta';
-	import { formatDuration, sentenceCase } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { usageFormat } from '$lib/utils/usage-util';
-	import { subscribeWorkspaceEvents } from '$lib/utils/workspace-events';
+	import type { StatsOverview, StatsRange, StatsTotals } from '#lib/api/types.js';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { timeRanges } from '#lib/components/runs/date-range.js';
+	import StatusBadge from '#lib/components/runs/status-badge.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import StatsService from '#lib/services/stats-service.js';
+	import { secondClock } from '#lib/utils/clock.svelte.js';
+	import { apiErrorToast, getErrorMessage } from '#lib/utils/error-util.js';
+	import { AGENT_FAILURE_PATTERN } from '#lib/components/runs/run-meta.js';
+	import { formatDuration, sentenceCase } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { usageFormat } from '#lib/utils/usage-util.js';
+	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
 	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import TrendingDownIcon from '@lucide/svelte/icons/trending-down';
@@ -114,10 +114,10 @@
 	});
 
 	function setRange(value: string) {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (value === DEFAULT_RANGE.value) url.searchParams.delete('range');
 		else url.searchParams.set('range', value);
-		void goto(url, { replaceState: true, noScroll: true, keepFocus: true });
+		void goto(url, { replace: true, reset: false });
 	}
 
 	const current = $derived(overview?.current);

@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { User, Workspace } from '$lib/api/types';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Sidebar from '$lib/components/ui/sidebar';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import CreateWorkspaceDialog from '$lib/components/workspaces/create-workspace-dialog.svelte';
-	import WorkspaceService from '$lib/services/workspace-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { enterWorkspace, roleLabels, workspaceInitial } from '$lib/utils/workspace-util';
+	import type { User, Workspace } from '#lib/api/types.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import CreateWorkspaceDialog from '#lib/components/workspaces/create-workspace-dialog.svelte';
+	import WorkspaceService from '#lib/services/workspace-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { enterWorkspace, roleLabels, workspaceInitial } from '#lib/utils/workspace-util.js';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import PlusIcon from '@lucide/svelte/icons/plus';

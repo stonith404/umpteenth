@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { GlyphName } from '$lib/components/pixel-glyph.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { formatDuration } from '$lib/utils/format-util';
+	import type { GlyphName } from '#lib/components/pixel-glyph.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import { formatDuration } from '#lib/utils/format-util.js';
 	import Disclosure from './disclosure.svelte';
 	import JsonView from './json-view.svelte';
 	import StepShell from './step-shell.svelte';

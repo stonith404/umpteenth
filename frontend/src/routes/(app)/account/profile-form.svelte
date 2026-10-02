@@ -1,9 +1,9 @@
 <script lang="ts">
-	import FormCard from '$lib/components/form/form-card.svelte';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import * as Field from '$lib/components/ui/field';
-	import { createForm } from '$lib/utils/form-util';
-	import { passkeyAccountSchema } from '$lib/utils/passkey-util';
+	import FormCard from '#lib/components/form/form-card.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { passkeyAccountSchema } from '#lib/utils/passkey-util.js';
 
 	let {
 		name,

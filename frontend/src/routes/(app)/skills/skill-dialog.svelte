@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { ApiError, isApiError } from '$lib/api/api-error';
-	import type { Skill, SkillChoice } from '$lib/api/types';
-	import FileDrop from '$lib/components/form/file-drop.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import SkillService, { MAX_SKILL_UPLOAD_BYTES } from '$lib/services/skill-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import { ApiError, isApiError } from '#lib/api/api-error.js';
+	import type { Skill, SkillChoice } from '#lib/api/types.js';
+	import FileDrop from '#lib/components/form/file-drop.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import SkillService, { MAX_SKILL_UPLOAD_BYTES } from '#lib/services/skill-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { untrack } from 'svelte';
 
 	let {

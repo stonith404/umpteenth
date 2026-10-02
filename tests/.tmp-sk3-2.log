@@ -1,0 +1,63 @@
+
+Running 59 tests using 1 worker, shard 2 of 3
+
+[1/59] [browser-chrome] › specs/mcp-tools.spec.ts:68:1 › A job run calls the tools of a plain HTTP server with arguments and shows their error results
+[2/59] [browser-chrome] › specs/mcp-tools.spec.ts:127:1 › The MCP servers card attaches servers and limits one to some of its tools
+[3/59] [browser-chrome] › specs/mcp-tools.spec.ts:208:1 › A run limited to some tools of a server can neither see nor call the others, as the agent or through ump
+[4/59] [browser-chrome] › specs/mcp-tools.spec.ts:256:1 › Deleting a server detaches it from its jobs, and a stale job settings page cannot attach it again
+[5/59] [browser-chrome] › specs/mcp-tools.spec.ts:308:1 › Testing a stdio server starts it in a temporary sandbox and lists its tools
+[6/59] [browser-chrome] › specs/mcp-tools.spec.ts:333:1 › A stdio server runs in the run's sandbox as the mcp user, and a root sandbox skips it only when it has environment variables
+[7/59] [browser-chrome] › specs/members.spec.ts:69:1 › Removing a member locks them out at once, API tokens included, and their next sign-in lands in a workspace of their own
+[8/59] [browser-chrome] › specs/members.spec.ts:112:1 › Admins manage members but can neither hand the workspace over nor delete it
+[9/59] [browser-chrome] › specs/members.spec.ts:150:1 › Only the owner hands the workspace over or deletes it, and the owner can't be demoted, removed or leave
+[10/59] [browser-chrome] › specs/members.spec.ts:204:1 › A member who leaves lands in the workspace they already had instead of a new one
+[11/59] [browser-chrome] › specs/members.spec.ts:242:1 › Inviting the same address again replaces its pending invite
+[12/59] [browser-chrome] › specs/members.spec.ts:268:1 › Revoked invites stop working
+[13/59] [browser-chrome] › specs/members.spec.ts:303:1 › The invite dialog explains an empty or malformed address next to the field
+[14/59] [browser-chrome] › specs/members.spec.ts:321:1 › An empty or malformed address never reaches the server, and doesn't block a link made after switching
+[15/59] [browser-chrome] › specs/members.spec.ts:342:1 › Inviting someone who signed in before answers like any other address, and only their next verified sign-in joins them
+[16/59] [browser-chrome] › specs/members.spec.ts:392:1 › Inviting someone who is a member already is refused and keeps the dialog open
+[17/59] [browser-chrome] › specs/members.spec.ts:414:1 › A write from a tab that still shows the previous workspace is refused, and the tab catches up
+[18/59] [browser-chrome] › specs/members.spec.ts:476:1 › The invite page shows who is signed in and what they would join, and never adds an existing user without asking
+[19/59] [browser-chrome] › specs/members.spec.ts:517:1 › An admin who makes themselves a member loses the admin controls at once
+[20/59] [browser-chrome] › specs/members.spec.ts:559:1 › An admin who makes themselves a member no longer sees the pending invites
+[21/59] [browser-chrome] › specs/navigation.spec.ts:68:1 › Unknown pages and missing jobs and runs show the error page inside the app with the way back
+[22/59] [browser-chrome] › specs/navigation.spec.ts:119:1 › The admin area refuses people who are not instance admins with an access error
+[23/59] [browser-chrome] › specs/navigation.spec.ts:138:1 › A ?workspace= link switches to a workspace the user belongs to, and changes nothing for someone who cannot open it
+[24/59] [browser-chrome] › specs/navigation.spec.ts:173:1 › Instance admins get only the admin tabs that apply, search users by name and email, and have no actions on their own account
+[25/59] [browser-chrome] › specs/navigation.spec.ts:238:1 › An instance admin loses the admin area in every session once their provider stops vouching for them
+[26/59] [browser-chrome] › specs/navigation.spec.ts:271:1 › Instance admins open a workspace without joining it, and lose it together with their admin rights
+[27/59] [browser-chrome] › specs/navigation.spec.ts:319:1 › Signing out ends the session in every tab, and going back leads to the login page
+[28/59] [browser-chrome] › specs/navigation.spec.ts:351:1 › Signing in returns to a deep link together with its query
+[29/59] [browser-chrome] › specs/navigation.spec.ts:374:1 › Signing in never sends the browser to another site
+[30/59] [browser-chrome] › specs/navigation.spec.ts:406:1 › The command palette jumps to settings tabs by keyword, to jobs and to actions
+[31/59] [browser-chrome] › specs/navigation.spec.ts:445:1 › The command palette offers the admin pages only to instance admins
+[32/59] [browser-chrome] › specs/network.spec.ts:29:1 › Internet jobs reach private networks through the egress proxy only when allowed
+[33/59] [browser-chrome] › specs/notifications.spec.ts:31:1 › Failed runs are posted to the notification webhook
+[34/59] [browser-chrome] › specs/passkeys.spec.ts:11:1 › The first visitor sets up the instance with a passkey and signs in with it again
+[35/59] [browser-chrome] › specs/passkeys.spec.ts:42:1 › An admin adds a passkey user, who signs in through the link and adds a passkey
+[36/59] [browser-chrome] › specs/passkeys.spec.ts:86:1 › Someone with an invite link creates a passkey account and joins the workspace
+[37/59] [browser-chrome] › specs/passkeys.spec.ts:117:1 › Passkeys can be renamed, and the last one stays
+[38/59] [browser-chrome] › specs/passkeys.spec.ts:143:1 › Accounts of sign-in providers get no passkeys or sign-in links
+[39/59] [browser-chrome] › specs/playbook-edits.spec.ts:75:1 › Saving the playbook JSON fails when reflection wrote a version while the dialog was open
+[40/59] [browser-chrome] › specs/playbook-edits.spec.ts:101:1 › Saving a toolkit script fails when reflection changed it while the dialog was open
+[41/59] [browser-chrome] › specs/playbook-edits.spec.ts:121:1 › Saving a learning fails when reflection rewrote it while the dialog was open
+[42/59] [browser-chrome] › specs/playbook-manual.spec.ts:44:1 › Learnings edited, retired and restored by hand each become a version whose sheet shows the change, and retiring all of them sends the job back to Explore
+[43/59] [browser-chrome] › specs/playbook-manual.spec.ts:163:1 › Saving a toolkit script by hand re-reads its ump: header and refuses a bad one, and a deleted script comes back through the version sheet's rollback
+[44/59] [browser-chrome] › specs/playbook-manual.spec.ts:282:1 › Edit as JSON refuses an invalid playbook inline and writes no version
+[45/59] [browser-chrome] › specs/playbook-manual.spec.ts:327:1 › An empty playbook fills up through Edit as JSON, which takes a script's language and description from its code, and an unchanged save still writes a version with no changes
+[46/59] [browser-chrome] › specs/playbook-manual.spec.ts:400:1 › The version history gets a search once it holds more than ten versions
+[47/59] [browser-chrome] › specs/playbook-manual.spec.ts:427:1 › Learnings and scripts edited by hand are what the next run finds in its sandbox
+[48/59] [browser-chrome] › specs/playbook-manual.spec.ts:492:1 › A reflection version's sheet explains the held proposal and links back to the run it came from
+[49/59] [browser-chrome] › specs/playbook.spec.ts:14:1 › Editing the Dockerfile creates playbook versions that can be rolled back
+[50/59] [browser-chrome] › specs/providers.spec.ts:132:1 › Choosing another default agent model moves the next run and the jobs without a model of their own to it
+[51/59] [browser-chrome] › specs/providers.spec.ts:177:1 › Only models still in use as a default are protected from being disabled
+[52/59] [browser-chrome] › specs/providers.spec.ts:255:1 › Deleting the provider behind the default and a pinned model unsets both, and runs say no model is configured until a new default is picked
+[53/59] [browser-chrome] › specs/providers.spec.ts:330:1 › Testing a provider sends a prompt through the chosen model and shows the reply, the provider's error or why it can't test
+[54/59] [browser-chrome] › specs/providers.spec.ts:405:1 › The provider dialog rejects a missing name, a non-web base URL, a missing key for an official API and a taken name inline
+[55/59] [browser-chrome] › specs/providers.spec.ts:459:1 › The model dialog rejects a missing ID and context window, and a model ID the provider already has, inline
+[56/59] [browser-chrome] › specs/providers.spec.ts:483:1 › The provider and model dialogs explain a base URL without a scheme, a zero context window and a negative price under their fields
+[57/59] [browser-chrome] › specs/providers.spec.ts:509:1 › Once the last provider is deleted, the page offers only to add one
+[58/59] [browser-chrome] › specs/providers.spec.ts:526:1 › An OpenAI-compatible server lists its models into the workspace, a wrong base URL shows Sync failed, and only models it stops listing can be deleted
+[59/59] [browser-chrome] › specs/providers.spec.ts:604:1 › Every model of a provider can be turned off and back on at once, and a provider without a model list has nothing to sync
+  59 passed (1.9m)

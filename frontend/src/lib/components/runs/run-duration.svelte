@@ -11,11 +11,11 @@
 </script>
 
 <script lang="ts">
-	import type { Run } from '$lib/api/types';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { secondClock } from '$lib/utils/clock.svelte';
-	import { formatDuration } from '$lib/utils/format-util';
-	import { cn } from '$lib/utils/style';
+	import type { Run } from '#lib/api/types.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { secondClock } from '#lib/utils/clock.svelte.js';
+	import { formatDuration } from '#lib/utils/format-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import { isLiveStatus } from './run-meta';
 
 	type RunTiming = Pick<

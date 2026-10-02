@@ -1,5 +1,5 @@
-import type { RunDelta, RunEvent } from '$lib/api/types';
-import RunService from '$lib/services/run-service';
+import type { RunDelta, RunEvent } from '#lib/api/types.js';
+import RunService from '#lib/services/run-service.js';
 import { payloadOf, type ToolCallPayload } from './timeline-model';
 
 // Persisted events are fetched in pages of this size before the live stream takes over

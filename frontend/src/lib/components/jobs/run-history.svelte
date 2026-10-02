@@ -11,12 +11,12 @@ The strip is a single tab stop on the newest run, and the arrow keys move betwee
 Example: `<RunHistory runs={job.recentRuns} />`
 -->
 <script lang="ts">
-	import type { JobRecentRun } from '$lib/api/types';
-	import { statusLabel } from '$lib/components/runs/run-meta';
-	import { statusTone, statusToneClasses } from '$lib/components/runs/status-badge.svelte';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { formatShortDate, formatTime } from '$lib/utils/format-util';
-	import { cn } from '$lib/utils/style';
+	import type { JobRecentRun } from '#lib/api/types.js';
+	import { statusLabel } from '#lib/components/runs/run-meta.js';
+	import { statusTone, statusToneClasses } from '#lib/components/runs/status-badge.svelte';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { formatShortDate, formatTime } from '#lib/utils/format-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import { Tooltip as TooltipPrimitive } from 'bits-ui';
 
 	type Props = {

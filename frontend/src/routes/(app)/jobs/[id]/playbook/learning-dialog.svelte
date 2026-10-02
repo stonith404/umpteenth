@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { PlaybookLearning } from '$lib/api/types';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { learningKindLabel } from '$lib/utils/playbook-util';
+	import type { PlaybookLearning } from '#lib/api/types.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { Textarea } from '#lib/components/ui/textarea/index.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { learningKindLabel } from '#lib/utils/playbook-util.js';
 	import { untrack } from 'svelte';
 
 	let {

@@ -15,7 +15,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -59,8 +58,7 @@ type Module struct {
 	deps    Dependencies
 	db      *database.DB
 	queries *skillsdb.Queries
-	// githubArchives serves the tarballs of GitHub repositories, which tests point at a fake
-	archivesMu     sync.RWMutex
+	// githubArchives serves the tarballs of GitHub repositories, which unit tests point at a fake
 	githubArchives string
 }
 

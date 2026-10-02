@@ -1,5 +1,5 @@
-import type { RequestBodyOf } from '$lib/api/types';
-import { createPasskey, usePasskey } from '$lib/utils/passkey-util';
+import type { RequestBodyOf } from '#lib/api/types.js';
+import { createPasskey, usePasskey } from '#lib/utils/passkey-util.js';
 import APIService from './api-service';
 
 export default class UserService extends APIService {

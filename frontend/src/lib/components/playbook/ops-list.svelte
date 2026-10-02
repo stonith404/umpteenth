@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { PlaybookAppliedOp } from '$lib/api/types';
-	import CodeEditor from '$lib/components/code/code-editor.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Collapsible from '$lib/components/ui/collapsible';
-	import { opLabel, opLanguage, opStatusLabel } from '$lib/utils/playbook-util';
-	import { cn } from '$lib/utils/style';
+	import type { PlaybookAppliedOp } from '#lib/api/types.js';
+	import CodeEditor from '#lib/components/code/code-editor.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
+	import { opLabel, opLanguage, opStatusLabel } from '#lib/utils/playbook-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';

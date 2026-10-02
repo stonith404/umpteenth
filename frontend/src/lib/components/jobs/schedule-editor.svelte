@@ -1,16 +1,16 @@
 <script lang="ts">
-	import TimezonePicker from '$lib/components/form/timezone-picker.svelte';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Field from '$lib/components/ui/field';
-	import * as InputGroup from '$lib/components/ui/input-group';
-	import { Switch } from '$lib/components/ui/switch';
+	import TimezonePicker from '#lib/components/form/timezone-picker.svelte';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as InputGroup from '#lib/components/ui/input-group/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 	import {
 		CRON_PRESETS,
 		SCHEDULE_EDITOR_PRESETS,
 		describeCron,
 		isValidCron
-	} from '$lib/utils/cron-util';
-	import { localTimezone } from '$lib/utils/job-util';
+	} from '#lib/utils/cron-util.js';
+	import { localTimezone } from '#lib/utils/job-util.js';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import { untrack } from 'svelte';
 

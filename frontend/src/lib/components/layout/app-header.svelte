@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import type { User } from '$lib/api/types';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
-	import { Button } from '$lib/components/ui/button';
-	import * as Sidebar from '$lib/components/ui/sidebar';
-	import { buildBreadcrumbs, buildErrorBreadcrumbs } from '$lib/utils/breadcrumb-util';
-	import { errorPageContent } from '$lib/utils/error-util';
-	import { cn } from '$lib/utils/style';
+	import type { User } from '#lib/api/types.js';
+	import * as Breadcrumb from '#lib/components/ui/breadcrumb/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
+	import { buildBreadcrumbs, buildErrorBreadcrumbs } from '#lib/utils/breadcrumb-util.js';
+	import { errorPageContent } from '#lib/utils/error-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import { commandPalette } from './command-palette.svelte';
 	import ModeSwitcher from './mode-switcher.svelte';

@@ -1,26 +1,26 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import type { WorkspaceInvite, WorkspaceMember, WorkspaceRole } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import type { WorkspaceInvite, WorkspaceMember, WorkspaceRole } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		DataTable,
 		RowActions,
 		actionsColumn,
 		renderComponent,
 		renderSnippet
-	} from '$lib/components/data-table';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
-	import WorkspaceService from '$lib/services/workspace-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { hasRole, roleLabels } from '$lib/utils/workspace-util';
+	} from '#lib/components/data-table/index.js';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import * as Avatar from '#lib/components/ui/avatar/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import * as Table from '#lib/components/ui/table/index.js';
+	import WorkspaceService from '#lib/services/workspace-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { hasRole, roleLabels } from '#lib/utils/workspace-util.js';
 	import CrownIcon from '@lucide/svelte/icons/crown';
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import MailIcon from '@lucide/svelte/icons/mail';
@@ -126,7 +126,7 @@
 		toast.success(`${displayName(member)} is now ${roleLabels[role].toLowerCase()}`);
 
 		// Changing your own role changes what this page lets you do
-		if (member.userId === user.id) await invalidateAll();
+		if (member.userId === user.id) await refreshAll();
 	}
 
 	function confirmTransfer(member: WorkspaceMember) {
@@ -144,7 +144,7 @@
 						return;
 					}
 					toast.success(`${displayName(member)} now owns the workspace`);
-					await invalidateAll();
+					await refreshAll();
 					await dataTable?.refresh();
 				}
 			}

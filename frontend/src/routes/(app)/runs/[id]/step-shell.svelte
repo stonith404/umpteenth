@@ -20,9 +20,9 @@
 </script>
 
 <script lang="ts">
-	import PixelGlyph, { type GlyphName } from '$lib/components/pixel-glyph.svelte';
-	import { formatDateTime, formatDuration } from '$lib/utils/format-util';
-	import { cn } from '$lib/utils/style';
+	import PixelGlyph, { type GlyphName } from '#lib/components/pixel-glyph.svelte';
+	import { formatDateTime, formatDuration } from '#lib/utils/format-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import type { Snippet } from 'svelte';
 
 	let {

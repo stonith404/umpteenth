@@ -1,8 +1,8 @@
 <script lang="ts">
-	import PixelGlyph, { type GlyphName } from '$lib/components/pixel-glyph.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import { Clock } from '$lib/utils/clock.svelte';
-	import { cn } from '$lib/utils/style';
+	import PixelGlyph, { type GlyphName } from '#lib/components/pixel-glyph.svelte';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import { Clock } from '#lib/utils/clock.svelte.js';
+	import { cn } from '#lib/utils/style.js';
 	import { cubicOut } from 'svelte/easing';
 	import { MediaQuery } from 'svelte/reactivity';
 	import type { TransitionConfig } from 'svelte/transition';

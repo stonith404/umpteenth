@@ -1,5 +1,5 @@
 // Decides which run the demo shows: it tells the story of the Hacker News digest on its own, and hands control to the reader once they act
-import type { RunDetail } from '$lib/api/types';
+import type { RunDetail } from '#lib/api/types.js';
 import { clock } from './clock';
 import { server, scenarios, type ScenarioKey } from './fake-server';
 import { user } from './fixtures';

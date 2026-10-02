@@ -1,4 +1,4 @@
-import type { McpServerBody, QueryOf } from '$lib/api/types';
+import type { McpServerBody, QueryOf } from '#lib/api/types.js';
 import APIService from './api-service';
 
 export default class McpService extends APIService {

@@ -289,18 +289,11 @@ func fetchZip(ctx context.Context, client *http.Client, rawURL string) (*Archive
 	return parseZip(body)
 }
 
-// archives is where repository tarballs come from
-func (m *Module) archives() string {
-	m.archivesMu.RLock()
-	defer m.archivesMu.RUnlock()
-	return m.githubArchives
-}
-
 // downloadRepo downloads the repository's archive and hands it to read with the ref and folder the link turned out to mean
 // The archive of a ref that doesn't exist answers 404, so each reading of the link is tried until one exists
 func (m *Module) downloadRepo(ctx context.Context, client *http.Client, link githubLink, read func(body io.Reader, c refDir, dir string) error) error {
 	for _, c := range link.candidates {
-		resp, err := get(ctx, client, fmt.Sprintf("%s/%s/%s/tar.gz/%s", m.archives(), link.owner, link.repo, escapePath(c.ref)))
+		resp, err := get(ctx, client, fmt.Sprintf("%s/%s/%s/tar.gz/%s", m.archives(ctx), link.owner, link.repo, escapePath(c.ref)))
 		if err != nil {
 			return err
 		}

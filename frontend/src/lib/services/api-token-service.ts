@@ -1,4 +1,4 @@
-import type { ApiTokenCreate, QueryOf } from '$lib/api/types';
+import type { ApiTokenCreate, QueryOf } from '#lib/api/types.js';
 import APIService from './api-service';
 
 export default class ApiTokenService extends APIService {

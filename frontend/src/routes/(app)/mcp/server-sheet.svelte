@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { McpServer } from '$lib/api/types';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import { authDescription, canLogIn, transportLabel } from '$lib/utils/mcp-util';
+	import type { McpServer } from '#lib/api/types.js';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Sheet from '#lib/components/ui/sheet/index.js';
+	import { authDescription, canLogIn, transportLabel } from '#lib/utils/mcp-util.js';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
 	import PencilIcon from '@lucide/svelte/icons/pencil';

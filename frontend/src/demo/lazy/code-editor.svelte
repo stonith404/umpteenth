@@ -1,7 +1,7 @@
 <!--
 @component
 The app's code editor, loaded once it first shows, since the demo only needs it when a reader opens a script's content on the Learned tab.
-The demo build points `$lib/components/code/code-editor.svelte` here, see vite.demo.config.ts.
+The demo build points `#lib/components/code/code-editor.svelte` here, see vite.demo.config.ts.
 -->
 <script lang="ts">
 	import type { ComponentProps } from 'svelte';

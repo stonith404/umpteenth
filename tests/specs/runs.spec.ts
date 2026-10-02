@@ -75,12 +75,18 @@ test('A running run can be cancelled from its page', async ({ page }) => {
 		timeout: 20_000
 	});
 
-	await page.getByRole('button', { name: 'Stop', exact: true }).click();
+	// The timeline follows the output and scrolls the header away, so the live bar takes over its Stop
+	// Clicking the header's Stop instead races the hand-over, since Playwright keeps waiting for the hidden button to come back
+	const header = page.locator('header', { has: page.getByRole('heading', { level: 1 }) });
+	const liveBar = page.locator('[data-slot="run-live-bar"]');
+	await expect(liveBar).toContainText('Long job #1', { timeout: 20_000 });
+	await expect(header.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
+
+	await liveBar.getByRole('button', { name: 'Stop', exact: true }).click();
 	const dialog = page.getByRole('alertdialog');
 	await expect(dialog).toContainText('Long job #1');
 	await dialog.getByRole('button', { name: 'Stop run' }).click();
 
-	const header = page.locator('header', { has: page.getByRole('heading', { level: 1 }) });
 	await expect(header.locator('[data-slot="status-badge"]').first()).toHaveText('Cancelled', {
 		timeout: 20_000
 	});

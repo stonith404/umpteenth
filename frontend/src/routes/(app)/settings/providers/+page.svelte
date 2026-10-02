@@ -1,27 +1,27 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
-	import type { Model, Provider } from '$lib/api/types';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import type { Model, Provider } from '#lib/api/types.js';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import {
 		DataTable,
 		RowActions,
 		actionsColumn,
 		renderSnippet,
 		type RowAction
-	} from '$lib/components/data-table';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import RelativeTime from '$lib/components/relative-time.svelte';
-	import AdminOnlyNotice from '$lib/components/workspaces/admin-only-notice.svelte';
-	import ProviderService from '$lib/services/provider-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { formatPricePerMillion, formatTokens } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { hasRole } from '$lib/utils/workspace-util';
+	} from '#lib/components/data-table/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import RelativeTime from '#lib/components/relative-time.svelte';
+	import AdminOnlyNotice from '#lib/components/workspaces/admin-only-notice.svelte';
+	import ProviderService from '#lib/services/provider-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { formatPricePerMillion, formatTokens } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { hasRole } from '#lib/utils/workspace-util.js';
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import CloudIcon from '@lucide/svelte/icons/cloud';
 	import PencilIcon from '@lucide/svelte/icons/pencil';

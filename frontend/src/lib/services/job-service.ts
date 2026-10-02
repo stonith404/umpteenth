@@ -10,7 +10,7 @@ import type {
 	JobSpec,
 	JobStatsRange,
 	QueryOf
-} from '$lib/api/types';
+} from '#lib/api/types.js';
 import APIService from './api-service';
 
 export default class JobService extends APIService {

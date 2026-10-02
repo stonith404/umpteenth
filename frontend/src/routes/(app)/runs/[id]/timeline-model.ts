@@ -1,5 +1,5 @@
-import type { RunEvent } from '$lib/api/types';
-import { AGENT_FAILURE_PATTERN } from '$lib/components/runs/run-meta';
+import type { RunEvent } from '#lib/api/types.js';
+import { AGENT_FAILURE_PATTERN } from '#lib/components/runs/run-meta.js';
 
 // Payload shapes of the persisted run events (backend `internal/runner`, `internal/broker`)
 // The API types payloads as `unknown`, so every field is optional and read defensively

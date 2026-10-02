@@ -1,7 +1,7 @@
-import ImageService from '$lib/services/image-service';
-import PlaybookService from '$lib/services/playbook-service';
-import SettingsService from '$lib/services/settings-service';
-import { tryCatch } from '$lib/utils/try-catch-util';
+import ImageService from '#lib/services/image-service.js';
+import PlaybookService from '#lib/services/playbook-service.js';
+import SettingsService from '#lib/services/settings-service.js';
+import { tryCatch } from '#lib/utils/try-catch-util.js';
 import type { PageLoad } from './$types';
 
 // The workspace's default image seeds the Dockerfile template of jobs without a base image of their own

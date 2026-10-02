@@ -1,23 +1,23 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import type { LoginProvider } from '$lib/api/types';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import Logo from '$lib/components/logo.svelte';
-	import Wordmark from '$lib/components/wordmark.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Field from '$lib/components/ui/field';
-	import UserService from '$lib/services/user-service';
-	import { apiErrorToast, getLoginErrorMessage } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { docsUrl } from '$lib/navigation';
-	import { lastLoginProvider } from '$lib/utils/login-provider-util';
-	import { passkeyAccountSchema } from '$lib/utils/passkey-util';
-	import { providerLoginUrl, safeRedirectPath } from '$lib/utils/redirection-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { LoginProvider } from '#lib/api/types.js';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import Logo from '#lib/components/logo.svelte';
+	import Wordmark from '#lib/components/wordmark.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import UserService from '#lib/services/user-service.js';
+	import { apiErrorToast, getLoginErrorMessage } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { docsUrl } from '#lib/navigation.js';
+	import { lastLoginProvider } from '#lib/utils/login-provider-util.js';
+	import { passkeyAccountSchema } from '#lib/utils/passkey-util.js';
+	import { providerLoginUrl, safeRedirectPath } from '#lib/utils/redirection-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
@@ -61,7 +61,7 @@
 			apiErrorToast(result.error, 'Failed to sign in with a passkey');
 			return;
 		}
-		if (result.data) await goto(result.data.redirect, { invalidateAll: true });
+		if (result.data) await goto(result.data.redirect, { refreshAll: true });
 	}
 
 	async function signUpWithPasskey() {
@@ -81,7 +81,7 @@
 			apiErrorToast(result.error, 'Failed to create the account');
 			return;
 		}
-		if (result.data) await goto(result.data.redirect, { invalidateAll: true });
+		if (result.data) await goto(result.data.redirect, { refreshAll: true });
 	}
 
 	// Pointing out the provider used last time only helps when there is a choice

@@ -1,7 +1,7 @@
 // Two runs of the Hacker News digest, recorded from a real instance by .claude/skills/update-docs/scripts/screenshots/demo.py
 // The live front page they fetched is replaced with fictional stories, and the scripted model's call IDs and the test user with realistic ones
 // Timestamps are those of the recording, the fake server moves them to the moment a run plays
-import type { PlaybookVersion, RunArtifact, RunDetail, RunEvent, User } from '$lib/api/types';
+import type { PlaybookVersion, RunArtifact, RunDetail, RunEvent, User } from '#lib/api/types.js';
 
 export type RecordedRun = {
 	run: RunDetail;

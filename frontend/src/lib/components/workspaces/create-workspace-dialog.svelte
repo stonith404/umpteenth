@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import WorkspaceService from '$lib/services/workspace-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { enterWorkspace } from '$lib/utils/workspace-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import WorkspaceService from '#lib/services/workspace-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { enterWorkspace } from '#lib/utils/workspace-util.js';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 

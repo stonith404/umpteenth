@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { cn } from '$lib/utils/style.js';
+	import { cn } from '#lib/utils/style.js';
 	import { Tabs as TabsPrimitive } from 'bits-ui';
 
 	let {
@@ -26,7 +26,11 @@
 
 	function onTabChange(newValue: string) {
 		if (useHash && page.url.hash.substring(1) !== newValue) {
-			replaceState(location.pathname + location.search + `#${newValue}`, page.state);
+			void goto(location.pathname + location.search + `#${newValue}`, {
+				shallow: true,
+				replace: true,
+				state: page.state
+			});
 		}
 	}
 </script>

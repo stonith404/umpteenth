@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { isApiError } from '$lib/api/api-error';
-	import type { WorkspaceRole } from '$lib/api/types';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import * as Select from '$lib/components/ui/select';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import WorkspaceService from '$lib/services/workspace-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { roleDescriptions, roleLabels } from '$lib/utils/workspace-util';
+	import { isApiError } from '#lib/api/api-error.js';
+	import type { WorkspaceRole } from '#lib/api/types.js';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import WorkspaceService from '#lib/services/workspace-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { preventDefault } from '#lib/utils/event-util.js';
+	import { createForm } from '#lib/utils/form-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
+	import { roleDescriptions, roleLabels } from '#lib/utils/workspace-util.js';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 

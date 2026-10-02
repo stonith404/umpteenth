@@ -14,9 +14,9 @@
 </script>
 
 <script lang="ts">
-	import type { StatsBucket, StatsDayBucket, StatsJobCost } from '$lib/api/types';
-	import type * as Chart from '$lib/components/ui/chart';
-	import type { UsageFormat } from '$lib/utils/usage-util';
+	import type { StatsBucket, StatsDayBucket, StatsJobCost } from '#lib/api/types.js';
+	import type * as Chart from '#lib/components/ui/chart/index.js';
+	import type { UsageFormat } from '#lib/utils/usage-util.js';
 	import BucketBarChart from './bucket-bar-chart.svelte';
 	import { formatBucketMoment } from './chart-util';
 

@@ -1,4 +1,4 @@
-import UserService from '$lib/services/user-service';
+import UserService from '#lib/services/user-service.js';
 import type { PageLoad } from './$types';
 
 // Only passkey accounts have passkeys, the others sign in through their provider

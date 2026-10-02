@@ -12,8 +12,8 @@ Use it in a column made by `actionsColumn`, e.g.
 `<RowActions name={secret.name} items={[{ label: 'Update value', icon: PencilIcon, onSelect: () => edit(secret) }, { label: 'Delete', icon: Trash2Icon, variant: 'destructive', onSelect: () => remove(secret) }]} />`
 -->
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
 	import type { RowAction } from './types';
 

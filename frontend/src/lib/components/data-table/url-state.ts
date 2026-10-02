@@ -1,4 +1,4 @@
-import { MAX_PAGE_SIZE } from '$lib/services/api-service';
+import { MAX_PAGE_SIZE } from '#lib/services/api-service.js';
 import type { SortingState } from '@tanstack/table-core';
 
 // Everything a table keeps in the URL, so filtered views are linkable and survive reload and back/forward
@@ -22,7 +22,10 @@ function paramName(key: string, prefix?: string) {
 	return prefix ? `${prefix}_${key}` : key;
 }
 
-export function readTableUrlState(params: URLSearchParams, config: TableUrlConfig): TableUrlState {
+export function readTableUrlState(
+	params: Pick<URLSearchParams, 'get'>,
+	config: TableUrlConfig
+): TableUrlState {
 	const get = (key: string) => params.get(paramName(key, config.prefix));
 
 	const filters: Record<string, string[]> = {};

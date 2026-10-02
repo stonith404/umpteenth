@@ -1,15 +1,15 @@
 <script lang="ts">
-	import type { Model, Provider, ProviderTestResult } from '$lib/api/types';
-	import ModelSelect from '$lib/components/model-select.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import ProviderService from '$lib/services/provider-service';
-	import { apiErrorToast } from '$lib/utils/error-util';
-	import { formatDuration } from '$lib/utils/format-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import type { Model, Provider, ProviderTestResult } from '#lib/api/types.js';
+	import ModelSelect from '#lib/components/model-select.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import ProviderService from '#lib/services/provider-service.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
+	import { formatDuration } from '#lib/utils/format-util.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 	import { untrack } from 'svelte';

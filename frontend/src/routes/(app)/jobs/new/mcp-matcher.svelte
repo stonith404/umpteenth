@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { JobMcpNeed, McpServer } from '$lib/api/types';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Field from '$lib/components/ui/field';
-	import { transportLabel } from '$lib/utils/mcp-util';
-	import { cn } from '$lib/utils/style';
+	import type { JobMcpNeed, McpServer } from '#lib/api/types.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { transportLabel } from '#lib/utils/mcp-util.js';
+	import { cn } from '#lib/utils/style.js';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 
 	let {

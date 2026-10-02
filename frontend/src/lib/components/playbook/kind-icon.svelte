@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PlaybookChangeKind } from '$lib/utils/playbook-util';
+	import type { PlaybookChangeKind } from '#lib/utils/playbook-util.js';
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
 	import ContainerIcon from '@lucide/svelte/icons/container';
 	import FileCodeIcon from '@lucide/svelte/icons/file-code';

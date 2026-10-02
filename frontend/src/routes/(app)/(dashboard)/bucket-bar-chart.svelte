@@ -5,9 +5,9 @@
 </script>
 
 <script lang="ts">
-	import type { StatsBucket } from '$lib/api/types';
-	import * as Chart from '$lib/components/ui/chart';
-	import type { TooltipPayload } from '$lib/components/ui/chart/chart-utils';
+	import type { StatsBucket } from '#lib/api/types.js';
+	import * as Chart from '#lib/components/ui/chart/index.js';
+	import type { TooltipPayload } from '#lib/components/ui/chart/chart-utils.js';
 	import { BarChart, type ChartState } from 'layerchart';
 	import ChartLegend from './chart-legend.svelte';
 	import {

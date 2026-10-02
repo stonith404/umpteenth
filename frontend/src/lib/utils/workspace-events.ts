@@ -1,6 +1,6 @@
 import { invalidate } from '$app/navigation';
 import { navigating } from '$app/state';
-import type { WorkspaceEvent } from '$lib/api/types';
+import type { WorkspaceEvent } from '#lib/api/types.js';
 
 // Live run changes of the workspace from `GET /api/events`, shared by every table and dashboard on the page
 // One EventSource serves all subscribers, so a page with several live views still holds a single connection

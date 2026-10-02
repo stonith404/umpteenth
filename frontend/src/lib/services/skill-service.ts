@@ -1,4 +1,4 @@
-import type { QueryOf } from '$lib/api/types';
+import type { QueryOf } from '#lib/api/types.js';
 import APIService from './api-service';
 
 // The largest zip the backend takes, so the upload dialog can refuse a bigger one before sending it
