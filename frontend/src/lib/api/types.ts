@@ -71,7 +71,10 @@ export type JobVersionMarker = Schemas['VersionMarker'];
 export type JobRunNow = RequestBodyOf<'run-job'>;
 export type JobStateEntry = Schemas['StateEntryDto'];
 export type JobServer = Schemas['JobServer'];
+export type JobSkill = Schemas['JobSkill'];
 export type JobSecret = Schemas['JobSecret'];
+// A credential the compile step found the job's commands need, with the configured secret that holds it
+export type JobSecretNeed = Schemas['SecretNeed'];
 export type PlaybookVersion = Schemas['VersionDto'];
 export type PlaybookVersionListItem = Schemas['VersionListDto'];
 export type PlaybookContent = Schemas['Content'];
@@ -88,6 +91,11 @@ export type McpServerAuth = Schemas['AuthDto'];
 export type McpServerBody = Schemas['ServerBody'];
 export type McpToolInfo = Schemas['ToolInfo'];
 export type McpTestResult = ResponseOf<'test-mcp-server'>;
+
+// Agent skills
+export type Skill = Schemas['SkillDto'];
+export type SkillFile = Schemas['SkillFile'];
+export type SkillChoice = Schemas['SkillChoice'];
 
 // Providers, models and secrets
 export type Provider = Schemas['ProviderDto'];

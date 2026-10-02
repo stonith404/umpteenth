@@ -15,6 +15,7 @@
 	import SandboxCard from './sandbox-card.svelte';
 	import ScheduleCard from './schedule-card.svelte';
 	import SecretsCard from './secrets-card.svelte';
+	import SkillsCard from './skills-card.svelte';
 	import SpecCard from './spec-card.svelte';
 	import WebhookCard from './webhook-card.svelte';
 
@@ -82,6 +83,25 @@
 			</Card.Header>
 			<Card.Content>
 				<LoadError title="Couldn't load the job's MCP servers" error={data.jobServers.error} />
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
+	{#if data.jobSkills.data}
+		<SkillsCard
+			jobId={job.id}
+			attached={data.jobSkills.data}
+			skills={data.skills.data}
+			skillsError={data.skills.error}
+		/>
+	{:else}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Skills</Card.Title>
+				<Card.Description>Every run gets the attached skills in /ump/skills.</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<LoadError title="Couldn't load the job's skills" error={data.jobSkills.error} />
 			</Card.Content>
 		</Card.Root>
 	{/if}

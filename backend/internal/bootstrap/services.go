@@ -32,6 +32,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 	"github.com/stonith404/umpteenth/backend/internal/secrets"
 	"github.com/stonith404/umpteenth/backend/internal/settings"
+	"github.com/stonith404/umpteenth/backend/internal/skills"
 	"github.com/stonith404/umpteenth/backend/internal/stats"
 	"github.com/stonith404/umpteenth/backend/internal/storage"
 	"github.com/stonith404/umpteenth/backend/internal/system"
@@ -52,6 +53,7 @@ type services struct {
 	images        *images.Module
 	secrets       *secrets.Module
 	mcpServers    *mcpservers.Module
+	skills        *skills.Module
 	runs          *runs.Module
 	jobs          *jobs.Module
 	stats         *stats.Module
@@ -193,6 +195,8 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 		return nil, err
 	}
 
+	svc.skills = skills.New(skills.Dependencies{DB: db, Storage: fileStorage, Egress: guard, ImportLimiter: expensiveLimiter})
+
 	svc.runs, err = runs.New(runs.Dependencies{
 		DB: db, Actors: actors, Bus: bus, Storage: fileStorage, Adapter: svc.adapter,
 		MaxConcurrentRuns:   cfg.Runs.MaxConcurrent,
@@ -211,7 +215,7 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 
 	svc.jobs, err = jobs.New(jobs.Dependencies{
 		DB: db, Actors: actors, Runs: svc.runs, Playbooks: svc.playbook, Settings: svc.settings,
-		Models: modelResolver{svc.providers.Service()}, Secrets: svc.secrets, MCP: svc.mcpServers,
+		Models: modelResolver{svc.providers.Service()}, Secrets: svc.secrets, MCP: svc.mcpServers, Skills: svc.skills,
 		SandboxInfo:    svc.sandboxInfo,
 		WebhookLimiter: webhookLimiter,
 		CompileLimiter: expensiveLimiter,
@@ -253,7 +257,8 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 	svc.playbook.SetDependencies(svc.jobs, svc.images)
 	svc.secrets.SetJobs(svc.jobs)
 	svc.mcpServers.SetJobs(svc.jobs)
-	svc.workspaces.SetCleanup(workspaceCleanup{jobs: svc.jobs, runs: svc.runs, images: svc.images})
+	svc.skills.SetJobs(svc.jobs)
+	svc.workspaces.SetCleanup(workspaceCleanup{jobs: svc.jobs, runs: svc.runs, images: svc.images, skills: svc.skills})
 
 	// The runner executes runs delivered by the taskpool, and the broker serves them to the ump CLI
 	if svc.adapter != nil {
@@ -261,6 +266,7 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 			DB: db, Runs: svc.runs.Store(), Jobs: svc.jobs, Models: runnerModels{svc.providers.Service()},
 			State: stateStores{svc.jobs}, Adapter: svc.adapter, Images: svc.images,
 			Tools:    []runner.ToolProvider{svc.mcpServers},
+			Skills:   svc.skills,
 			Notifier: notifiers{svc.jobs, svc.reflection, svc.notifications}, Cancel: svc.runs, Live: registry, Bus: bus, Storage: fileStorage,
 			HostID: hostID,
 			UtilityModel: func(ctx context.Context, wid string) (string, error) {

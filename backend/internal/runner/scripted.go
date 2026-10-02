@@ -18,6 +18,9 @@ import (
 // mainPath is where a graduated job's main script lives in the sandbox
 const mainPath = "/ump/main"
 
+// skillsDir holds one folder per skill attached to the job
+const skillsDir = "/ump/skills"
+
 // Limits of what a scripted run hands to the verifier and to a fallback agent
 const (
 	verifyStdoutChars   = 6_000

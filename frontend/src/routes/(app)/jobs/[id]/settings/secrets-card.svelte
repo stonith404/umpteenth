@@ -7,7 +7,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import JobService from '$lib/services/job-service';
 	import { createForm } from '$lib/utils/form-util';
-	import { mergeListChanges } from '$lib/utils/job-util';
+	import { envNameOf, mergeListChanges } from '$lib/utils/job-util';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { z } from 'zod/v4';
@@ -95,11 +95,7 @@
 	function pickSecret(index: number, secretId: string) {
 		mappings[index].secretId = secretId;
 		if (!mappings[index].envName.trim()) {
-			const name = secretById.get(secretId)?.name ?? '';
-			mappings[index].envName = name
-				.toUpperCase()
-				.replace(/[^A-Z0-9_]/g, '_')
-				.replace(/^(\d)/, '_$1');
+			mappings[index].envName = envNameOf(secretById.get(secretId)?.name ?? '');
 		}
 	}
 </script>

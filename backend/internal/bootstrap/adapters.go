@@ -24,6 +24,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 	"github.com/stonith404/umpteenth/backend/internal/sandbox/docker"
 	"github.com/stonith404/umpteenth/backend/internal/sandbox/kubernetes"
+	"github.com/stonith404/umpteenth/backend/internal/skills"
 )
 
 // This file adapts module types to the small interfaces of the engine packages, so neither side imports the other
@@ -198,6 +199,7 @@ type workspaceCleanup struct {
 	jobs   *jobs.Module
 	runs   *runs.Module
 	images *images.Module
+	skills *skills.Module
 }
 
 func (c workspaceCleanup) BeforeDelete(ctx context.Context, workspaceID string) (func(context.Context), error) {
@@ -234,8 +236,13 @@ func (c workspaceCleanup) BeforeDelete(ctx context.Context, workspaceID string) 
 	if err != nil {
 		return nil, err
 	}
+	afterSkills, err := c.skills.ReleaseWorkspace(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
 	return func(ctx context.Context) {
 		afterRuns(ctx)
 		afterImages(ctx)
+		afterSkills(ctx)
 	}, nil
 }

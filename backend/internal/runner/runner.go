@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"maps"
 	"path"
@@ -35,14 +36,16 @@ const (
 
 // Deps are the collaborators of the runner, all of which are required
 type Deps struct {
-	DB       *database.DB
-	Runs     RunStore
-	Jobs     JobLoader
-	Models   ModelResolver
-	State    StateStores
-	Adapter  sandbox.Adapter
-	Images   ImageResolver
-	Tools    []ToolProvider
+	DB      *database.DB
+	Runs    RunStore
+	Jobs    JobLoader
+	Models  ModelResolver
+	State   StateStores
+	Adapter sandbox.Adapter
+	Images  ImageResolver
+	Tools   []ToolProvider
+	// Skills reads the files of a job's skills, nil only in tests that attach none
+	Skills   SkillFiles
 	Notifier Notifier
 	Cancel   CancelWaiter
 	Live     *Registry
@@ -257,10 +260,13 @@ func (r *Runner) execute(ctx context.Context, run Run, rec *events.Recorder) Fin
 	revokeProxy := r.d.Live.GrantProxy(brokerToken, runGrant(live))
 	defer revokeProxy()
 
-	// Inject the run input, the playbook and the toolkit
+	// Inject the run input, the playbook, the toolkit and the job's skills
 	err = r.injectFiles(ctx, sb, run, job)
 	if err != nil {
 		return fail("Failed to prepare the sandbox: %v", err)
+	}
+	if len(job.Skills) > 0 {
+		rec.Emit(ctx, events.Event{Type: events.TypeLog, Payload: map[string]any{"message": skillsMessage(job.Skills)}})
 	}
 
 	// Run the playbook setup script, for cheap per-run preparation
@@ -362,6 +368,7 @@ func (r *Runner) runAgent(ctx context.Context, s *session, resume string) Final 
 			Instruction:     s.job.Instruction,
 			SuccessCriteria: s.job.SuccessCriteria,
 			Outputs:         s.job.Outputs,
+			Skills:          promptSkills(s.job.Skills),
 			Playbook:        s.job.PlaybookRendered,
 		}),
 		Tools: s.tools,
@@ -443,7 +450,79 @@ func (r *Runner) injectFiles(ctx context.Context, sb sandbox.Sandbox, run Run, j
 		}
 		files = append(files, sandbox.File{Path: path.Join("/ump/toolkit", s.Name), Mode: 0o755, Owner: sandbox.UserAgent, Content: []byte(s.Content)})
 	}
-	return sb.PutFiles(ctx, files)
+	err := sb.PutFiles(ctx, files)
+	if err != nil {
+		return err
+	}
+	return r.injectSkills(ctx, sb, run, job)
+}
+
+// injectSkills copies each of the job's skills to /ump/skills/<name>, owned by root so the agent can read and run them but not change them
+// Each skill is copied on its own, since the adapters hold everything one PutFiles call writes in memory
+func (r *Runner) injectSkills(ctx context.Context, sb sandbox.Sandbox, run Run, job JobConfig) error {
+	if len(job.Skills) == 0 {
+		return nil
+	}
+	if r.d.Skills == nil {
+		return errors.New("skills are not available")
+	}
+
+	// The limits are checked when skills are attached, but a skill replaced since then may have grown
+	var total int64
+	for _, s := range job.Skills {
+		total += s.Size
+	}
+	if len(job.Skills) > MaxJobSkills || total > MaxJobSkillsBytes {
+		return fmt.Errorf("the job's skills exceed the limit of %d skills and %d MiB", MaxJobSkills, MaxJobSkillsBytes>>20)
+	}
+
+	for _, s := range job.Skills {
+		// Names are validated on upload, but a name that could escape /ump/skills must never reach the sandbox
+		if !validSkillName(s.Name) {
+			return fmt.Errorf("skill %q has an invalid name", s.Name)
+		}
+		files, err := r.d.Skills.SkillFiles(ctx, run.WorkspaceID, s)
+		if err != nil {
+			return fmt.Errorf("failed to read skill %s: %w", s.Name, err)
+		}
+		for i := range files {
+			if !fs.ValidPath(files[i].Path) {
+				return fmt.Errorf("skill %s has the invalid path %q", s.Name, files[i].Path)
+			}
+			files[i].Path = path.Join(skillsDir, s.Name, files[i].Path)
+			files[i].Owner = sandbox.UserRoot
+		}
+		if err := sb.PutFiles(ctx, files); err != nil {
+			return fmt.Errorf("failed to copy skill %s: %w", s.Name, err)
+		}
+	}
+	return nil
+}
+
+// promptSkills lists the job's skills for the system prompt, pointing at their SKILL.md in the sandbox
+func promptSkills(skills []Skill) []agent.PromptSkill {
+	out := make([]agent.PromptSkill, len(skills))
+	for i, s := range skills {
+		out[i] = agent.PromptSkill{Name: s.Name, Description: s.Description, Path: path.Join(skillsDir, s.Name, "SKILL.md")}
+	}
+	return out
+}
+
+// validSkillName reports whether a skill name is a single safe path element
+func validSkillName(name string) bool {
+	return name != "" && fs.ValidPath(name) && !strings.Contains(name, "/")
+}
+
+// skillsMessage is the timeline note naming the skills a run got
+func skillsMessage(skills []Skill) string {
+	names := make([]string, len(skills))
+	for i, s := range skills {
+		names[i] = s.Name
+	}
+	if len(names) == 1 {
+		return "Added the skill " + names[0]
+	}
+	return fmt.Sprintf("Added %d skills: %s", len(names), strings.Join(names, ", "))
 }
 
 // runSetup runs the playbook's setup script and returns its exit code and the ends of its output

@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"io/fs"
+	"strings"
 	"testing"
 
 	"github.com/italypaleale/francis/host/local"
@@ -69,6 +71,11 @@ func newHarness(t *testing.T) *harness {
 
 // newHarnessWithImages wires an image resolver, e.g. one that waits for a job image to build
 func newHarnessWithImages(t *testing.T, images runner.ImageResolver) *harness {
+	return newHarnessWith(t, images, nil)
+}
+
+// newHarnessWith wires an image resolver and, when not nil, the job's skills
+func newHarnessWith(t *testing.T, images runner.ImageResolver, skills *fakeSkills) *harness {
 	h := &harness{db: testutil.NewDatabaseForTest(t), adapter: sandboxfake.New(), provider: fake.New(), live: runner.NewRegistry()}
 	var err error
 	h.storage, err = storage.NewFilesystemStorage(t.TempDir())
@@ -81,7 +88,11 @@ func newHarnessWithImages(t *testing.T, images runner.ImageResolver) *harness {
 	testutil.NewActorHostForTest(t, func(t *testing.T, host *local.Host) {
 		runsModule, err = runs.New(runs.Dependencies{DB: h.db, Actors: host, Bus: bus, Storage: h.storage, Adapter: h.adapter, MaxConcurrentRuns: 1, MaintenanceDisabled: true})
 		require.NoError(t, err)
-		jobsModule, err = jobs.New(jobs.Dependencies{DB: h.db, Actors: host, Runs: runsModule, Playbooks: playbook.New(playbook.Dependencies{DB: h.db}), Settings: settingsModule})
+		deps := jobs.Dependencies{DB: h.db, Actors: host, Runs: runsModule, Playbooks: playbook.New(playbook.Dependencies{DB: h.db}), Settings: settingsModule}
+		if skills != nil {
+			deps.Skills = skills
+		}
+		jobsModule, err = jobs.New(deps)
 		require.NoError(t, err)
 	})
 
@@ -91,13 +102,33 @@ func newHarnessWithImages(t *testing.T, images runner.ImageResolver) *harness {
 	testutil.Exec(t, h.db, "INSERT INTO settings (workspace_id, key, value) VALUES ($1, 'agentModelId', '\"m1\"')", h.wid)
 
 	h.runs = runsModule
-	h.runner = runner.New(runner.Deps{
+	deps := runner.Deps{
 		DB: h.db, Runs: runsModule.Store(), Jobs: jobsModule, Models: models{h.provider}, State: states{jobsModule},
 		Adapter: h.adapter, Images: images, Live: h.live, Bus: bus, Storage: h.storage, HostID: "test",
 		Notifier: h, Cancel: runsModule,
 		UtilityModel: func(context.Context, string) (string, error) { return "", nil },
-	})
+	}
+	if skills != nil {
+		deps.Skills = skills
+	}
+	h.runner = runner.New(deps)
 	return h
+}
+
+// fakeSkills attaches the same skills to every job
+type fakeSkills struct {
+	skills []runner.Skill
+	files  map[string][]sandbox.File
+}
+
+func (f *fakeSkills) Skills(context.Context, string) ([]runner.Skill, error) { return f.skills, nil }
+
+func (f *fakeSkills) JobSkills(context.Context, string, string) ([]runner.Skill, error) {
+	return f.skills, nil
+}
+
+func (f *fakeSkills) SkillFiles(_ context.Context, _ string, s runner.Skill) ([]sandbox.File, error) {
+	return f.files[s.Name], nil
 }
 
 func (h *harness) seedRun(t *testing.T, status string) string {
@@ -360,4 +391,64 @@ func TestAgentRunCountsUmpLLMCallsLeftRunning(t *testing.T) {
 	status, errMsg, _, _, cost := h.run(t, id)
 	require.Equal(t, runner.StatusSucceeded, status, errMsg)
 	assert.EqualValues(t, 9000+4500+5000, cost)
+}
+
+func TestSkillsAreCopiedReadOnlyAndListedInThePrompt(t *testing.T) {
+	skills := &fakeSkills{
+		skills: []runner.Skill{{ID: "s1", Name: "demo", Description: "Says hello\nwhen asked", Size: 20}},
+		files: map[string][]sandbox.File{"demo": {
+			{Path: "SKILL.md", Mode: 0o644, Content: []byte("---\nname: demo\n---\n")},
+			{Path: "scripts/hello.sh", Mode: 0o755, Content: []byte("echo hi")},
+		}},
+	}
+	h := newHarnessWith(t, baseImages{}, skills)
+
+	// The agent reads the skill, which is where the test looks at the sandbox
+	type seen struct {
+		mode  fs.FileMode
+		owner sandbox.User
+		ok    bool
+	}
+	files := map[string]seen{}
+	h.onBash(func(ctx context.Context, sb *sandboxfake.Sandbox, req sandbox.ExecRequest) (sandbox.ExecResult, error) {
+		for _, p := range []string{"/ump/skills/demo/SKILL.md", "/ump/skills/demo/scripts/hello.sh"} {
+			_, mode, owner, ok := sb.File(p)
+			files[p] = seen{mode, owner, ok}
+		}
+		return sandbox.ExecResult{}, nil
+	})
+	h.provider.Enqueue(
+		fake.ScriptedResponse{ToolCalls: []fake.ScriptedToolCall{{Name: "bash", Args: map[string]any{"command": "cat /ump/skills/demo/SKILL.md"}}}},
+		fake.ScriptedResponse{ToolCalls: []fake.ScriptedToolCall{{Name: "finish", Args: map[string]any{"status": "success", "summary": "done"}}}},
+	)
+	id := h.seedRun(t, runner.StatusQueued)
+	require.NoError(t, h.runner.Execute(context.Background(), id))
+	status, errMsg, _, _, _ := h.run(t, id)
+	require.Equal(t, runner.StatusSucceeded, status, errMsg)
+
+	// The files belong to root, so the agent can read and run them but not change them
+	require.Equal(t, seen{0o644, sandbox.UserRoot, true}, files["/ump/skills/demo/SKILL.md"])
+	require.Equal(t, seen{0o755, sandbox.UserRoot, true}, files["/ump/skills/demo/scripts/hello.sh"])
+
+	// The prompt lists the skill with its SKILL.md
+	var system strings.Builder
+	for _, b := range h.provider.Requests()[0].System {
+		system.WriteString(b.Text)
+	}
+	require.Contains(t, system.String(), "## Skills\n")
+	require.Contains(t, system.String(), "- demo: Says hello when asked (/ump/skills/demo/SKILL.md)\n")
+
+	// The timeline says which skills the run got
+	require.Contains(t, h.eventPayloads(t, id, events.TypeLog), map[string]any{"message": "Added the skill demo"})
+}
+
+func TestSkillsOverTheLimitFailTheRun(t *testing.T) {
+	skills := &fakeSkills{skills: []runner.Skill{{ID: "s1", Name: "huge", Description: "Too big", Size: runner.MaxJobSkillsBytes + 1}}}
+	h := newHarnessWith(t, baseImages{}, skills)
+	id := h.seedRun(t, runner.StatusQueued)
+	require.NoError(t, h.runner.Execute(context.Background(), id))
+	status, errMsg, _, _, _ := h.run(t, id)
+	require.Equal(t, runner.StatusFailed, status)
+	require.Contains(t, errMsg, "Failed to prepare the sandbox")
+	require.Empty(t, h.provider.Requests())
 }

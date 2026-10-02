@@ -42,9 +42,23 @@ type PromptInput struct {
 	Instruction     string
 	SuccessCriteria []string
 	Outputs         []string
+	// Skills are the agent skills in the sandbox, sorted by name
+	Skills []PromptSkill
 	// Playbook is the rendered playbook, empty for a job that has not learned anything yet
 	Playbook string
 }
+
+// PromptSkill is a skill as the agent first sees it, which reads the rest from Path when the skill fits
+type PromptSkill struct {
+	Name        string
+	Description string
+	Path        string
+}
+
+// skillsIntro tells the agent how to use skills, which it only reads in full once one fits the task
+const skillsIntro = `## Skills
+Skills are folders in /ump/skills with instructions, scripts and resources for specific tasks. When a skill below fits the task, read its SKILL.md with read_file before you start and follow it; open the other files it mentions only when you need them. Paths in a SKILL.md are relative to its folder. Skill folders are read-only, so write your own files to /workspace.
+`
 
 // SystemBlocks builds the system prompt, ordered from stable to volatile
 // Everything here is byte-stable for a given job and playbook version, so consecutive runs hit the prefix cache
@@ -68,8 +82,19 @@ func SystemBlocks(in PromptInput) []llm.Block {
 
 	blocks := []llm.Block{
 		{Text: baseInstructions, CacheBreakpoint: true},
-		{Text: job.String(), CacheBreakpoint: in.Playbook == ""},
+		{Text: job.String()},
 	}
+
+	// Skills change less often than the playbook, so they come before it in the cached prefix
+	if len(in.Skills) > 0 {
+		var skills strings.Builder
+		skills.WriteString(skillsIntro)
+		for _, s := range in.Skills {
+			fmt.Fprintf(&skills, "- %s: %s (%s)\n", s.Name, strings.Join(strings.Fields(s.Description), " "), s.Path)
+		}
+		blocks = append(blocks, llm.Block{Text: skills.String()})
+	}
+	blocks[len(blocks)-1].CacheBreakpoint = in.Playbook == ""
 	if in.Playbook != "" {
 		blocks = append(blocks, llm.Block{Text: "## What earlier runs learned\n" + in.Playbook, CacheBreakpoint: true})
 	}

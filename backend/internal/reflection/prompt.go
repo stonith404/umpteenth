@@ -94,11 +94,13 @@ type input struct {
 	Inputs          []string
 	Outputs         []string
 	BaseImage       string
-	Playbook        playbook.Content
-	Run             runFacts
-	Transcript      transcript
-	Candidates      []candidate
-	Previous        []runFacts
+	// Skills are the names of the job's agent skills, whose folders are in every sandbox
+	Skills     []string
+	Playbook   playbook.Content
+	Run        runFacts
+	Transcript transcript
+	Candidates []candidate
+	Previous   []runFacts
 	// InstallHistory holds the environment timings of this run and the ones before it, newest first
 	InstallHistory []Timings
 	Graduation     graduation
@@ -145,6 +147,10 @@ func (in input) userMessage() string {
 		fmt.Fprintf(&b, "- output: %s\n", o)
 	}
 	fmt.Fprintf(&b, "Base image: %s\n", in.BaseImage)
+	if len(in.Skills) > 0 {
+		// Skills are in every sandbox, so scripts can call them where they are instead of copying them into the playbook
+		fmt.Fprintf(&b, "Skills in /ump/skills, which main and toolkit scripts may call by path but should never copy: %s\n", strings.Join(in.Skills, ", "))
+	}
 
 	section("The current playbook")
 	pb, _ := json.MarshalIndent(in.Playbook, "", "  ")

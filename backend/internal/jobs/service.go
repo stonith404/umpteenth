@@ -229,6 +229,12 @@ func (m *Module) LoadForRun(ctx context.Context, workspaceID, jobID string, play
 			return runner.JobConfig{}, fmt.Errorf("failed to load job secrets: %w", err)
 		}
 	}
+	if m.deps.Skills != nil {
+		cfg.Skills, err = m.deps.Skills.JobSkills(ctx, workspaceID, jobID)
+		if err != nil {
+			return runner.JobConfig{}, fmt.Errorf("failed to load job skills: %w", err)
+		}
+	}
 	return cfg, nil
 }
 

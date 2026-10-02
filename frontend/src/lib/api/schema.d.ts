@@ -524,6 +524,22 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/jobs/{id}/skills': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations['get-job-skills'];
+		put: operations['set-job-skills'];
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/jobs/{id}/state': {
 		parameters: {
 			query?: never;
@@ -1034,6 +1050,134 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/skills': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations['list-skills'];
+		put?: never;
+		post: operations['create-skill'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/skills/delete': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['delete-skills'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/skills/import': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['import-skill'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/skills/import/preview': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['preview-skill-import'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/skills/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations['get-skill'];
+		put: operations['replace-skill'];
+		post?: never;
+		delete: operations['delete-skill'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/skills/{id}/download': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations['download-skill'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/skills/{id}/file': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations['get-skill-file'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/skills/{id}/import': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations['reimport-skill'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/stats/overview': {
 		parameters: {
 			query?: never;
@@ -1525,6 +1669,10 @@ export interface components {
 		};
 		CompileOutputBody: {
 			questions: components['schemas']['Question'][] | null;
+			/** @description Credentials the job's commands need as environment variables */
+			secrets: components['schemas']['SecretNeed'][] | null;
+			/** @description Names of configured skills that fit the job */
+			skills: string[] | null;
 			spec: components['schemas']['Spec'];
 		};
 		Content: {
@@ -1647,6 +1795,16 @@ export interface components {
 			 */
 			tokens: number;
 		};
+		DeleteManyInputBody: {
+			/** @description The skills to delete */
+			ids: string[] | null;
+		};
+		DeleteManyOutputBody: {
+			/** @description The skills that were deleted */
+			deleted: string[] | null;
+			/** @description The skills that were left alone because they don't exist, such as ones deleted meanwhile */
+			skipped: string[] | null;
+		};
 		DeleteRunsInputBody: {
 			/** @description The runs to delete */
 			ids: string[] | null;
@@ -1727,6 +1885,15 @@ export interface components {
 		};
 		ImageIDOutputBody: {
 			id: string;
+		};
+		ImportInputBody: {
+			/** @description The skills to add from a GitHub folder of several, as folders relative to it like the preview lists them */
+			paths?: string[] | null;
+			/** @description A GitHub link to a skill's folder or its SKILL.md, or a link to a zip or .skill file */
+			url: string;
+		};
+		ImportOutputBody: {
+			skills: components['schemas']['SkillDto'][] | null;
 		};
 		InfoOutputBody: {
 			allowPrivateNetworkTargets: boolean;
@@ -1917,6 +2084,10 @@ export interface components {
 			allowedTools: string[] | null;
 			serverId: string;
 			readonly serverName?: string;
+		};
+		JobSkill: {
+			skillId: string;
+			readonly skillName?: string;
 		};
 		JobStatsOutputBody: {
 			/**
@@ -2207,6 +2378,15 @@ export interface components {
 			/** Format: int64 */
 			total: number;
 		};
+		PaginatedSkillDto: {
+			items: components['schemas']['SkillDto'][];
+			/** Format: int64 */
+			page: number;
+			/** Format: int64 */
+			pageSize: number;
+			/** Format: int64 */
+			total: number;
+		};
 		PaginatedStateEntryDto: {
 			items: components['schemas']['StateEntryDto'][];
 			/** Format: int64 */
@@ -2240,6 +2420,13 @@ export interface components {
 		PasskeyResponseInputBody: {
 			/** @description The PublicKeyCredential the browser created or signed with, in its JSON form */
 			credential: unknown;
+		};
+		PreviewInputBody: {
+			/** @description A GitHub link to a folder or repository with skills */
+			url: string;
+		};
+		PreviewOutputBody: {
+			skills: components['schemas']['SkillChoice'][] | null;
 		};
 		Price: {
 			/** Format: int64 */
@@ -2288,6 +2475,10 @@ export interface components {
 			/** @description Likely answers the user can pick, empty when only the user can know */
 			options: string[] | null;
 			question: string;
+		};
+		ReimportInputBody: {
+			/** @description The link to import the new version from, the skill's own link when omitted */
+			url?: string;
 		};
 		RenamePasskeyInputBody: {
 			name: string;
@@ -2496,6 +2687,12 @@ export interface components {
 			/** Format: int64 */
 			updatedAt: number;
 		};
+		SecretNeed: {
+			envName: string;
+			/** @description Name of the configured secret that holds the value, empty when none does */
+			secret: string;
+			why: string;
+		};
 		ServerBody: {
 			args?: string[] | null;
 			command?: string;
@@ -2575,6 +2772,54 @@ export interface components {
 		SignedInOutputBody: {
 			/** @description Relative path to continue at */
 			redirect: string;
+		};
+		SkillChoice: {
+			description: string;
+			/** @description Whether the workspace already has a skill with this name */
+			exists: boolean;
+			name: string;
+			/** @description The skill's folder, relative to the folder the link points at */
+			path: string;
+			/** @description Why the skill can't be added, such as a SKILL.md without a description */
+			problem?: string;
+			/** @description A link to the skill's own folder */
+			url: string;
+		};
+		SkillDto: {
+			/**
+			 * Format: int64
+			 * @description Size of the stored zip in bytes
+			 */
+			archiveSize: number;
+			contentHash: string;
+			/** Format: int64 */
+			createdAt: number;
+			description: string;
+			/** Format: int64 */
+			fileCount: number;
+			files: components['schemas']['SkillFile'][] | null;
+			id: string;
+			/**
+			 * Format: int64
+			 * @description How many jobs use the skill
+			 */
+			jobCount: number;
+			name: string;
+			/**
+			 * Format: int64
+			 * @description Unpacked size in bytes
+			 */
+			size: number;
+			/** @description The link the skill was imported from, null for an uploaded skill */
+			sourceUrl: string | null;
+			/** Format: int64 */
+			updatedAt: number;
+		};
+		SkillFile: {
+			executable: boolean;
+			path: string;
+			/** Format: int64 */
+			size: number;
 		};
 		Spec: {
 			dockerfile: string | null;
@@ -4163,6 +4408,72 @@ export interface operations {
 			};
 		};
 	};
+	'get-job-skills': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['JobSkill'][] | null;
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'set-job-skills': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['JobSkill'][] | null;
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['JobSkill'][] | null;
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
 	'list-job-state': {
 		parameters: {
 			query?: {
@@ -5672,6 +5983,366 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content?: never;
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'list-skills': {
+		parameters: {
+			query?: {
+				/** @description 1-based page number */
+				page?: number;
+				/** @description Items per page */
+				pageSize?: number;
+				/** @description Comma-separated sort keys, prefix with - for descending */
+				sort?: string;
+				/** @description Free-text search */
+				search?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PaginatedSkillDto'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'create-skill': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/zip': string;
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SkillDto'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'delete-skills': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['DeleteManyInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['DeleteManyOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'import-skill': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ImportInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ImportOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'preview-skill-import': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['PreviewInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PreviewOutputBody'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'get-skill': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SkillDto'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'replace-skill': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/zip': string;
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SkillDto'];
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'delete-skill': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description No Content */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'download-skill': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'get-skill-file': {
+		parameters: {
+			query: {
+				path: string;
+			};
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'reimport-skill': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ReimportInputBody'];
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SkillDto'];
+				};
 			};
 			/** @description Error */
 			default: {

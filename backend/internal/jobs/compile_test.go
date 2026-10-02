@@ -16,6 +16,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/llm/fake"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
 	"github.com/stonith404/umpteenth/backend/internal/principal"
+	"github.com/stonith404/umpteenth/backend/internal/runner"
 	"github.com/stonith404/umpteenth/backend/internal/settings"
 	"github.com/stonith404/umpteenth/backend/internal/testutil"
 )
@@ -251,4 +252,77 @@ func TestCleanQuestions(t *testing.T) {
 
 	// Once the user answered, nothing is asked again
 	require.Empty(t, cleanQuestions(asked, false))
+}
+
+// staticSkills is a workspace with a fixed skill catalog
+type staticSkills []runner.Skill
+
+func (s staticSkills) Skills(context.Context, string) ([]runner.Skill, error) { return s, nil }
+
+func (s staticSkills) JobSkills(context.Context, string, string) ([]runner.Skill, error) {
+	return s, nil
+}
+
+func TestCompileSuggestsConfiguredSkills(t *testing.T) {
+	f := newCompileFixture(t)
+	f.useModel(t)
+	f.m.deps.Skills = staticSkills{{Name: "pdf", Description: "Fills PDF\nforms"}, {Name: "slack-style", Description: "Writes Slack messages"}}
+	f.answer(t, map[string]any{
+		"title": "Forms", "goal": "Fill the form", "schedule": nil, "successCriteria": []string{}, "inputs": []any{}, "outputs": []any{},
+		"mcp": []any{}, "skills": []string{"pdf", "made-up", " pdf "}, "network": "none", "dockerfile": nil, "sideEffects": []string{}, "questions": []any{},
+	})
+
+	ctx := principal.WithPrincipal(context.Background(), principal.Principal{UserID: "u1", WorkspaceID: f.wid})
+	in := &compileInput{}
+	in.Body.Instruction = "Fill the tax form"
+	out, err := f.m.compile(ctx, in)
+	require.NoError(t, err)
+
+	// Only skills that exist are suggested, each once
+	require.Equal(t, []string{"pdf"}, out.Body.Skills)
+
+	// The model saw each skill with its description
+	prompt := f.provider.Requests()[0].Messages[0].Text()
+	require.Contains(t, prompt, "Configured skills:\n- pdf: Fills PDF forms\n- slack-style: Writes Slack messages")
+}
+
+// namedSecrets is a workspace with a fixed list of secrets, whose values the compile step never sees
+type namedSecrets []string
+
+func (s namedSecrets) EnvForJob(context.Context, string, string) (map[string]string, error) {
+	return nil, nil
+}
+
+func (s namedSecrets) SecretNames(context.Context, string) ([]string, error) { return s, nil }
+
+func TestCompileSuggestsSecrets(t *testing.T) {
+	f := newCompileFixture(t)
+	f.useModel(t)
+	f.m.deps.Secrets = namedSecrets{"crowdin-token", "github"}
+	f.answer(t, map[string]any{
+		"title": "Context", "goal": "Add context", "schedule": nil, "successCriteria": []string{}, "inputs": []any{}, "outputs": []any{},
+		"mcp": []any{}, "skills": []string{}, "network": "internet", "dockerfile": nil, "sideEffects": []string{}, "questions": []any{},
+		"secrets": []map[string]any{
+			{"envName": "CROWDIN_PERSONAL_TOKEN", "secret": "Crowdin-Token", "why": "The Crowdin CLI authenticates with it"},
+			{"envName": "CROWDIN_PROJECT_ID", "secret": "missing", "why": "Names the project"},
+			{"envName": " CROWDIN_PERSONAL_TOKEN ", "secret": "", "why": "Twice"},
+			{"envName": "1BAD-NAME", "secret": "github", "why": "Not a variable name"},
+		},
+	})
+
+	ctx := principal.WithPrincipal(context.Background(), principal.Principal{UserID: "u1", WorkspaceID: f.wid})
+	in := &compileInput{}
+	in.Body.Instruction = "Add translator context in Crowdin"
+	out, err := f.m.compile(ctx, in)
+	require.NoError(t, err)
+
+	// Each variable comes once with a valid name, and only a secret that exists is matched, in its stored spelling
+	require.Equal(t, []SecretNeed{
+		{EnvName: "CROWDIN_PERSONAL_TOKEN", Secret: "crowdin-token", Why: "The Crowdin CLI authenticates with it"},
+		{EnvName: "CROWDIN_PROJECT_ID", Secret: "", Why: "Names the project"},
+	}, out.Body.Secrets)
+
+	// The model saw the secret names
+	prompt := f.provider.Requests()[0].Messages[0].Text()
+	require.Contains(t, prompt, "Configured secrets: crowdin-token, github")
 }

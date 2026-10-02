@@ -13,7 +13,7 @@ export const roleLabels: Record<WorkspaceRole, string> = {
 
 export const roleDescriptions: Record<Exclude<WorkspaceRole, 'owner'>, string> = {
 	admin: 'Manages members, providers and settings.',
-	member: 'Works with jobs, runs, MCP servers and secrets.'
+	member: 'Works with jobs, runs, MCP servers, skills and secrets.'
 };
 
 // Whether the user's role in their current workspace allows everything the given role may do

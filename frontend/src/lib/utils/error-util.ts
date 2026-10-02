@@ -164,6 +164,7 @@ const sectionHomes: Record<string, { href: string; label: string }> = {
 	jobs: { href: '/jobs', label: 'Back to jobs' },
 	runs: { href: '/runs', label: 'Back to runs' },
 	mcp: { href: '/mcp', label: 'Back to MCP servers' },
+	skills: { href: '/skills', label: 'Back to skills' },
 	settings: { href: '/settings', label: 'Back to settings' }
 };
 

@@ -14,7 +14,7 @@ import (
 
 // tenantTables are the tables whose rows carry workspace_id
 // Child tables such as job_state are reached through their scoped parent and are checked by the services instead
-var tenantTables = []string{"providers", "models", "settings", "secrets", "mcp_servers", "jobs", "runs", "api_tokens", "workspace_members", "workspace_invites"}
+var tenantTables = []string{"providers", "models", "settings", "secrets", "mcp_servers", "skills", "jobs", "runs", "api_tokens", "workspace_members", "workspace_invites"}
 
 var queryHeader = regexp.MustCompile(`(?m)^-- name: (\w+)`)
 

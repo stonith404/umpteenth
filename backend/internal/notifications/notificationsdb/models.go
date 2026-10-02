@@ -80,6 +80,11 @@ type JobSecret struct {
 	EnvName  string
 }
 
+type JobSkill struct {
+	JobID   string
+	SkillID string
+}
+
 type JobState struct {
 	JobID     string
 	Key       string
@@ -286,6 +291,21 @@ type SignInLink struct {
 	UserID    string
 	CreatedAt int64
 	ExpiresAt int64
+}
+
+type Skill struct {
+	ID          string
+	WorkspaceID string
+	Name        string
+	Description string
+	ContentHash string
+	Files       string
+	FileCount   int64
+	Size        int64
+	ArchiveSize int64
+	SourceUrl   *string
+	CreatedAt   int64
+	UpdatedAt   int64
 }
 
 type User struct {

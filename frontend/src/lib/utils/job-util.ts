@@ -194,3 +194,11 @@ export function jobScheduleParts(
 	const human = job.spec.schedule?.cron === job.cron ? job.spec.schedule?.human : null;
 	return scheduleParts({ cron: job.cron, timezone: job.timezone, scheduleHuman: human });
 }
+
+// The environment variable name a secret's name suggests, e.g. github-token becomes GITHUB_TOKEN
+export function envNameOf(secretName: string) {
+	return secretName
+		.toUpperCase()
+		.replace(/[^A-Z0-9_]/g, '_')
+		.replace(/^(\d)/, '_$1');
+}

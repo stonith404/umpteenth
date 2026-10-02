@@ -15,6 +15,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/jobs/jobsdb"
 	"github.com/stonith404/umpteenth/backend/internal/llm"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
+	"github.com/stonith404/umpteenth/backend/internal/runner"
 	"github.com/stonith404/umpteenth/backend/internal/runs"
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 	"github.com/stonith404/umpteenth/backend/internal/settings"
@@ -44,9 +45,10 @@ type ModelResolver interface {
 	ModelExists(ctx context.Context, workspaceID, modelID string) (bool, error)
 }
 
-// SecretEnv resolves the job's secrets to environment variables for its sandbox
+// SecretEnv resolves the job's secrets to environment variables for its sandbox, and lists the secret names the compile step matches
 type SecretEnv interface {
 	EnvForJob(ctx context.Context, workspaceID, jobID string) (map[string]string, error)
+	SecretNames(ctx context.Context, workspaceID string) ([]string, error)
 }
 
 // MCPCatalog lists the workspace's MCP servers, used by the compile step to match needs to servers
@@ -54,12 +56,18 @@ type MCPCatalog interface {
 	ServerNames(ctx context.Context, workspaceID string) ([]string, error)
 }
 
+// SkillCatalog lists the workspace's agent skills for the compile step, and a job's skills for its runs
+type SkillCatalog interface {
+	Skills(ctx context.Context, workspaceID string) ([]runner.Skill, error)
+	JobSkills(ctx context.Context, workspaceID, jobID string) ([]runner.Skill, error)
+}
+
 // RateLimiter decides whether a webhook call or a compile may proceed
 type RateLimiter interface {
 	Allow(ctx context.Context, key string) (bool, time.Duration, error)
 }
 
-// Dependencies wire the module; Secrets, MCP, SandboxInfo and the limiters are optional, and a nil Models skips the model checks
+// Dependencies wire the module; Secrets, MCP, Skills, SandboxInfo and the limiters are optional, and a nil Models skips the model checks
 type Dependencies struct {
 	DB        *database.DB
 	Actors    francishost.Host
@@ -69,6 +77,7 @@ type Dependencies struct {
 	Models    ModelResolver
 	Secrets   SecretEnv
 	MCP       MCPCatalog
+	Skills    SkillCatalog
 	// SandboxInfo reports the active adapter's capabilities, which decide the networks a job may pick
 	SandboxInfo    func(ctx context.Context) (sandbox.Info, error)
 	WebhookLimiter RateLimiter

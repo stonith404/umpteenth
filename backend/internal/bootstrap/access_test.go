@@ -52,7 +52,7 @@ var operationAccess = map[string]httpserver.Access{
 	"list-models": anyone, "create-model": admin, "update-model": admin, "delete-model": admin, "get-model-catalog": anyone,
 	"get-settings": anyone, "update-settings": admin, "test-notification": admin, "get-system-info": anyone,
 
-	// Jobs, runs, secrets and MCP servers are every member's work
+	// Jobs, runs, secrets, MCP servers and skills are every member's work
 	"list-jobs": anyone, "create-job": anyone, "compile-job": anyone, "get-job": anyone, "update-job": anyone, "delete-job": anyone,
 	"run-job": anyone, "rotate-webhook-token": anyone, "trigger-webhook": anyone, "get-job-stats": anyone,
 	"list-job-state": anyone, "get-job-state": anyone, "put-job-state": anyone, "delete-job-state": anyone,
@@ -65,6 +65,8 @@ var operationAccess = map[string]httpserver.Access{
 	"list-secrets":       anyone, "create-secret": anyone, "update-secret": anyone, "delete-secret": anyone,
 	"list-mcp-servers": anyone, "create-mcp-server": anyone, "get-mcp-server": anyone, "update-mcp-server": anyone, "delete-mcp-server": anyone,
 	"test-mcp-server": anyone, "login-mcp-server": session, "mcp-server-oauth-callback": anyone, "logout-mcp-server": anyone,
+	"list-skills": anyone, "create-skill": anyone, "import-skill": anyone, "preview-skill-import": anyone, "get-skill": anyone, "replace-skill": anyone, "reimport-skill": anyone, "delete-skill": anyone, "delete-skills": anyone,
+	"get-skill-file": anyone, "download-skill": anyone, "get-job-skills": anyone, "set-job-skills": anyone,
 }
 
 func TestEveryOperationHasTheExpectedAccessRule(t *testing.T) {

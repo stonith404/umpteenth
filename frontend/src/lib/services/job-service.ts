@@ -6,6 +6,7 @@ import type {
 	JobRunNow,
 	JobSecret,
 	JobServer,
+	JobSkill,
 	JobSpec,
 	JobStatsRange,
 	QueryOf
@@ -81,6 +82,12 @@ export default class JobService extends APIService {
 		this.unwrap(
 			this.api.PUT('/api/jobs/{id}/mcp-servers', { params: { path: { id } }, body: servers })
 		);
+
+	getSkills = async (id: string) =>
+		(await this.unwrap(this.api.GET('/api/jobs/{id}/skills', { params: { path: { id } } }))) ?? [];
+
+	setSkills = (id: string, skills: JobSkill[]) =>
+		this.unwrap(this.api.PUT('/api/jobs/{id}/skills', { params: { path: { id } }, body: skills }));
 
 	getSecrets = async (id: string) =>
 		(await this.unwrap(this.api.GET('/api/jobs/{id}/secrets', { params: { path: { id } } }))) ?? [];

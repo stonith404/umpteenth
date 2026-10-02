@@ -5,6 +5,7 @@ import KeySquareIcon from '@lucide/svelte/icons/key-square';
 import LayersIcon from '@lucide/svelte/icons/layers';
 import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
 import PlayIcon from '@lucide/svelte/icons/play';
+import PuzzleIcon from '@lucide/svelte/icons/puzzle';
 import ServerIcon from '@lucide/svelte/icons/server';
 import SettingsIcon from '@lucide/svelte/icons/settings';
 import ShieldIcon from '@lucide/svelte/icons/shield';
@@ -41,7 +42,13 @@ export const navGroups: NavGroup[] = [
 			{ label: 'Runs', href: '/runs', icon: PlayIcon }
 		]
 	},
-	{ label: 'Connect', items: [{ label: 'MCP servers', href: '/mcp', icon: ServerIcon }] }
+	{
+		label: 'Connect',
+		items: [
+			{ label: 'MCP servers', href: '/mcp', icon: ServerIcon },
+			{ label: 'Skills', href: '/skills', icon: PuzzleIcon }
+		]
+	}
 ];
 
 export const mainNav: NavItem[] = navGroups.flatMap((group) => group.items);
@@ -153,6 +160,7 @@ export const segmentLabels: Record<string, string> = {
 	runs: 'Runs',
 	jobs: 'Jobs',
 	mcp: 'MCP servers',
+	skills: 'Skills',
 	settings: 'Settings',
 	general: 'General',
 	providers: 'Providers & models',

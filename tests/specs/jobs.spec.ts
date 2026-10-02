@@ -3,6 +3,7 @@ import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import { saveForm } from '../utils/form.util';
 import runUtil from '../utils/run.util';
+import { createSecret } from '../utils/workspace.util';
 
 // Saving and running a job uses a real sandbox, so these specs get more time than the suite default
 test.describe.configure({ timeout: 60_000 });
@@ -53,7 +54,6 @@ test('Create a job by compiling a description, then save and run it', async ({ p
 	await expect(page.getByRole('textbox', { name: 'Success criterion 2' })).toHaveValue(
 		'Exactly one message is posted'
 	);
-	await expect(page.getByText('Not configured')).toBeVisible();
 
 	// Edit the name before saving, then save and follow the first run
 	await page.getByLabel('Name', { exact: true }).fill('Stale PRs of acme/api');
@@ -114,6 +114,68 @@ test('Open questions are answered before the review and become part of the instr
 	await expect(page.getByLabel('Instruction')).toHaveValue(
 		'Every weekday at 8:00 Berlin time, post stale PRs of acme/api to Slack.\n\nClarifications:\n- Which Slack channel should it post to? #eng\n- After how many days is a PR stale? 3'
 	);
+});
+
+test('The compile step matches the credentials a job needs to secrets, and saving passes them to the job', async ({
+	page
+}) => {
+	await createSecret(page.request, 'crowdin-token', 'ct-123');
+	await runUtil.scriptModel(page.request, [
+		{
+			text: JSON.stringify({
+				...compiledSpec,
+				mcp: [],
+				secrets: [
+					{
+						envName: 'CROWDIN_PERSONAL_TOKEN',
+						secret: 'crowdin-token',
+						why: 'The Crowdin CLI signs in with it'
+					},
+					{ envName: 'CROWDIN_PROJECT_ID', secret: '', why: 'Names the Crowdin project' }
+				]
+			})
+		}
+	]);
+
+	await page.goto('/jobs/new');
+	await page
+		.getByRole('textbox', { name: 'Describe the job' })
+		.fill('Add translator context in Crowdin every week.');
+	await page.getByRole('button', { name: 'Compile' }).click();
+
+	// The token is matched to its secret, and the project ID has none yet
+	const needs = page.getByRole('list', { name: 'Secrets the job needs' });
+	await expect(page.getByRole('button', { name: 'Secret for CROWDIN_PERSONAL_TOKEN' })).toHaveText(
+		'crowdin-token',
+		{
+			timeout: 15_000
+		}
+	);
+	await expect(page.getByRole('button', { name: 'Secret for CROWDIN_PROJECT_ID' })).toHaveText(
+		'Pick a secret'
+	);
+	await expect(needs).toContainText("No secret is picked, so runs won't get this variable.");
+
+	// A secret created in another tab is picked for the variable its name suggests once the page gets focus again
+	await createSecret(page.request, 'crowdin-project-id', '42');
+	await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+	await expect(page.getByRole('button', { name: 'Secret for CROWDIN_PROJECT_ID' })).toHaveText(
+		'crowdin-project-id'
+	);
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(/\/jobs\/[0-9a-f-]+$/);
+	const jobId = page.url().split('/').pop()!;
+	const response = await page.request.get(`/api/jobs/${jobId}/secrets`);
+	expect(
+		((await response.json()) as { envName: string; secretName: string }[]).map((s) => [
+			s.envName,
+			s.secretName
+		])
+	).toEqual([
+		['CROWDIN_PERSONAL_TOKEN', 'crowdin-token'],
+		['CROWDIN_PROJECT_ID', 'crowdin-project-id']
+	]);
 });
 
 test('A failed compile can be skipped by filling in the spec by hand', async ({ page }) => {

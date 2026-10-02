@@ -554,18 +554,12 @@ test('The compile step marks needed services as configured when a server matches
 		timeout: 15_000
 	});
 
-	// The service with a server of the same name is configured, the other one says how to add it
+	// Only the service with a server of the same name is listed, the one without a match is left out
 	const needed = page.getByRole('list', { name: 'Services the job needs' }).getByRole('listitem');
-	await expect(needed).toHaveCount(2);
+	await expect(needed).toHaveCount(1);
 	await expect(needed.nth(0)).toContainText('Notes');
 	await expect(needed.nth(0)).toContainText('Configured');
 	await expect(needed.nth(0)).toContainText('Read the team notes');
-	await expect(needed.nth(1)).toContainText('jira');
-	await expect(needed.nth(1)).toContainText('Not configured');
-	await expect(needed.nth(1).getByRole('link', { name: 'MCP servers' })).toHaveAttribute(
-		'href',
-		'/mcp'
-	);
 
 	// The matching server is preselected, and the other one can be attached as well
 	const notesBox = page.getByRole('checkbox', { name: /^notes/ });

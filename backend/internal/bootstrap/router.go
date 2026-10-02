@@ -38,6 +38,7 @@ func initRouter(cfg *config.Config, db *database.DB, svc *services) (huma.API, h
 	svc.images.RegisterRoutes(api, authn)
 	svc.secrets.RegisterRoutes(api, authn)
 	svc.mcpServers.RegisterRoutes(api, authn)
+	svc.skills.RegisterRoutes(api, authn)
 	svc.runs.RegisterRoutes(api, authn)
 	svc.reflection.RegisterRoutes(api, authn)
 	svc.notifications.RegisterRoutes(api, authn)

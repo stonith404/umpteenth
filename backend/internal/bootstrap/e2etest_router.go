@@ -41,6 +41,7 @@ func init() {
 				if _, err := fake.Shared().Script(ctx, true, nil); err != nil {
 					return err
 				}
+				svc.skills.SetGitHubArchives("")
 				return seedFakeProvider(ctx, svc, workspaces.DefaultID)
 			},
 		})
@@ -48,6 +49,7 @@ func init() {
 		// Workspaces created during a test run on the fake model too, so specs can run jobs in them
 		svc.workspaces.SetSeeder(func(ctx context.Context, wid string) error { return seedFakeProvider(ctx, svc, wid) })
 		svc.jobs.RegisterTestRoutes(api)
+		svc.skills.RegisterTestRoutes(api)
 		registerLLMScript(api)
 	}
 }

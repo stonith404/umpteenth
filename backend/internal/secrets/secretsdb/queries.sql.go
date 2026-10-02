@@ -145,6 +145,33 @@ func (q *Queries) ListJobSecrets(ctx context.Context, arg ListJobSecretsParams) 
 	return items, nil
 }
 
+const listSecretNames = `-- name: ListSecretNames :many
+SELECT name FROM secrets WHERE workspace_id = $1 ORDER BY name
+`
+
+func (q *Queries) ListSecretNames(ctx context.Context, workspaceID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listSecretNames, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const secretExists = `-- name: SecretExists :one
 SELECT COUNT(*) FROM secrets WHERE workspace_id = $1 AND id = $2
 `

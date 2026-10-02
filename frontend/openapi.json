@@ -449,11 +449,25 @@
 						},
 						"type": ["array", "null"]
 					},
+					"secrets": {
+						"description": "Credentials the job's commands need as environment variables",
+						"items": {
+							"$ref": "#/components/schemas/SecretNeed"
+						},
+						"type": ["array", "null"]
+					},
+					"skills": {
+						"description": "Names of configured skills that fit the job",
+						"items": {
+							"type": "string"
+						},
+						"type": ["array", "null"]
+					},
 					"spec": {
 						"$ref": "#/components/schemas/Spec"
 					}
 				},
-				"required": ["spec", "questions"],
+				"required": ["spec", "questions", "skills", "secrets"],
 				"type": "object"
 			},
 			"Content": {
@@ -788,6 +802,43 @@
 				],
 				"type": "object"
 			},
+			"DeleteManyInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"ids": {
+						"description": "The skills to delete",
+						"items": {
+							"type": "string"
+						},
+						"maxItems": 100,
+						"minItems": 1,
+						"type": ["array", "null"]
+					}
+				},
+				"required": ["ids"],
+				"type": "object"
+			},
+			"DeleteManyOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"deleted": {
+						"description": "The skills that were deleted",
+						"items": {
+							"type": "string"
+						},
+						"type": ["array", "null"]
+					},
+					"skipped": {
+						"description": "The skills that were left alone because they don't exist, such as ones deleted meanwhile",
+						"items": {
+							"type": "string"
+						},
+						"type": ["array", "null"]
+					}
+				},
+				"required": ["deleted", "skipped"],
+				"type": "object"
+			},
 			"DeleteRunsInputBody": {
 				"additionalProperties": false,
 				"properties": {
@@ -1047,6 +1098,40 @@
 					}
 				},
 				"required": ["id"],
+				"type": "object"
+			},
+			"ImportInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"paths": {
+						"description": "The skills to add from a GitHub folder of several, as folders relative to it like the preview lists them",
+						"items": {
+							"type": "string"
+						},
+						"maxItems": 50,
+						"type": ["array", "null"]
+					},
+					"url": {
+						"description": "A GitHub link to a skill's folder or its SKILL.md, or a link to a zip or .skill file",
+						"maxLength": 2000,
+						"minLength": 1,
+						"type": "string"
+					}
+				},
+				"required": ["url"],
+				"type": "object"
+			},
+			"ImportOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"skills": {
+						"items": {
+							"$ref": "#/components/schemas/SkillDto"
+						},
+						"type": ["array", "null"]
+					}
+				},
+				"required": ["skills"],
 				"type": "object"
 			},
 			"InfoOutputBody": {
@@ -1584,6 +1669,20 @@
 					}
 				},
 				"required": ["serverId", "allowedTools"],
+				"type": "object"
+			},
+			"JobSkill": {
+				"additionalProperties": false,
+				"properties": {
+					"skillId": {
+						"type": "string"
+					},
+					"skillName": {
+						"readOnly": true,
+						"type": "string"
+					}
+				},
+				"required": ["skillId"],
 				"type": "object"
 			},
 			"JobStatsOutputBody": {
@@ -2374,6 +2473,31 @@
 				"required": ["items", "page", "pageSize", "total"],
 				"type": "object"
 			},
+			"PaginatedSkillDto": {
+				"additionalProperties": false,
+				"properties": {
+					"items": {
+						"items": {
+							"$ref": "#/components/schemas/SkillDto"
+						},
+						"type": "array"
+					},
+					"page": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"pageSize": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"total": {
+						"format": "int64",
+						"type": "integer"
+					}
+				},
+				"required": ["items", "page", "pageSize", "total"],
+				"type": "object"
+			},
 			"PaginatedStateEntryDto": {
 				"additionalProperties": false,
 				"properties": {
@@ -2463,6 +2587,32 @@
 					}
 				},
 				"required": ["credential"],
+				"type": "object"
+			},
+			"PreviewInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"url": {
+						"description": "A GitHub link to a folder or repository with skills",
+						"maxLength": 2000,
+						"minLength": 1,
+						"type": "string"
+					}
+				},
+				"required": ["url"],
+				"type": "object"
+			},
+			"PreviewOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"skills": {
+						"items": {
+							"$ref": "#/components/schemas/SkillChoice"
+						},
+						"type": ["array", "null"]
+					}
+				},
+				"required": ["skills"],
 				"type": "object"
 			},
 			"Price": {
@@ -2587,6 +2737,17 @@
 					}
 				},
 				"required": ["question", "options"],
+				"type": "object"
+			},
+			"ReimportInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"url": {
+						"description": "The link to import the new version from, the skill's own link when omitted",
+						"maxLength": 2000,
+						"type": "string"
+					}
+				},
 				"type": "object"
 			},
 			"RenamePasskeyInputBody": {
@@ -3144,6 +3305,23 @@
 				"required": ["id", "name", "createdAt", "updatedAt"],
 				"type": "object"
 			},
+			"SecretNeed": {
+				"additionalProperties": false,
+				"properties": {
+					"envName": {
+						"type": "string"
+					},
+					"secret": {
+						"description": "Name of the configured secret that holds the value, empty when none does",
+						"type": "string"
+					},
+					"why": {
+						"type": "string"
+					}
+				},
+				"required": ["envName", "secret", "why"],
+				"type": "object"
+			},
 			"ServerBody": {
 				"additionalProperties": false,
 				"properties": {
@@ -3366,6 +3544,121 @@
 					}
 				},
 				"required": ["redirect"],
+				"type": "object"
+			},
+			"SkillChoice": {
+				"additionalProperties": false,
+				"properties": {
+					"description": {
+						"type": "string"
+					},
+					"exists": {
+						"description": "Whether the workspace already has a skill with this name",
+						"type": "boolean"
+					},
+					"name": {
+						"type": "string"
+					},
+					"path": {
+						"description": "The skill's folder, relative to the folder the link points at",
+						"type": "string"
+					},
+					"problem": {
+						"description": "Why the skill can't be added, such as a SKILL.md without a description",
+						"type": "string"
+					},
+					"url": {
+						"description": "A link to the skill's own folder",
+						"type": "string"
+					}
+				},
+				"required": ["path", "name", "description", "url", "exists"],
+				"type": "object"
+			},
+			"SkillDto": {
+				"additionalProperties": false,
+				"properties": {
+					"archiveSize": {
+						"description": "Size of the stored zip in bytes",
+						"format": "int64",
+						"type": "integer"
+					},
+					"contentHash": {
+						"type": "string"
+					},
+					"createdAt": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"description": {
+						"type": "string"
+					},
+					"fileCount": {
+						"format": "int64",
+						"type": "integer"
+					},
+					"files": {
+						"items": {
+							"$ref": "#/components/schemas/SkillFile"
+						},
+						"type": ["array", "null"]
+					},
+					"id": {
+						"type": "string"
+					},
+					"jobCount": {
+						"description": "How many jobs use the skill",
+						"format": "int64",
+						"type": "integer"
+					},
+					"name": {
+						"type": "string"
+					},
+					"size": {
+						"description": "Unpacked size in bytes",
+						"format": "int64",
+						"type": "integer"
+					},
+					"sourceUrl": {
+						"description": "The link the skill was imported from, null for an uploaded skill",
+						"type": ["string", "null"]
+					},
+					"updatedAt": {
+						"format": "int64",
+						"type": "integer"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"description",
+					"contentHash",
+					"files",
+					"fileCount",
+					"size",
+					"archiveSize",
+					"jobCount",
+					"sourceUrl",
+					"createdAt",
+					"updatedAt"
+				],
+				"type": "object"
+			},
+			"SkillFile": {
+				"additionalProperties": false,
+				"properties": {
+					"executable": {
+						"type": "boolean"
+					},
+					"path": {
+						"type": "string"
+					},
+					"size": {
+						"format": "int64",
+						"type": "integer"
+					}
+				},
+				"required": ["path", "size", "executable"],
 				"type": "object"
 			},
 			"Spec": {
@@ -6025,6 +6318,99 @@
 				"tags": ["Secrets"]
 			}
 		},
+		"/api/jobs/{id}/skills": {
+			"get": {
+				"operationId": "get-job-skills",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/JobSkill"
+									},
+									"type": ["array", "null"]
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			},
+			"put": {
+				"operationId": "set-job-skills",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"items": {
+									"$ref": "#/components/schemas/JobSkill"
+								},
+								"type": ["array", "null"]
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/JobSkill"
+									},
+									"type": ["array", "null"]
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			}
+		},
 		"/api/jobs/{id}/state": {
 			"get": {
 				"operationId": "list-job-state",
@@ -8228,6 +8614,471 @@
 					}
 				},
 				"tags": ["Settings"]
+			}
+		},
+		"/api/skills": {
+			"get": {
+				"operationId": "list-skills",
+				"parameters": [
+					{
+						"description": "1-based page number",
+						"explode": false,
+						"in": "query",
+						"name": "page",
+						"schema": {
+							"default": 1,
+							"description": "1-based page number",
+							"format": "int64",
+							"minimum": 1,
+							"type": "integer"
+						}
+					},
+					{
+						"description": "Items per page",
+						"explode": false,
+						"in": "query",
+						"name": "pageSize",
+						"schema": {
+							"default": 25,
+							"description": "Items per page",
+							"format": "int64",
+							"maximum": 100,
+							"minimum": 1,
+							"type": "integer"
+						}
+					},
+					{
+						"description": "Comma-separated sort keys, prefix with - for descending",
+						"explode": false,
+						"in": "query",
+						"name": "sort",
+						"schema": {
+							"description": "Comma-separated sort keys, prefix with - for descending",
+							"maxLength": 200,
+							"type": "string"
+						}
+					},
+					{
+						"description": "Free-text search",
+						"explode": false,
+						"in": "query",
+						"name": "search",
+						"schema": {
+							"description": "Free-text search",
+							"maxLength": 200,
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedSkillDto"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			},
+			"post": {
+				"operationId": "create-skill",
+				"requestBody": {
+					"content": {
+						"application/zip": {
+							"schema": {
+								"contentMediaType": "application/octet-stream",
+								"format": "binary",
+								"type": "string"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SkillDto"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			}
+		},
+		"/api/skills/delete": {
+			"post": {
+				"operationId": "delete-skills",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/DeleteManyInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DeleteManyOutputBody"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			}
+		},
+		"/api/skills/import": {
+			"post": {
+				"operationId": "import-skill",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ImportInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ImportOutputBody"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			}
+		},
+		"/api/skills/import/preview": {
+			"post": {
+				"operationId": "preview-skill-import",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/PreviewInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PreviewOutputBody"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			}
+		},
+		"/api/skills/{id}": {
+			"delete": {
+				"operationId": "delete-skill",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No Content"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			},
+			"get": {
+				"operationId": "get-skill",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SkillDto"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			},
+			"put": {
+				"operationId": "replace-skill",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/zip": {
+							"schema": {
+								"contentMediaType": "application/octet-stream",
+								"format": "binary",
+								"type": "string"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SkillDto"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			}
+		},
+		"/api/skills/{id}/download": {
+			"get": {
+				"operationId": "download-skill",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			}
+		},
+		"/api/skills/{id}/file": {
+			"get": {
+				"operationId": "get-skill-file",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"explode": false,
+						"in": "query",
+						"name": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
+			}
+		},
+		"/api/skills/{id}/import": {
+			"post": {
+				"operationId": "reimport-skill",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReimportInputBody"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SkillDto"
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Body"
+								}
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"tags": ["Skills"]
 			}
 		},
 		"/api/stats/overview": {

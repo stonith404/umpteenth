@@ -94,6 +94,11 @@ func (m *Module) Expand(ctx context.Context, workspaceID, value string) (string,
 }
 
 // EnvForJob returns the job's secrets as environment variables, implementing jobs.SecretEnv
+// SecretNames lists the workspace's secret names, which the compile step matches to the credentials a job needs
+func (m *Module) SecretNames(ctx context.Context, workspaceID string) ([]string, error) {
+	return m.queries.ListSecretNames(ctx, workspaceID)
+}
+
 func (m *Module) EnvForJob(ctx context.Context, workspaceID, jobID string) (map[string]string, error) {
 	rows, err := m.queries.ListJobSecrets(ctx, secretsdb.ListJobSecretsParams{WorkspaceID: workspaceID, JobID: jobID})
 	if err != nil {

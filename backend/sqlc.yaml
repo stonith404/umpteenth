@@ -255,6 +255,27 @@ sql:
             go_type: { type: bool, pointer: true }
   - engine: postgresql
     schema: resources/migrations/postgres
+    queries: internal/skills/queries.sql
+    gen:
+      go:
+        package: skillsdb
+        out: internal/skills/skillsdb
+        sql_package: database/sql
+        emit_empty_slices: true
+        overrides:
+          - db_type: text
+            nullable: true
+            go_type: { type: string, pointer: true }
+          - db_type: pg_catalog.int8
+            nullable: true
+            go_type: { type: int64, pointer: true }
+          - db_type: pg_catalog.int4
+            go_type: { type: int64 }
+          - db_type: pg_catalog.bool
+            nullable: true
+            go_type: { type: bool, pointer: true }
+  - engine: postgresql
+    schema: resources/migrations/postgres
     queries: internal/workspaces/queries.sql
     gen:
       go:

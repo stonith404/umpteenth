@@ -320,6 +320,7 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 		Inputs:          job.Inputs,
 		Outputs:         job.Outputs,
 		BaseImage:       job.BaseImage,
+		Skills:          skillNames(job.Skills),
 		Playbook:        current,
 		Transcript:      tr,
 		InstallHistory:  []Timings{tr.Timings},
@@ -403,4 +404,13 @@ func derefString(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// skillNames lists the names of the job's skills
+func skillNames(skills []runner.Skill) []string {
+	names := make([]string, len(skills))
+	for i, s := range skills {
+		names[i] = s.Name
+	}
+	return names
 }

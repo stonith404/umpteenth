@@ -12,6 +12,9 @@ DELETE FROM secrets WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.ar
 -- name: GetSecretByName :one
 SELECT * FROM secrets WHERE workspace_id = sqlc.arg(workspace_id) AND name = sqlc.arg(name);
 
+-- name: ListSecretNames :many
+SELECT name FROM secrets WHERE workspace_id = sqlc.arg(workspace_id) ORDER BY name;
+
 -- name: SecretExists :one
 SELECT COUNT(*) FROM secrets WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);
 

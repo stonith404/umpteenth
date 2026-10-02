@@ -122,6 +122,22 @@ type JobConfig struct {
 	Dockerfile     string
 	DockerfileHash string
 	Toolkit        []ToolkitScript
+	// Skills are the agent skills attached to the job, sorted by name so the prompt stays byte-stable
+	Skills []Skill
+}
+
+// Skill is an agent skill attached to a job, whose files the runner copies to /ump/skills/<name>
+type Skill struct {
+	ID          string
+	Name        string
+	Description string
+	// Size is the unpacked size in bytes, which bounds what one run copies into its sandbox
+	Size int64
+}
+
+// SkillFiles reads a skill's files, with paths relative to the skill folder
+type SkillFiles interface {
+	SkillFiles(ctx context.Context, workspaceID string, skill Skill) ([]sandbox.File, error)
 }
 
 // Model is a resolved model
@@ -242,6 +258,9 @@ const (
 	MaxStateKeys = 1000
 	// MaxStateBytes bounds the combined size of a job's keys and values, since ump state list reads all of them into the control plane's memory at once
 	MaxStateBytes = 16 << 20
+	// MaxJobSkills and MaxJobSkillsBytes bound what one run copies into its sandbox, which the sandbox adapters hold in memory
+	MaxJobSkills      = 20
+	MaxJobSkillsBytes = 64 << 20
 )
 
 // ImageResolver returns the image for a run, waiting for a build of the job's Dockerfile if needed

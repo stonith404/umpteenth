@@ -2,7 +2,7 @@
 	import { newJobDraftKey } from '$lib/utils/job-util';
 	import { goto } from '$app/navigation';
 	import { isApiError } from '$lib/api/api-error';
-	import type { JobIOField, JobQuestion, JobSpec } from '$lib/api/types';
+	import type { JobIOField, JobQuestion, JobSecretNeed, JobSpec } from '$lib/api/types';
 	import CodeEditor from '$lib/components/code/code-editor.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import IoFieldsEditor from '$lib/components/form/io-fields-editor.svelte';
@@ -11,6 +11,8 @@
 	import StringListEditor from '$lib/components/form/string-list-editor.svelte';
 	import ScheduleEditor from '$lib/components/jobs/schedule-editor.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import AttachedSkillList from '$lib/components/skills/attached-skill-list.svelte';
+	import SkillAttachMenu from '$lib/components/skills/skill-attach-menu.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -46,6 +48,7 @@
 	import CompileProgress from './compile-progress.svelte';
 	import McpMatcher from './mcp-matcher.svelte';
 	import QuestionsCard from './questions-card.svelte';
+	import SecretMatcher, { type SecretRow } from './secret-matcher.svelte';
 
 	let { data } = $props();
 
@@ -127,6 +130,10 @@
 	let useDockerfile = $state(false);
 	let dockerfile = $state('');
 	let attachedServers = $state<string[]>([]);
+	let attachedSkills = $state<string[]>([]);
+	let suggestedSkills = $state<string[]>([]);
+	let secrets = $state(data.secrets);
+	let secretRows = $state<SecretRow[]>([]);
 	let successCriteria = $state<string[]>([]);
 	let sideEffects = $state<string[]>([]);
 	let inputs = $state<JobIOField[]>([]);
@@ -226,7 +233,7 @@
 			return;
 		}
 		instruction = text;
-		applySpec(result.data.spec);
+		applySpec(result.data.spec, result.data.skills ?? [], result.data.secrets ?? []);
 		compiled = true;
 		enterReview();
 	}
@@ -260,8 +267,12 @@
 		phase = answering ? 'questions' : compileFrom;
 	}
 
-	// Copies a compiled spec into the editable state and preselects the MCP servers it names
-	function applySpec(compiled: JobSpec) {
+	// Copies a compiled spec into the editable state and preselects the MCP servers it names, the skills it suggests and the secrets it matched
+	function applySpec(
+		compiled: JobSpec,
+		skills: string[] = [],
+		neededSecrets: JobSecretNeed[] = []
+	) {
 		spec = compiled;
 		name = compiled.title;
 		cron = compiled.schedule?.cron ?? '';
@@ -281,6 +292,15 @@
 		attachedServers = data.mcpServers
 			.filter((server) => needed.has(server.name.toLowerCase()))
 			.map((server) => server.id);
+		suggestedSkills = skills;
+		attachedSkills = data.skills
+			.filter((skill) => skills.includes(skill.name))
+			.map((skill) => skill.id);
+		secretRows = neededSecrets.map((need) => ({
+			envName: need.envName,
+			why: need.why,
+			secretId: secrets.find((s) => s.name === need.secret)?.id ?? ''
+		}));
 		errors = {};
 	}
 
@@ -300,9 +320,14 @@
 		phase = 'review';
 	}
 
-	// The spec as it would be saved plus the servers to attach, so edits that change nothing, like an empty row, don't count
+	// The spec as it would be saved plus the servers, skills and secrets to attach, so edits that change nothing, like an empty row, don't count
 	function reviewFingerprint() {
-		return JSON.stringify({ spec: buildSpec(), servers: [...attachedServers].sort() });
+		return JSON.stringify({
+			spec: buildSpec(),
+			servers: [...attachedServers].sort(),
+			skills: [...attachedSkills].sort(),
+			secrets: secretRows.map((row) => [row.envName, row.secretId])
+		});
 	}
 
 	function reviewEdited() {
@@ -359,6 +384,31 @@
 			.map((server) => server.name)
 			.join(', ')
 	);
+	// The skills to attach as the card lists them, in the order they were picked, and the ones still left to attach
+	const attachedSkillItems = $derived(
+		attachedSkills.flatMap((id) => {
+			const skill = data.skills.find((s) => s.id === id);
+			return skill
+				? [
+						{
+							id,
+							name: skill.name,
+							description: skill.description,
+							suggested: suggestedSkills.includes(skill.name)
+						}
+					]
+				: [];
+		})
+	);
+	const availableSkills = $derived(data.skills.filter((s) => !attachedSkills.includes(s.id)));
+
+	const attachedSkillNames = $derived(
+		data.skills
+			.filter((skill) => attachedSkills.includes(skill.id))
+			.map((skill) => skill.name)
+			.join(', ')
+	);
+	const mappedSecrets = $derived(secretRows.filter((row) => row.secretId));
 
 	function buildSpec(): JobSpec {
 		const clean = (items: string[]) => items.map((s) => s.trim()).filter(Boolean);
@@ -477,6 +527,40 @@
 				saving = null;
 				toast.success(`Created "${job.name}"`);
 				apiErrorToast(attached.error, 'Failed to attach the MCP servers');
+				await goto(`/jobs/${job.id}/settings`);
+				return;
+			}
+		}
+
+		// Attach the chosen skills the same way, before a run starts without them
+		if (attachedSkills.length > 0) {
+			const attached = await tryCatch(
+				jobService.setSkills(
+					job.id,
+					attachedSkills.map((skillId) => ({ skillId }))
+				)
+			);
+			if (attached.error) {
+				saving = null;
+				toast.success(`Created "${job.name}"`);
+				apiErrorToast(attached.error, 'Failed to attach the skills');
+				await goto(`/jobs/${job.id}/settings`);
+				return;
+			}
+		}
+
+		// Map the picked secrets the same way, so the first run already gets them
+		if (mappedSecrets.length > 0) {
+			const mapped = await tryCatch(
+				jobService.setSecrets(
+					job.id,
+					mappedSecrets.map(({ secretId, envName }) => ({ secretId, envName }))
+				)
+			);
+			if (mapped.error) {
+				saving = null;
+				toast.success(`Created "${job.name}"`);
+				apiErrorToast(mapped.error, 'Failed to pass the secrets');
 				await goto(`/jobs/${job.id}/settings`);
 				return;
 			}
@@ -818,6 +902,56 @@
 					</Card.Content>
 				</Card.Root>
 
+				<!-- Only a workspace with skills has any to attach, the skills page is where they start -->
+				{#if data.skills.length > 0}
+					<Card.Root>
+						<Card.Header>
+							<Card.Title>Skills</Card.Title>
+							<Card.Description>
+								{suggestedSkills.length > 0
+									? 'Skills that fit the job are already picked. The agent reads one when the task calls for it.'
+									: 'Instructions and scripts the agent reads when the task calls for them.'}
+							</Card.Description>
+						</Card.Header>
+						<Card.Content>
+							<div class="flex flex-col gap-4">
+								{#if attachedSkillItems.length > 0}
+									<AttachedSkillList
+										items={attachedSkillItems}
+										onRemove={(id) => (attachedSkills = attachedSkills.filter((s) => s !== id))}
+									/>
+								{:else}
+									<p class="text-muted-foreground text-sm">No skills attached</p>
+								{/if}
+								{#if availableSkills.length > 0}
+									<div>
+										<SkillAttachMenu
+											skills={availableSkills}
+											onAttach={(skill) => (attachedSkills = [...attachedSkills, skill.id])}
+										/>
+									</div>
+								{/if}
+							</div>
+						</Card.Content>
+					</Card.Root>
+				{/if}
+
+				<!-- Only a compiled spec names the credentials the job needs, a spec filled in by hand leaves them to the job's settings -->
+				{#if secretRows.length > 0}
+					<Card.Root>
+						<Card.Header>
+							<Card.Title>Secrets</Card.Title>
+							<Card.Description>
+								Credentials the job's commands read from environment variables, matched to your
+								secrets.
+							</Card.Description>
+						</Card.Header>
+						<Card.Content>
+							<SecretMatcher bind:rows={secretRows} bind:secrets />
+						</Card.Content>
+					</Card.Root>
+				{/if}
+
 				<!-- Named like the job settings' card, where the same network and image choices live later -->
 				<Card.Root>
 					<Card.Header>
@@ -911,6 +1045,23 @@
 							</dd>
 							<dt class="text-muted-foreground">MCP servers</dt>
 							<dd class="truncate" title={attachedNames || undefined}>{attachedNames || 'None'}</dd>
+							{#if data.skills.length > 0}
+								<dt class="text-muted-foreground">Skills</dt>
+								<dd class="truncate" title={attachedSkillNames || undefined}>
+									{attachedSkillNames || 'None'}
+								</dd>
+							{/if}
+							{#if secretRows.length > 0}
+								<dt class="text-muted-foreground">Secrets</dt>
+								<dd
+									class={[
+										'truncate',
+										mappedSecrets.length < secretRows.length && 'text-warning-foreground'
+									]}
+								>
+									{mappedSecrets.length} of {secretRows.length} set
+								</dd>
+							{/if}
 							<dt class="text-muted-foreground">Network</dt>
 							<dd class="truncate">{networkLabel(network)}</dd>
 							<dt class="text-muted-foreground">Image</dt>
