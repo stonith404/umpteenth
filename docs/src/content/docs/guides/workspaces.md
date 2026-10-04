@@ -52,6 +52,8 @@ The link opens a page with the workspace's name, the role and who invited you, a
 Someone who has never signed in before joins as part of their first sign-in, and someone without any account can [create a passkey account](../../deployment/sign-in/#add-people) from the link.
 
 **Pending invites** on the same page lists the open invites, and **Revoke** in an invite's **⋯** menu withdraws one.
+Both kinds of invite require their creator to remain an active workspace admin or instance admin.
+Removing the creator, changing their role to member, leaving the workspace or deactivating their account revokes their outstanding invites.
 
 ## Manage members
 
@@ -82,6 +84,7 @@ You make someone an instance admin in the options of the provider they sign in w
 **Admin → Users** lists every user with how they sign in, their workspace count and their last sign-in, and **Add user** creates a [passkey account](../../deployment/sign-in/#add-people).
 **Deactivate** in a user's **⋯** menu signs them out everywhere, stops their API tokens and refuses their sign-ins with "Your account has been deactivated, ask an admin to reactivate it".
 Their memberships stay, so **Reactivate** in the same menu restores their access.
+Reactivation restores neither old sessions nor revoked invites.
 
 With workspaces on, **Admin → Workspaces** lists every workspace with its owner and member count.
 **Open** switches you to a workspace without joining it, and **Delete** in its **⋯** menu deletes it once you type its name.

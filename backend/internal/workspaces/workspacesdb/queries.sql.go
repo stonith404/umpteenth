@@ -240,7 +240,9 @@ SELECT i.id, i.workspace_id, i.role, i.expires_at, w.name AS workspace_name, u.n
 FROM workspace_invites i
 JOIN workspaces w ON w.id = i.workspace_id
 LEFT JOIN users u ON u.id = i.created_by
-WHERE i.token_hash = $1
+WHERE i.token_hash = $1 AND u.disabled_at IS NULL AND (u.is_admin OR EXISTS (
+ SELECT 1 FROM workspace_members m WHERE m.workspace_id = i.workspace_id AND m.user_id = u.id AND m.role IN ('admin', 'owner')
+))
 `
 
 type GetInviteByTokenHashRow struct {
@@ -315,7 +317,10 @@ func (q *Queries) GetWorkspace(ctx context.Context, id string) (Workspace, error
 }
 
 const listEmailInvites = `-- name: ListEmailInvites :many
-SELECT id, workspace_id, role FROM workspace_invites WHERE email = $1 AND expires_at > $2 ORDER BY created_at, id
+SELECT i.id, i.workspace_id, i.role FROM workspace_invites i JOIN users u ON u.id = i.created_by
+WHERE i.email = $1 AND i.expires_at > $2 AND u.disabled_at IS NULL AND (u.is_admin OR EXISTS (
+ SELECT 1 FROM workspace_members m WHERE m.workspace_id = i.workspace_id AND m.user_id = u.id AND m.role IN ('admin', 'owner')
+)) ORDER BY i.created_at, i.id
 `
 
 type ListEmailInvitesParams struct {
@@ -512,6 +517,20 @@ func (q *Queries) RenameWorkspace(ctx context.Context, arg RenameWorkspaceParams
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const revokeMemberInvites = `-- name: RevokeMemberInvites :exec
+DELETE FROM workspace_invites WHERE workspace_id = $1 AND created_by = $2
+`
+
+type RevokeMemberInvitesParams struct {
+	WorkspaceID string
+	UserID      *string
+}
+
+func (q *Queries) RevokeMemberInvites(ctx context.Context, arg RevokeMemberInvitesParams) error {
+	_, err := q.db.ExecContext(ctx, revokeMemberInvites, arg.WorkspaceID, arg.UserID)
+	return err
 }
 
 const setLastWorkspace = `-- name: SetLastWorkspace :exec

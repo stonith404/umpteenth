@@ -524,3 +524,35 @@ func TestPersonalWorkspacesAreNamedAfterTheirOwner(t *testing.T) {
 	require.Len(t, []rune(long), maxNameLength)
 	require.True(t, strings.HasSuffix(long, "'s workspace"))
 }
+
+func TestInviteLosesItsCreatorsAuthority(t *testing.T) {
+	for _, change := range []string{"removed", "demoted", "disabled", "left"} {
+		t.Run(change, func(t *testing.T) {
+			m, db, _ := newTestModule(t, true)
+			owner := seedUser(t, db, "Owner", "owner@example.com")
+			signIn(t, m, owner, "", "/")
+			admin := seedUser(t, db, "Admin", "admin@example.com")
+			testutil.SeedMember(t, db, DefaultID, admin, "admin")
+			invite, err := m.Invite(t.Context(), DefaultID, admin, "", principal.RoleAdmin, time.Hour)
+			require.NoError(t, err)
+			_, err = m.Invite(t.Context(), DefaultID, admin, "new@example.com", principal.RoleAdmin, time.Hour)
+			require.NoError(t, err)
+			switch change {
+			case "removed":
+				require.NoError(t, m.Remove(t.Context(), DefaultID, admin))
+			case "demoted":
+				require.NoError(t, m.SetRole(t.Context(), DefaultID, admin, principal.RoleMember))
+			case "left":
+				require.NoError(t, m.Leave(t.Context(), DefaultID, admin))
+			case "disabled":
+				testutil.Exec(t, db, "UPDATE users SET disabled_at = 1 WHERE id = $1", admin)
+			}
+			require.Error(t, m.CheckInvite(t.Context(), invite.Token))
+			joiner := seedUser(t, db, "Joiner", "new@example.com")
+			_, err = m.AcceptInvite(t.Context(), invite.Token, joiner)
+			require.Error(t, err)
+			wid, _ := signIn(t, m, joiner, "new@example.com", "/")
+			require.NotEqual(t, DefaultID, wid)
+		})
+	}
+}

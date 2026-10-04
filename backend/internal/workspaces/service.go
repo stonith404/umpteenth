@@ -373,14 +373,18 @@ func (m *Module) Leave(ctx context.Context, workspaceID, userID string) error {
 	if principal.Role(role) == principal.RoleOwner {
 		return apperror.Conflict("Hand over ownership before leaving the workspace")
 	}
-	n, err := m.queries.RemoveMember(ctx, workspacesdb.RemoveMemberParams{WorkspaceID: workspaceID, UserID: userID})
-	if err != nil {
-		return fmt.Errorf("failed to leave workspace: %w", err)
-	}
-	if n == 0 {
-		return errMemberChanged()
-	}
-	return nil
+	// Losing membership or admin rights permanently revokes invitations issued under that authority
+	return m.db.InTx(ctx, func(tx *database.Tx) error {
+		q := workspacesdb.New(tx)
+		n, err := q.RemoveMember(ctx, workspacesdb.RemoveMemberParams{WorkspaceID: workspaceID, UserID: userID})
+		if err != nil {
+			return fmt.Errorf("failed to leave workspace: %w", err)
+		}
+		if n == 0 {
+			return errMemberChanged()
+		}
+		return q.RevokeMemberInvites(ctx, workspacesdb.RevokeMemberInvitesParams{WorkspaceID: workspaceID, UserID: &userID})
+	})
 }
 
 // SetRole changes a member's role, which can't make or unmake the owner since that takes a handover
@@ -395,14 +399,21 @@ func (m *Module) SetRole(ctx context.Context, workspaceID, userID string, role p
 	if current == principal.RoleOwner {
 		return apperror.Forbidden("The owner's role changes by handing over ownership")
 	}
-	n, err := m.queries.SetMemberRole(ctx, workspacesdb.SetMemberRoleParams{WorkspaceID: workspaceID, UserID: userID, Role: string(role)})
-	if err != nil {
-		return fmt.Errorf("failed to change role: %w", err)
-	}
-	if n == 0 {
-		return errMemberChanged()
-	}
-	return nil
+	// Losing membership or admin rights permanently revokes invitations issued under that authority
+	return m.db.InTx(ctx, func(tx *database.Tx) error {
+		q := workspacesdb.New(tx)
+		n, err := q.SetMemberRole(ctx, workspacesdb.SetMemberRoleParams{WorkspaceID: workspaceID, UserID: userID, Role: string(role)})
+		if err != nil {
+			return fmt.Errorf("failed to change role: %w", err)
+		}
+		if n == 0 {
+			return errMemberChanged()
+		}
+		if role != principal.RoleMember {
+			return nil
+		}
+		return q.RevokeMemberInvites(ctx, workspacesdb.RevokeMemberInvitesParams{WorkspaceID: workspaceID, UserID: &userID})
+	})
 }
 
 // Remove takes a member out of the workspace
@@ -418,14 +429,18 @@ func (m *Module) Remove(ctx context.Context, workspaceID, userID string) error {
 	if current == principal.RoleOwner {
 		return apperror.Forbidden("The owner can't be removed, only hand over ownership")
 	}
-	n, err := m.queries.RemoveMember(ctx, workspacesdb.RemoveMemberParams{WorkspaceID: workspaceID, UserID: userID})
-	if err != nil {
-		return fmt.Errorf("failed to remove member: %w", err)
-	}
-	if n == 0 {
-		return errMemberChanged()
-	}
-	return nil
+	// Losing membership or admin rights permanently revokes invitations issued under that authority
+	return m.db.InTx(ctx, func(tx *database.Tx) error {
+		q := workspacesdb.New(tx)
+		n, err := q.RemoveMember(ctx, workspacesdb.RemoveMemberParams{WorkspaceID: workspaceID, UserID: userID})
+		if err != nil {
+			return fmt.Errorf("failed to remove member: %w", err)
+		}
+		if n == 0 {
+			return errMemberChanged()
+		}
+		return q.RevokeMemberInvites(ctx, workspacesdb.RevokeMemberInvitesParams{WorkspaceID: workspaceID, UserID: &userID})
+	})
 }
 
 func (m *Module) memberRole(ctx context.Context, workspaceID, userID string) (principal.Role, error) {

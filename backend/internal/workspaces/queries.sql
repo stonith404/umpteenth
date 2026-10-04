@@ -116,8 +116,16 @@ SELECT i.id, i.workspace_id, i.role, i.expires_at, w.name AS workspace_name, u.n
 FROM workspace_invites i
 JOIN workspaces w ON w.id = i.workspace_id
 LEFT JOIN users u ON u.id = i.created_by
-WHERE i.token_hash = sqlc.arg(token_hash);
+WHERE i.token_hash = sqlc.arg(token_hash) AND u.disabled_at IS NULL AND (u.is_admin OR EXISTS (
+ SELECT 1 FROM workspace_members m WHERE m.workspace_id = i.workspace_id AND m.user_id = u.id AND m.role IN ('admin', 'owner')
+));
 
 -- name: ListEmailInvites :many
 -- unscoped: finds the invites to the user's verified address in every workspace
-SELECT id, workspace_id, role FROM workspace_invites WHERE email = sqlc.arg(email) AND expires_at > sqlc.arg(now) ORDER BY created_at, id;
+SELECT i.id, i.workspace_id, i.role FROM workspace_invites i JOIN users u ON u.id = i.created_by
+WHERE i.email = sqlc.arg(email) AND i.expires_at > sqlc.arg(now) AND u.disabled_at IS NULL AND (u.is_admin OR EXISTS (
+ SELECT 1 FROM workspace_members m WHERE m.workspace_id = i.workspace_id AND m.user_id = u.id AND m.role IN ('admin', 'owner')
+)) ORDER BY i.created_at, i.id;
+
+-- name: RevokeMemberInvites :exec
+DELETE FROM workspace_invites WHERE workspace_id = sqlc.arg(workspace_id) AND created_by = sqlc.arg(user_id);

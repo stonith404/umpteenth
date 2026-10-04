@@ -95,22 +95,24 @@ func (h *handler) setDeactivated(ctx context.Context, p principal.Principal, use
 	if deactivated {
 		disabledAt = new(database.Now())
 	}
-	n, err := h.service.queries.SetUserDisabled(ctx, authdb.SetUserDisabledParams{ID: userID, DisabledAt: disabledAt})
-	if err != nil {
-		return fmt.Errorf("failed to update user: %w", err)
-	}
-	if n == 0 {
-		return apperror.NotFound("User")
-	}
-
-	// Deactivating ends the user's sessions for good, so reactivating them later doesn't bring back a copied cookie
-	if deactivated {
-		err = h.service.queries.DeleteUserSessions(ctx, userID)
+	// Deactivation ends both sessions and outstanding invites so reactivation restores neither capability
+	return h.service.db.InTx(ctx, func(tx *database.Tx) error {
+		q := authdb.New(tx)
+		n, err := q.SetUserDisabled(ctx, authdb.SetUserDisabledParams{ID: userID, DisabledAt: disabledAt})
 		if err != nil {
-			return fmt.Errorf("failed to end the user's sessions: %w", err)
+			return fmt.Errorf("failed to update user: %w", err)
 		}
-	}
-	return nil
+		if n == 0 {
+			return apperror.NotFound("User")
+		}
+		if deactivated {
+			if err := q.DeleteUserSessions(ctx, userID); err != nil {
+				return err
+			}
+			return q.RevokeUserInvites(ctx, &userID)
+		}
+		return nil
+	})
 }
 
 func (h *handler) setAdmin(ctx context.Context, p principal.Principal, userID string, admin bool) error {

@@ -437,6 +437,16 @@ func (q *Queries) RenamePasskey(ctx context.Context, arg RenamePasskeyParams) (i
 	return result.RowsAffected()
 }
 
+const revokeUserInvites = `-- name: RevokeUserInvites :exec
+DELETE FROM workspace_invites WHERE created_by = $1
+`
+
+// unscoped: deactivating an instance-wide user revokes every invitation they created
+func (q *Queries) RevokeUserInvites(ctx context.Context, userID *string) error {
+	_, err := q.db.ExecContext(ctx, revokeUserInvites, userID)
+	return err
+}
+
 const setLocalUserAdmin = `-- name: SetLocalUserAdmin :execrows
 UPDATE users SET is_admin = $1 WHERE id = $2 AND issuer = $3
 `

@@ -138,3 +138,7 @@ DELETE FROM sign_in_links WHERE token_hash = sqlc.arg(token_hash) AND expires_at
 -- name: DeleteExpiredSignInLinks :exec
 -- unscoped: sign-in links are instance-wide
 DELETE FROM sign_in_links WHERE expires_at <= sqlc.arg(now);
+
+-- name: RevokeUserInvites :exec
+-- unscoped: deactivating an instance-wide user revokes every invitation they created
+DELETE FROM workspace_invites WHERE created_by = sqlc.arg(user_id);
