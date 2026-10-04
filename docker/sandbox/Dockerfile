@@ -3,7 +3,7 @@
 
 # uv is not packaged by Debian, so it is copied from Astral's official image
 # The tag is written out instead of passed as a build arg so Dependabot can bump it
-FROM ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 AS uv
+FROM ghcr.io/astral-sh/uv:0.12.22@sha256:f513a91fc62fe7c17567eee97230dd198e43edb8a9fbecca843714a4358fe1bc AS uv
 
 # Node comes from the official image, since Debian's Node 20 ignores the proxy variables that route internet sandboxes through the egress proxy, which Node 24 honors with NODE_USE_ENV_PROXY
 FROM node:24-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe AS node
