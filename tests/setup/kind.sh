@@ -43,6 +43,9 @@ fi
 registry_ip=$(docker inspect -f '{{(index .NetworkSettings.Networks "kind").IPAddress}}' "$registry")
 for node in $(kind get nodes --name "$cluster"); do
   docker exec "$node" sh -c "mkdir -p /etc/containerd/certs.d/$registry_ip:5000 && printf '[host.\"http://$registry_ip:5000\"]\n' > /etc/containerd/certs.d/$registry_ip:5000/hosts.toml"
+  # Build pods run in their own user namespace, where the kernel mounts a sysfs only if the node has one without mounts hiding parts of it, which the node's /sys lacks on some hosts
+  # https://github.com/kubernetes-sigs/kind/issues/3436
+  docker exec "$node" sh -c "mountpoint -q /mnt/sysfs || { mkdir -p /mnt/sysfs && mount -t sysfs none /mnt/sysfs; }"
 done
 
 # Pods reach the machine running the tests through the gateway of kind's network
