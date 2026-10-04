@@ -356,19 +356,19 @@ func TestScheduleAlarmFiresOncePerOccurrence(t *testing.T) {
 	require.Len(t, queue.Submitted(), 1)
 }
 
-// flakyJobReads passes every query through, but fails the job read with the given number, like a connection that drops once
+// flakyJobReads passes every query through, but fails the job reads with the given numbers, like a connection that drops for a while
 type flakyJobReads struct {
 	jobsdb.DBTX
 	mu     sync.Mutex
 	reads  int
-	failAt int
+	failAt []int
 }
 
 func (f *flakyJobReads) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
 	if strings.Contains(query, "name: GetJobUnscoped ") {
 		f.mu.Lock()
 		f.reads++
-		fail := f.reads == f.failAt
+		fail := slices.Contains(f.failAt, f.reads)
 		f.mu.Unlock()
 		if fail {
 			// A cancelled context makes the driver fail the read, standing in for a transient database error
@@ -387,14 +387,17 @@ func (f *flakyJobReads) Reads() int {
 }
 
 func TestScheduleSurvivesATransientErrorWhileRearming(t *testing.T) {
+	delay := resumeRetryDelay
+	resumeRetryDelay = 10 * time.Millisecond
+	t.Cleanup(func() { resumeRetryDelay = delay })
 	m, queue, db := newTestModule(t)
 	ctx := t.Context()
 	wid := testutil.SeedWorkspace(t, db)
 	jobID := testutil.SeedJob(t, db, wid, ConcurrencyParallel)
 	testutil.Exec(t, db, "UPDATE jobs SET cron = '0 0 1 1 *' WHERE id = $1", jobID)
 
-	// The first job read comes from the run trigger, and the second one, made while re-arming the schedule, fails
-	flaky := &flakyJobReads{DBTX: db, failAt: 2}
+	// The first job read comes from the run trigger, and the next four, made while re-arming the schedule, fail, which is more attempts than Francis would make
+	flaky := &flakyJobReads{DBTX: db, failAt: []int{2, 3, 4, 5}}
 	m.queries = jobsdb.New(flaky)
 
 	// Francis delivers an occurrence that is due now, and the one after it is too far away to fire during the test
@@ -402,14 +405,14 @@ func TestScheduleSurvivesATransientErrorWhileRearming(t *testing.T) {
 	require.NoError(t, a.save(ctx, actorState{Alarm: "schedule-1"}))
 	require.NoError(t, a.client.SetAlarm(ctx, "schedule-1", actor.AlarmProperties{DueTime: time.Now()}))
 
-	// Francis retries the failed turn, which re-arms the schedule instead of leaving the job without an alarm
+	// The job retries the failed turn until it re-arms the schedule, instead of leaving the job without an alarm
 	// The state is read from the service, since the client above keeps its own copy
 	require.Eventually(t, func() bool {
 		var state actorState
 		err := m.deps.Actors.Service().GetState(ctx, actorType, jobID, &state)
 		return err == nil && state.Alarm != "" && state.Alarm != "schedule-1"
 	}, 20*time.Second, 100*time.Millisecond)
-	require.GreaterOrEqual(t, flaky.Reads(), 3)
+	require.GreaterOrEqual(t, flaky.Reads(), 6)
 	job, err := m.getJob(ctx, wid, jobID)
 	require.NoError(t, err)
 	require.NotNil(t, job.NextRunAt)

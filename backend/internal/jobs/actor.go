@@ -28,9 +28,11 @@ const (
 
 	// resumeAlarm gives the job another turn after a run failed to reach the task pool, since a job that is never triggered again would otherwise keep that run waiting forever
 	resumeAlarm = "resume"
+	// scheduleRetryAlarm repeats a schedule alarm whose turn failed, and carries the name of that alarm as its data
+	scheduleRetryAlarm = "schedule-retry"
 )
 
-// resumeRetryDelay is how long a job waits before retrying a turn that failed to start its waiting runs
+// resumeRetryDelay is how long a job waits before retrying a turn that failed to start its waiting runs or to handle its schedule
 var resumeRetryDelay = 30 * time.Second
 
 // actorState is the durable state of one job actor
@@ -76,11 +78,20 @@ func (a *jobActor) Invoke(ctx context.Context, method string, data actor.Envelop
 	}
 }
 
-func (a *jobActor) Alarm(ctx context.Context, name string, _ actor.Envelope) error {
-	if name == resumeAlarm {
+func (a *jobActor) Alarm(ctx context.Context, name string, data actor.Envelope) error {
+	switch name {
+	case resumeAlarm:
 		return a.resumeOrRetry(ctx)
+	case scheduleRetryAlarm:
+		var alarm string
+		err := data.Decode(&alarm)
+		if err != nil {
+			return fmt.Errorf("failed to decode the schedule alarm to retry: %w", err)
+		}
+		return a.fireScheduleOrRetry(ctx, alarm)
+	default:
+		return a.fireScheduleOrRetry(ctx, name)
 	}
-	return a.fireSchedule(ctx, name)
 }
 
 // load returns the job, the actor state reconciled against the runs table, and the active runs that have not started yet
@@ -304,6 +315,18 @@ func (a *jobActor) reschedule(ctx context.Context) error {
 	return nil
 }
 
+// fireScheduleOrRetry is the turn a schedule alarm gives the job, and a failed turn arms its own retry instead of returning the error
+// Francis can drop an alarm whose retry is due right away, and gives up after a few attempts, either of which would leave the job without a schedule
+// Retrying the same alarm is safe, since fireSchedule runs an occurrence only while it is pending and otherwise just arms the next one
+func (a *jobActor) fireScheduleOrRetry(ctx context.Context, alarm string) error {
+	err := a.fireSchedule(ctx, alarm)
+	if err == nil {
+		return nil
+	}
+	slog.WarnContext(ctx, "Failed to handle a scheduled run, retrying later", slog.String("job", a.id), slog.String("alarm", alarm), slog.Any("error", err))
+	return a.client.SetAlarm(ctx, scheduleRetryAlarm, actor.AlarmProperties{DueTime: time.Now().Add(resumeRetryDelay), Data: alarm})
+}
+
 // forget drops the schedule alarm and the actor's state, for a job whose workspace is being deleted
 // Neither goes away with the job's row, and reschedule can't find the alarm once the row is gone
 func (a *jobActor) forget(ctx context.Context) error {
@@ -318,6 +341,7 @@ func (a *jobActor) forget(ctx context.Context) error {
 	}
 	// A pending retry that fires before the job's row is deleted would write the state again
 	_ = a.client.DeleteAlarm(ctx, resumeAlarm)
+	_ = a.client.DeleteAlarm(ctx, scheduleRetryAlarm)
 	return a.client.DeleteState(ctx)
 }
 
@@ -350,8 +374,8 @@ func (a *jobActor) fireSchedule(ctx context.Context, alarm string) error {
 		}
 	}
 
-	// The error makes Francis redeliver the alarm, since nothing else would arm the next occurrence
-	// The occurrence was already forgotten above, so a redelivery only retries this step and never runs the job twice
+	// The error makes the alarm turn retry, since nothing else would arm the next occurrence
+	// The occurrence was already forgotten above, so a retry only repeats this step and never runs the job twice
 	err = a.reschedule(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to arm the next scheduled run: %w", err)
