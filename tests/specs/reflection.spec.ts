@@ -68,7 +68,8 @@ test('Reflection turns a run into a playbook version whose script the next run c
 	await expect(page.getByText('Promoted the story script')).toBeVisible();
 	await expect(page.getByText('Add learning L1')).toBeVisible();
 	await expect(page.getByText('Save script top_stories')).toBeVisible();
-	await expect(page.getByText('Held for review')).toBeVisible();
+	await expect(page.getByText('Held for review', { exact: true })).toBeVisible();
+	await expect(page.getByText('2 applied · 1 held for review')).toBeVisible();
 	await expect(page.getByRole('link', { name: 'playbook version 1' })).toBeVisible();
 	await expect(page.getByText('Added: Ask HN posts have no URL — edge case')).toBeAttached();
 

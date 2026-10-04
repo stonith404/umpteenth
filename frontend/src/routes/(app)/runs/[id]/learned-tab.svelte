@@ -1,7 +1,8 @@
 <script lang="ts">
-	import type { PlaybookVersion, RunDetail } from '#lib/api/types.js';
-	import DiffView from '#lib/components/diff-view.svelte';
-	import OpsList from '#lib/components/playbook/ops-list.svelte';
+	import type { PlaybookContent, PlaybookVersion, RunDetail } from '#lib/api/types.js';
+	import VersionChange from '#lib/components/playbook/version-change.svelte';
+	import VersionSummary from '#lib/components/playbook/version-summary.svelte';
+	import RelativeTime from '#lib/components/relative-time.svelte';
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Card from '#lib/components/ui/card/index.js';
@@ -10,10 +11,12 @@
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import PlaybookService from '#lib/services/playbook-service.js';
 	import { getErrorMessage } from '#lib/utils/error-util.js';
-	import { changedSections } from '#lib/utils/playbook-util.js';
+	import { opsOutcome, versionChanges } from '#lib/utils/playbook-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { usageFormat } from '#lib/utils/usage-util.js';
+	import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
+	import ClockIcon from '@lucide/svelte/icons/clock';
 	import GraduationCapIcon from '@lucide/svelte/icons/graduation-cap';
 
 	let {
@@ -29,10 +32,19 @@
 
 	const playbookService = new PlaybookService();
 
+	// Stands in for both sides of the comparison when reflection saved no version
+	const EMPTY_PLAYBOOK: PlaybookContent = {
+		dockerfile: null,
+		learnings: null,
+		main: null,
+		setup: null,
+		toolkit: null
+	};
+
 	let version = $state.raw<PlaybookVersion | null>(null);
 	let versionError = $state<unknown>(null);
 	const ops = $derived(run.reflectionOps ?? []);
-	const sections = $derived(version ? changedSections(version.previous, version.content) : []);
+	const outcome = $derived(opsOutcome(ops));
 
 	// What reflecting cost or how many tokens it used, as the workspace chose
 	const usage = $derived(usageFormat());
@@ -58,6 +70,16 @@
 			stale = true;
 		};
 	});
+
+	// Each proposal becomes a change with the diff it made, while the version is still loading there are none yet
+	// Without a saved version every proposal was held back or rejected, so the changes are the proposals alone
+	const changes = $derived(
+		version
+			? versionChanges(version.previous, version.content, ops)
+			: reflectionVersion === null
+				? versionChanges(EMPTY_PLAYBOOK, EMPTY_PLAYBOOK, ops)
+				: []
+	);
 </script>
 
 <div class="flex flex-col gap-4">
@@ -112,77 +134,73 @@
 			</Alert.Root>
 		{/if}
 
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>What this run taught the job</Card.Title>
-				<Card.Description>
-					{#if run.reflectionVersion}
-						Saved as <a
-							href="/jobs/{run.jobId}/playbook"
-							class="numeric underline underline-offset-3"
-							>playbook version {run.reflectionVersion}</a
-						>.
-					{:else if run.reflection === 'done'}
-						The playbook stayed as it was.
-					{/if}
-					{#if reflectionUsage > 0}
-						Reflection {usage.verb} <span class="numeric">{usage.format(reflectionUsage)}</span>.
-					{/if}
-				</Card.Description>
-				{#if canLearn}
-					<Card.Action>
-						<Button variant="outline" size="sm" onclick={onLearn}>
-							<GraduationCapIcon data-icon="inline-start" />
-							Learn again
-						</Button>
-					</Card.Action>
-				{/if}
-			</Card.Header>
-			<Card.Content>
-				<div class="flex flex-col gap-4">
-					{#if run.reflectionSummary}
-						<p class="text-sm">{run.reflectionSummary}</p>
-					{/if}
-					{#if ops.length > 0}
-						<OpsList {ops} />
-					{:else if run.reflection === 'done'}
-						<p class="text-muted-foreground text-sm">No changes were needed.</p>
-					{/if}
-				</div>
-			</Card.Content>
-		</Card.Root>
-
-		{#if run.reflectionVersion}
-			<Card.Root>
-				<Card.Header>
-					<Card.Title>Playbook changes</Card.Title>
-					<Card.Description>
-						Version {run.reflectionVersion} compared to the version before it.
-					</Card.Description>
-				</Card.Header>
-				<Card.Content>
-					<div class="flex flex-col gap-6">
-						{#if versionError}
-							<p class="text-muted-foreground text-sm">
-								{getErrorMessage(versionError, 'Failed to load the playbook changes')}
-							</p>
-						{:else if !version}
-							<Skeleton class="h-40 w-full" />
-						{:else}
-							{#each sections as section (section.key)}
-								<section class="flex flex-col gap-2">
-									<h3 class="text-sm font-medium">{section.label}</h3>
-									<DiffView before={section.before} after={section.after} />
-								</section>
-							{:else}
-								<p class="text-muted-foreground text-sm">
-									No changes compared to the version before.
-								</p>
-							{/each}
+		<!-- Heads the tab like the playbook page heads its current version, so what a run taught reads the same in both places -->
+		<section class="flex flex-col gap-4" aria-labelledby="learned-heading">
+			<div class="flex flex-wrap items-start justify-between gap-3">
+				<div class="flex min-w-0 flex-col gap-1">
+					<h2 id="learned-heading" class="text-lg font-semibold">What this run taught the job</h2>
+					<div class="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+						{#if run.reflectionVersion}
+							<a
+								href="/jobs/{run.jobId}/playbook"
+								class="text-foreground inline-flex items-center gap-1 link-underline"
+							>
+								Saved as <span class="numeric">playbook version {run.reflectionVersion}</span>
+								<ArrowUpRightIcon class="size-3.5" aria-hidden="true" />
+							</a>
+						{:else if run.reflection === 'done'}
+							<span>The playbook stayed as it was</span>
+						{/if}
+						{#if version?.createdAt}
+							<span class="inline-flex items-center gap-1.5">
+								<ClockIcon class="size-3.5" aria-hidden="true" />
+								<RelativeTime value={version.createdAt} />
+							</span>
+						{/if}
+						{#if reflectionUsage > 0}
+							<span>
+								Reflection {usage.verb}
+								<span class="numeric">{usage.format(reflectionUsage)}</span>
+							</span>
 						{/if}
 					</div>
-				</Card.Content>
-			</Card.Root>
+				</div>
+				{#if canLearn}
+					<Button variant="outline" onclick={onLearn}>
+						<GraduationCapIcon data-icon="inline-start" />
+						Learn again
+					</Button>
+				{/if}
+			</div>
+
+			{#if run.reflectionSummary}
+				<VersionSummary author="reflection" summary={run.reflectionSummary} />
+			{/if}
+		</section>
+
+		<!-- Each proposal sits next to the diff it made, like a version's changes on the playbook page -->
+		{#if run.reflection === 'done' || ops.length > 0}
+			<section class="flex flex-col gap-3" aria-labelledby="learned-changes-heading">
+				<div class="flex flex-wrap items-baseline justify-between gap-x-3">
+					<h3 id="learned-changes-heading" class="text-sm font-semibold">Changes</h3>
+					{#if outcome}
+						<p class="text-muted-foreground text-xs">{outcome}</p>
+					{/if}
+				</div>
+				{#if versionError}
+					<p class="text-muted-foreground text-sm">
+						{getErrorMessage(versionError, 'Failed to load the playbook changes')}
+					</p>
+				{:else if reflectionVersion !== null && !version}
+					<Skeleton class="h-40 w-full" />
+				{:else}
+					{#each changes as change, i (change.key)}
+						<VersionChange {change} first={i === 0} />
+					{:else}
+						<p class="text-muted-foreground text-sm">No changes were needed.</p>
+					{/each}
+				{/if}
+			</section>
 		{/if}
 	{/if}
 </div>

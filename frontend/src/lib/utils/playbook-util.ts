@@ -262,6 +262,15 @@ export function opStatusLabel(status: PlaybookAppliedOp['status']) {
 	return opStatusLabels[status];
 }
 
+// How a reflection's proposals ended, e.g. `2 applied · 1 rejected`
+export function opsOutcome(ops: PlaybookAppliedOp[]) {
+	return (Object.keys(opStatusLabels) as PlaybookAppliedOp['status'][])
+		.map((status) => [status, ops.filter((op) => op.status === status).length] as const)
+		.filter(([, n]) => n > 0)
+		.map(([status, n]) => `${n} ${opStatusLabel(status).toLowerCase()}`)
+		.join(' · ');
+}
+
 // The editor language of an operation's content
 export function opLanguage(op: PlaybookAppliedOp): CodeLanguage {
 	if (op.op === 'set_dockerfile') return 'dockerfile';

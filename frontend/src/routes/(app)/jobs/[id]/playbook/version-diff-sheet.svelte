@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PlaybookAppliedOp, PlaybookVersion } from '#lib/api/types.js';
+	import type { PlaybookVersion } from '#lib/api/types.js';
 	import VersionChange from '#lib/components/playbook/version-change.svelte';
 	import VersionMeta from '#lib/components/playbook/version-meta.svelte';
 	import VersionSummary from '#lib/components/playbook/version-summary.svelte';
@@ -8,7 +8,7 @@
 	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
 	import PlaybookService from '#lib/services/playbook-service.js';
 	import { apiErrorToast } from '#lib/utils/error-util.js';
-	import { opStatusLabel, versionChanges } from '#lib/utils/playbook-util.js';
+	import { opsOutcome, versionChanges } from '#lib/utils/playbook-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 
@@ -34,17 +34,7 @@
 		detail ? versionChanges(detail.previous, detail.content, detail.ops ?? []) : []
 	);
 
-	const statuses: PlaybookAppliedOp['status'][] = ['applied', 'held', 'rejected'];
-
-	// How the proposals ended, e.g. `2 applied · 1 rejected`
-	const outcome = $derived.by(() => {
-		const ops = detail?.ops ?? [];
-		return statuses
-			.map((status) => [status, ops.filter((op) => op.status === status).length] as const)
-			.filter(([, n]) => n > 0)
-			.map(([status, n]) => `${n} ${opStatusLabel(status).toLowerCase()}`)
-			.join(' · ');
-	});
+	const outcome = $derived(opsOutcome(detail?.ops ?? []));
 
 	// The version endpoint includes the previous version's content, so one request gives the whole diff
 	$effect(() => {

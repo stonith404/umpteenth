@@ -32,7 +32,7 @@
 			<span class="numeric text-destructive">−{stats.removed}</span>
 		</div>
 	{/if}
-	<div class="max-h-128 overflow-auto">
+	<div class="relative max-h-128 overflow-auto">
 		<table class="w-full border-collapse font-mono text-xs leading-5">
 			<tbody>
 				{#each shown as line, i (i)}
