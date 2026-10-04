@@ -17,6 +17,11 @@ vite.config.ts.timestamp-*
 /backend/internal/sandbox/umpbin/bin/*
 !/backend/internal/sandbox/umpbin/bin/.gitkeep
 
+# Docs pages, which the image build copies in for the MCP server to embed
+# The .gitkeep keeps the embed compiling, and a build without the pages points search_docs at umpteenth.dev
+/backend/internal/mcpapi/docs/*
+!/backend/internal/mcpapi/docs/.gitkeep
+
 # Docs
 /docs/dist
 /docs/.astro

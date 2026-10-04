@@ -85,6 +85,11 @@ test('An agent creates a job over MCP, gives it an MCP server and runs it', asyn
 			expect.arrayContaining(['create_job', 'run_job', 'get_run', 'set_job_mcp_servers'])
 		);
 
+		// The image embeds the docs of its release, which the agent searches before writing an instruction
+		const docs = await mcp.call('search_docs', { query: 'writing instructions', limit: 1 });
+		expect(docs.text).toMatch(/^## Writing instructions/);
+		expect(docs.text).toContain('https://umpteenth.dev/guides/writing-instructions/');
+
 		// The agent finds the server by name and creates a job that uses it
 		const servers = await mcp.call('list_mcp_servers', { search: 'notes' });
 		expect(servers.text).toContain(server.id);

@@ -28,7 +28,7 @@ import (
 var mcpTools = []string{
 	"cancel_run", "compile_job", "create_job", "get_job", "get_job_mcp_servers", "get_job_secrets", "get_job_skills", "get_run",
 	"list_jobs", "list_mcp_servers", "list_models", "list_run_events", "list_runs", "list_secrets", "list_skills",
-	"run_job", "set_job_mcp_servers", "set_job_secrets", "set_job_skills", "update_job",
+	"run_job", "search_docs", "set_job_mcp_servers", "set_job_secrets", "set_job_skills", "update_job",
 }
 
 // mcpTestServer is a full instance behind an HTTP test server, with a workspace and an API token for it
@@ -149,7 +149,8 @@ func TestMCPToolsMatchTheirOperations(t *testing.T) {
 		assert.Equal(t, "object", parsed["type"], tool.Name)
 
 		require.NotNil(t, tool.Annotations, tool.Name)
-		assert.Equal(t, strings.HasPrefix(tool.Name, "get_") || strings.HasPrefix(tool.Name, "list_"), tool.Annotations.ReadOnlyHint, tool.Name)
+		readOnly := strings.HasPrefix(tool.Name, "get_") || strings.HasPrefix(tool.Name, "list_") || strings.HasPrefix(tool.Name, "search_")
+		assert.Equal(t, readOnly, tool.Annotations.ReadOnlyHint, tool.Name)
 	}
 	slices.Sort(names)
 	assert.Equal(t, mcpTools, names)
@@ -207,6 +208,14 @@ func TestMCPCreatesAndReadsAJob(t *testing.T) {
 	require.NoError(t, s.db.QueryRowContext(t.Context(), "SELECT workspace_id, created_by FROM jobs WHERE id = $1", job.ID).Scan(&workspaceID, &createdBy))
 	assert.Equal(t, s.workspaceID, workspaceID)
 	assert.Nil(t, createdBy, "tokens create jobs without a user, like the REST API does")
+}
+
+func TestMCPSearchesTheDocsOfThisRelease(t *testing.T) {
+	// Only the image build copies the docs pages in, so a test build answers with the website, and either way the agent learns where to read
+	s := newMCPTestServer(t)
+	text, isError := call(t, s.connect(t), "search_docs", map[string]any{"query": "cron schedule", "limit": 3})
+	require.False(t, isError, text)
+	assert.Contains(t, text, "https://umpteenth.dev/")
 }
 
 func TestMCPReportsProblemsToTheAgent(t *testing.T) {

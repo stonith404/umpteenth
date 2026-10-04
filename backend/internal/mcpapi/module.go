@@ -111,6 +111,17 @@ func newServer(spec *huma.OpenAPI, handler http.Handler) (*mcp.Server, error) {
 	for _, t := range tools {
 		server.AddTool(t.tool, t.handler(handler))
 	}
+
+	// The docs of this release are searchable next to the API, so an agent can look up how a setting works without leaving the server
+	sections, err := loadDocs(docsFS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the docs: %w", err)
+	}
+	docs, err := newDocsIndex(context.Background(), sections)
+	if err != nil {
+		return nil, err
+	}
+	server.AddTool(searchDocsTool, docs.handler)
 	return server, nil
 }
 
@@ -126,4 +137,6 @@ To create a job:
 3. Call create_job with a name (the spec's title works), the instruction, the compiled spec and network from spec.network. For a recurring job, also pass cron and timezone from spec.schedule.
 4. Give the job what it needs: set_job_mcp_servers with the servers in spec.mcp, set_job_secrets with the secrets compile_job matched and the environment variables it named, and set_job_skills with the skills it suggested. These take IDs, which the lists from step 1 map from names.
 
-To run a job, call run_job, then poll get_run every few seconds until its status is final. The run's summary, outputs and error say how it went, and list_run_events shows what the agent did step by step.`
+To run a job, call run_job, then poll get_run every few seconds until its status is final. The run's summary, outputs and error say how it went, and list_run_events shows what the agent did step by step.
+
+search_docs searches the Umpteenth documentation of this release. Read its guide on writing instructions before you write one, and search it whenever a setting, error or behavior is unclear.`

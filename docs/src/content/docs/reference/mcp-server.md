@@ -79,7 +79,7 @@ Passkey and GitHub accounts connect with an API token.
 
 ## Tools
 
-Each tool calls the route of the same name on the [API endpoints](../api-endpoints/) page, so it runs the same checks and returns the same JSON.
+Each tool except `search_docs` calls the route of the same name on the [API endpoints](../api-endpoints/) page, so it runs the same checks and returns the same JSON.
 
 | Tool | Effect |
 |---|---|
@@ -93,6 +93,7 @@ Each tool calls the route of the same name on the [API endpoints](../api-endpoin
 | `run_job` | Starts a run, which the run page shows as **Triggered via the API** |
 | `list_runs`, `get_run`, `list_run_events` | Follows runs and reads their results and timelines |
 | `cancel_run` | Stops a queued or live run |
+| `search_docs` | Searches this documentation, in the version of the release your instance runs, and returns the matching sections |
 
 A route's path and query parameters and its JSON body fields become the tool's arguments.
 The `set_job_*` tools replace the whole list, which they take as `body`.

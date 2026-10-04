@@ -29,6 +29,8 @@ COPY ./backend/go.mod ./backend/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY ./backend ./
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
+# The MCP server embeds the docs pages, so agents can search the docs of the release they talk to
+COPY ./docs/src/content/docs ./internal/mcpapi/docs/
 
 # The ump CLI is injected into every sandbox, so it is built for both sandbox architectures and embedded
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \

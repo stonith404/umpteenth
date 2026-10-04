@@ -1,7 +1,7 @@
 UMP_BIN_DIR := internal/sandbox/umpbin/bin
 UMP_ARCHES := amd64 arm64
 
-.PHONY: ump test test-integration lint gen
+.PHONY: ump test test-integration lint gen mcp-docs
 
 # Cross-compile the in-sandbox CLI for every sandbox architecture, to be embedded by internal/sandbox/umpbin
 ump:
@@ -22,3 +22,8 @@ lint:
 
 gen:
 	./scripts/sqlc.sh
+
+# Copies the docs pages in for the MCP server's search_docs to embed, which the image build does on its own
+mcp-docs:
+	find internal/mcpapi/docs -mindepth 1 ! -name .gitkeep -delete
+	cp -R ../docs/src/content/docs/. internal/mcpapi/docs/
