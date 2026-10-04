@@ -323,7 +323,7 @@ func (a *Adapter) ensureRelayLocked(ctx context.Context) error {
 	// Reuse a relay that matches, restart a stopped one, and replace an outdated one
 	info, err := a.cli.ContainerInspect(ctx, name)
 	switch {
-	case err == nil && info.Config != nil && info.Config.Image == a.cfg.DefaultImage &&
+	case err == nil && info.Config != nil && info.Config.Image == a.imageRef(a.cfg.DefaultImage) &&
 		info.Config.Labels[labelRelayTarget] == target && info.Config.Labels[labelUmpDigest] == digest:
 		if info.State == nil || !info.State.Running {
 			if err := a.cli.ContainerStart(ctx, info.ID, container.StartOptions{}); err != nil {
@@ -364,7 +364,7 @@ func (a *Adapter) ensureRelayLocked(ctx context.Context) error {
 func (a *Adapter) createRelay(ctx context.Context, name, target, digest string, ump []byte) (string, error) {
 	port := strconv.Itoa(a.cfg.BrokerPort)
 	cfg := &container.Config{
-		Image:      a.cfg.DefaultImage,
+		Image:      a.imageRef(a.cfg.DefaultImage),
 		Entrypoint: []string{sandbox.UmpBinary, "relay", "--listen", ":" + port, "--target", target},
 		// The relay needs no privileges at all, so it runs as nobody
 		User: "65534:65534",

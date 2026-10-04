@@ -114,6 +114,10 @@ sandbox:
       requests:
         cpu: 250m
         memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+        ephemeral-storage: 10Gi
 
 networkPolicy:
   # Install the policies that confine sandboxes, which need a network plugin that enforces them, such as Calico or Cilium

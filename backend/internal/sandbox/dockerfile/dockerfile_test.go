@@ -3,6 +3,7 @@
 package dockerfile
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,4 +44,43 @@ func TestBaseImagesLeavesOutStagesAndScratch(t *testing.T) {
 	bases, err := BaseImages(text)
 	require.NoError(t, err)
 	assert.Equal(t, []Base{{Ref: "python:3.13-slim"}, {Ref: "debian:trixie-slim", Platform: "linux/arm64"}}, bases)
+}
+
+func TestCheckRejectsUnenumeratedImageSources(t *testing.T) {
+	for _, text := range []string{
+		"FROM alpine AS base\nONBUILD COPY --from=blocked.example/private /x /x\nFROM base\n",
+		"FROM alpine\nRUN --mount=from=blocked.example/private,target=/x cat /x/file\n",
+		"# syntax=attacker.example/frontend\nFROM alpine\n",
+	} {
+		require.Error(t, Check(text), text)
+	}
+	require.Error(t, CheckTriggers([]string{"COPY --from=blocked.example/private /x /x"}))
+	require.Error(t, CheckTriggers([]string{"RUN --mount=from=blocked.example/private,target=/x cat /x/file"}))
+	require.NoError(t, Check("FROM alpine\nRUN --mount=type=cache,target=/cache echo hi\n"))
+}
+
+func TestRewriteSourcesPreservesStagesAndHeredocs(t *testing.T) {
+	text := `ARG BASE=alpine:3
+FROM $BASE AS base
+RUN <<EOF
+echo unchanged
+EOF
+FROM base
+COPY --from=0 /a /a
+COPY \
+ --from=registry.example/tool:1 /bin/tool /bin/tool
+`
+
+	var refs []string
+	rewritten, err := RewriteSources(text, func(base Base) (string, error) {
+		refs = append(refs, base.Ref)
+		return "sha256:" + strings.Repeat("a", 64), nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"alpine:3", "registry.example/tool:1"}, refs)
+	require.Contains(t, rewritten, "FROM base")
+	require.Contains(t, rewritten, "COPY --from=0 /a /a")
+	require.Contains(t, rewritten, "RUN <<EOF\necho unchanged\nEOF")
+	require.NotContains(t, rewritten, "--from=registry.example")
+	require.NoError(t, Check(rewritten))
 }

@@ -240,6 +240,7 @@ func newAdapter(ctx context.Context, cfg Config) (*Adapter, error) {
 		ns:           namespace,
 		arch:         arch,
 		version:      "kubernetes " + v,
+		networkErr:   errors.New("the sandbox network check has not passed yet"),
 		nodeSelector: nodeSelector,
 		tolerations:  tolerations,
 	}
@@ -323,7 +324,7 @@ func (a *Adapter) networks() []sandbox.NetworkPolicy {
 // Prepare stores the registry credentials, proves the network policies are enforced and cleans up after a crash
 func (a *Adapter) Prepare(ctx context.Context) error {
 	if err := a.ensurePullSecret(ctx); err != nil {
-		return err
+		a.log.WarnContext(ctx, "Failed to store the registry credentials", "error", err)
 	}
 
 	// A cluster that ignores NetworkPolicies would give sandboxes the run of the cluster, so a test sandbox checks before any run starts

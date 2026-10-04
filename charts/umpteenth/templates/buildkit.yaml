@@ -3,7 +3,6 @@
 {{- $namespace := include "umpteenth.sandboxNamespace" . -}}
 {{- $registryHost := regexReplaceAll "/.*" .Values.sandbox.registry.repository "" -}}
 # The BuildKit daemon job image builds run on, which keeps the layers of earlier builds; build pods are only its clients
-{{- if .Values.sandbox.registry.insecure }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -12,12 +11,17 @@ metadata:
   labels:
     {{- include "umpteenth.metaLabels" . | nindent 4 }}
 data:
+  # The image's own subordinate ID ranges lie outside the 65536 IDs of the pod's user namespace, so these cover the rest of them next to the user's ID 1000
+  subids: |
+    user:1:999
+    user:1001:64535
+  {{- if .Values.sandbox.registry.insecure }}
   buildkitd.toml: |
     [registry.{{ $registryHost | quote }}]
       http = true
       insecure = true
+  {{- end }}
 ---
-{{- end }}
 {{- if .Values.sandbox.buildkit.persistence.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -81,6 +85,7 @@ spec:
         app.kubernetes.io/component: buildkit
         umpteenth.dev/role: buildkit
     spec:
+      hostUsers: false
       automountServiceAccountToken: false
       enableServiceLinks: false
       {{- with .Values.sandbox.nodeSelector }}
@@ -99,7 +104,7 @@ spec:
             - tcp://0.0.0.0:1234
             - --addr
             - unix:///run/user/1000/buildkit/buildkitd.sock
-            - --oci-worker-no-process-sandbox
+            - --oci-worker-no-process-sandbox=false
             {{- if .Values.sandbox.registry.insecure }}
             - --config
             - /etc/buildkit/buildkitd.toml
@@ -109,6 +114,7 @@ spec:
               containerPort: 1234
           # Rootless BuildKit creates user namespaces, which the runtime's default seccomp and AppArmor profiles forbid
           securityContext:
+            procMount: Unmasked
             runAsUser: 1000
             runAsGroup: 1000
             seccompProfile:
@@ -124,6 +130,14 @@ spec:
           volumeMounts:
             - name: cache
               mountPath: /home/user/.local/share/buildkit
+            - name: config
+              mountPath: /etc/subuid
+              subPath: subids
+              readOnly: true
+            - name: config
+              mountPath: /etc/subgid
+              subPath: subids
+              readOnly: true
             {{- if .Values.sandbox.registry.insecure }}
             - name: config
               mountPath: /etc/buildkit
@@ -135,11 +149,10 @@ spec:
           persistentVolumeClaim:
             claimName: {{ $name }}
           {{- else }}
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: 10Gi
           {{- end }}
-        {{- if .Values.sandbox.registry.insecure }}
         - name: config
           configMap:
             name: {{ $name }}
-        {{- end }}
 {{- end }}

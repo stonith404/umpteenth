@@ -46,10 +46,16 @@ Umpteenth builds the image under these rules:
 
 - The build gets the Dockerfile alone, with no build context, so `COPY` of local files fails.
 - Umpteenth uses Docker's classic builder, which rejects BuildKit syntax such as `RUN --mount` and heredocs.
-- A build can run for up to 15 minutes and produce an image of up to 5 GiB.
+- Registry validation, base-image resolution and the build share a 15-minute deadline, and the completed image can be up to 5 GiB.
+- Docker build steps get 1 CPU and 1 GiB of memory, including swap.
+  These limits apply to builds separately from the job's run limits.
+  Docker's classic build API provides no process-count or writable-storage limit, so use a dedicated builder host with bounded storage for untrusted builds.
 - Build steps reach the internet through the egress proxy, whatever the job's network setting.
-- `ADD` fails the build, since the builder would fetch its source past the egress proxy, so download files with `curl` in a `RUN` step instead.
+- `ADD`, custom Dockerfile frontends, `RUN` mounts with a `from` source and deferred `ONBUILD` copies or mounts with source flags fail validation.
+  Download files with `curl` in a `RUN` step instead.
 - While `network.allow_private_targets` is `false`, images on a registry at a private address fail the build too, unless they come from `sandbox.registry.repository`.
+  On the configured registry host, a job can reference only its own images or the operator-selected `sandbox.image`; this rule also applies to the job's **Base image**.
+  Docker downloads other images through Umpteenth's outbound guard, including registry redirects and authentication endpoints.
 
 The compile step and reflection write Dockerfiles as well.
 The **Sandbox** card on the **New job** review screen has a **Custom environment** switch, which the compile step turns on if it proposes a Dockerfile, and Umpteenth builds that image before the first run.

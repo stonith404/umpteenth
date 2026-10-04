@@ -45,7 +45,10 @@ var errUnenforced = errors.New("the cluster does not enforce the sandbox Network
 func (a *Adapter) probeNetwork(ctx context.Context) error {
 	apiServer := a.apiServerAddr(ctx)
 	if apiServer == "" {
-		a.log.WarnContext(ctx, "Skipping the sandbox network check, since the address of the Kubernetes API server inside the cluster is unknown")
+		if a.cfg.RequireNetworkPolicy {
+			return errors.New("cannot verify required sandbox NetworkPolicies: the Kubernetes API server address is unknown")
+		}
+		a.log.WarnContext(ctx, "Skipping the optional sandbox network check, since the address of the Kubernetes API server inside the cluster is unknown")
 		return nil
 	}
 

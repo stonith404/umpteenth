@@ -451,3 +451,57 @@ func TestPruneLocalRemovesOnlyOrphanedImages(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{*kept.Ref, h.m.tag(building)}, refs)
 }
+
+// deadlineBuilder observes digest resolution before any build execution begins
+// Embedding the fake keeps the remaining image operations unchanged
+type deadlineBuilder struct {
+	sandbox.ImageBuilder
+	resolve func(context.Context, string) (string, error)
+}
+
+func (b deadlineBuilder) ResolveDigest(ctx context.Context, ref string) (string, error) {
+	return b.resolve(ctx, ref)
+}
+
+func TestRegistryResolutionSharesTheBuildDeadlineAndWorkspace(t *testing.T) {
+	h := newHarness(t)
+	img := h.seedImage(t, database.Now())
+	var resolutionDeadline time.Time
+	h.m.deps.Builder = deadlineBuilder{ImageBuilder: h.builder, resolve: func(ctx context.Context, _ string) (string, error) {
+		var ok bool
+		resolutionDeadline, ok = ctx.Deadline()
+		require.True(t, ok, "a stalled registry must have a deadline before execution")
+		require.LessOrEqual(t, time.Until(resolutionDeadline), buildTimeout)
+		return "", nil
+	}}
+	h.builder.OnBuild(func(spec sandbox.BuildSpec) error {
+		require.NotEmpty(t, spec.WorkspaceID)
+		return nil
+	})
+	require.NoError(t, h.m.build(t.Context(), img))
+	require.False(t, resolutionDeadline.IsZero())
+	require.Equal(t, StatusReady, h.status(t, img.ID))
+}
+
+func TestBuildRegistryExemptionBelongsToOneJob(t *testing.T) {
+	h := newHarness(t)
+	h.m.deps.Registry = "private.example/acme/jobs"
+	h.m.deps.Egress = refusingEgress{host: "private.example"}
+	require.NoError(t, h.m.checkDockerfile(t.Context(), "FROM private.example/acme/jobs/job-"+h.jobID+":ready", h.jobID))
+	for _, ref := range []string{"private.example/acme/jobs/job-other:ready", "private.example/acme/sibling:ready", "private.example/acme/jobs-other:ready"} {
+		require.Error(t, h.m.checkDockerfile(t.Context(), "FROM "+ref, h.jobID), ref)
+	}
+}
+
+func TestPlainBaseImagesCannotBorrowAnotherJobsRegistryAccess(t *testing.T) {
+	h := newHarness(t)
+	h.m.deps.Registry = "ghcr.io/acme/jobs"
+	job := h.job()
+	job.Dockerfile = ""
+	job.BaseImage = "ghcr.io/acme/jobs/job-other:ready"
+	_, _, err := h.m.ResolveImage(t.Context(), job, func() {})
+	require.ErrorContains(t, err, "another job")
+	job.BaseImage = "ghcr.io/acme/jobs/job-" + h.jobID + ":ready"
+	_, _, err = h.m.ResolveImage(t.Context(), job, func() {})
+	require.NoError(t, err)
+}

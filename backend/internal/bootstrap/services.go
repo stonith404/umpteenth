@@ -235,7 +235,7 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 	// Images are built only when the adapter can build them
 	builder, _ := svc.adapter.(sandbox.ImageBuilder)
 	svc.images, err = images.New(images.Dependencies{
-		DB: db, Actors: actors, Storage: fileStorage, Builder: builder, Registry: cfg.Sandbox.Registry.Repository, GrantProxy: proxyGranter(registry), Egress: guard,
+		DB: db, Actors: actors, Storage: fileStorage, Builder: builder, Registry: cfg.Sandbox.Registry.Repository, DefaultImage: cfg.Sandbox.Image, GrantProxy: proxyGranter(registry), Egress: guard,
 		Jobs: svc.jobs, Playbook: currentDockerfile{svc.playbook},
 		MaintenanceDisabled: cfg.App.Env.IsTest(),
 	})

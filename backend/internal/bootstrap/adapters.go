@@ -82,6 +82,7 @@ func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hos
 			Registry:          cfg.Sandbox.Registry.Repository,
 			RegistryUsername:  cfg.Sandbox.Registry.Username,
 			RegistryPassword:  cfg.Sandbox.Registry.Password,
+			RegistryTransport: guard.HTTPClient(0).Transport,
 			BrokerPort:        cfg.Server.BrokerPort,
 			BrokerHost:        cfg.Sandbox.BrokerHost,
 			AllowUnrestricted: cfg.Sandbox.AllowUnrestrictedNetwork,

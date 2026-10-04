@@ -64,8 +64,10 @@ type Dependencies struct {
 	// Builder is nil when the active sandbox adapter cannot build images
 	Builder  sandbox.ImageBuilder
 	Registry string
-	Jobs     JobChecker
-	Playbook CurrentDockerfile
+	// DefaultImage is the operator-selected image, which is trusted even when it shares the job registry host
+	DefaultImage string
+	Jobs         JobChecker
+	Playbook     CurrentDockerfile
 	// MaintenanceDisabled skips the GC cron job, like the other maintenance jobs in test mode
 	MaintenanceDisabled bool
 	// GrantProxy lets a build reach the internet through the egress proxy until revoke is called; builds get no network without it
@@ -162,6 +164,9 @@ func (m *Module) EnsureBuild(ctx context.Context, jobID, dockerfile string) erro
 // It never falls back to an image of an older Dockerfile, because toolkit scripts may rely on the new tools
 func (m *Module) ResolveImage(ctx context.Context, job runner.JobConfig, onWait func()) (string, string, error) {
 	if job.Dockerfile == "" {
+		if err := sandbox.CheckRegistrySource(job.BaseImage, m.deps.Registry, job.ID, m.deps.DefaultImage); err != nil {
+			return "", "", err
+		}
 		return job.BaseImage, "", nil
 	}
 	if m.deps.Builder == nil {
@@ -334,9 +339,14 @@ func (m *Module) rebuildLocal(ctx context.Context, img imagesdb.Image, lb *local
 	if img.BaseDigest != nil {
 		dockerfile = pinFrom(dockerfile, *img.BaseDigest)
 	}
-	err := m.checkDockerfile(ctx, dockerfile)
+	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout)
+	defer cancel()
+	workspaceID, err := m.queries.GetImageWorkspace(buildCtx, img.ID)
 	if err == nil {
-		_, err = m.buildWithProxy(ctx, sandbox.BuildSpec{Dockerfile: dockerfile, Tag: ref, Logs: io.Discard, Timeout: buildTimeout, MaxSizeBytes: maxImageBytes})
+		err = m.checkDockerfile(buildCtx, dockerfile, img.JobID)
+	}
+	if err == nil {
+		_, err = m.buildWithProxy(buildCtx, sandbox.BuildSpec{WorkspaceID: workspaceID, Dockerfile: dockerfile, Tag: ref, Logs: io.Discard, Timeout: buildTimeout, MaxSizeBytes: maxImageBytes})
 	}
 	if err != nil {
 		lb.err = fmt.Errorf("failed to rebuild the job image on this replica: %w", err)

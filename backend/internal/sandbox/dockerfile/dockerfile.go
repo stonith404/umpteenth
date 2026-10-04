@@ -4,6 +4,8 @@ package dockerfile
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -42,8 +44,11 @@ func parse(text string) (*file, error) {
 	return &file{stages: stages, metaArgs: metaArgs, lex: shell.NewLex(res.EscapeToken)}, nil
 }
 
-// Check rejects a Dockerfile with an ADD instruction, including one an ONBUILD defers to a later stage
+// Check rejects source mechanisms whose outbound requests cannot be fully enumerated before building
 func Check(text string) error {
+	if _, _, _, ok := parser.DetectSyntax([]byte(text)); ok {
+		return errors.New("custom Dockerfile frontends are not supported")
+	}
 	f, err := parse(text)
 	if err != nil {
 		return err
@@ -53,6 +58,12 @@ func Check(text string) error {
 			switch c := cmd.(type) {
 			case *instructions.AddCommand:
 				return ErrAdd
+			case *instructions.RunCommand:
+				for _, mount := range instructions.GetMounts(c) {
+					if mount.From != "" {
+						return errors.New("RUN mounts with a from source are not supported")
+					}
+				}
 			case *instructions.OnbuildCommand:
 				if err := CheckTriggers([]string{c.Expression}); err != nil {
 					return err
@@ -63,7 +74,7 @@ func Check(text string) error {
 	return nil
 }
 
-// CheckTriggers rejects the ONBUILD triggers of a base image when one of them is an ADD, since the builder runs them as the first steps of a stage built on it
+// CheckTriggers rejects deferred downloads and source flags since inherited instructions have no trusted source context
 func CheckTriggers(triggers []string) error {
 	for _, trigger := range triggers {
 		res, err := parser.Parse(strings.NewReader(trigger))
@@ -73,6 +84,14 @@ func CheckTriggers(triggers []string) error {
 		for _, node := range res.AST.Children {
 			if strings.EqualFold(node.Value, "add") {
 				return fmt.Errorf("an ONBUILD trigger runs %q: %w", trigger, ErrAdd)
+			}
+			// Deferred instructions inherit no trusted source context, so remote copies and mounts are refused
+			if strings.EqualFold(node.Value, "copy") || strings.EqualFold(node.Value, "run") {
+				for _, flag := range node.Flags {
+					if strings.HasPrefix(strings.ToLower(flag), "--from") || strings.HasPrefix(strings.ToLower(flag), "--mount") {
+						return fmt.Errorf("ONBUILD source flags are not supported: %s", trigger)
+					}
+				}
 			}
 		}
 	}
@@ -139,4 +158,79 @@ func BaseImages(text string) ([]Base, error) {
 		}
 	}
 	return bases, nil
+}
+
+// RewriteSources replaces every external FROM and COPY source with an already imported local image ID
+// Replacing whole parsed instruction ranges preserves comments, continuations and heredoc bodies of other instructions
+func RewriteSources(text string, resolve func(Base) (string, error)) (string, error) {
+	f, err := parse(text)
+	if err != nil {
+		return "", err
+	}
+	env := []string{}
+	for _, arg := range f.metaArgs {
+		for _, kv := range arg.Args {
+			env = append(env, kv.Key+"="+kv.ValueString())
+		}
+	}
+	vars := shell.EnvsFromSlice(env)
+	lines := strings.Split(text, "\n")
+	fromFlag := regexp.MustCompile(`(?i)--from=\S+`)
+	type replacement struct {
+		start, end int
+		text       string
+	}
+	var replacements []replacement
+	stages := map[string]bool{}
+	for i, stage := range f.stages {
+		base, _, err := f.lex.ProcessWord(stage.BaseName, vars)
+		if err != nil {
+			return "", err
+		}
+		platform, _, err := f.lex.ProcessWord(stage.Platform, vars)
+		if err != nil {
+			return "", err
+		}
+		if !stages[strings.ToLower(base)] && base != "scratch" {
+			local, err := resolve(Base{Ref: base, Platform: platform})
+			if err != nil {
+				return "", err
+			}
+			line := "FROM " + local
+			if stage.Name != "" {
+				line += " AS " + stage.Name
+			}
+			loc := stage.Location
+			replacements = append(replacements, replacement{loc[0].Start.Line - 1, loc[len(loc)-1].End.Line, line})
+		}
+		for _, cmd := range stage.Commands {
+			copy, ok := cmd.(*instructions.CopyCommand)
+			if !ok || copy.From == "" {
+				continue
+			}
+			if n, err := strconv.Atoi(copy.From); (err == nil && n >= 0 && n < i) || stages[strings.ToLower(copy.From)] {
+				continue
+			}
+			local, err := resolve(Base{Ref: copy.From, Platform: platform})
+			if err != nil {
+				return "", err
+			}
+			loc := copy.Location()
+			line := strings.Join(lines[loc[0].Start.Line-1:loc[len(loc)-1].End.Line], "\n")
+			match := fromFlag.FindStringIndex(line)
+			if match == nil {
+				return "", errors.New("unsupported COPY source syntax")
+			}
+			line = line[:match[0]] + "--from=" + local + line[match[1]:]
+			replacements = append(replacements, replacement{loc[0].Start.Line - 1, loc[len(loc)-1].End.Line, line})
+		}
+		if stage.Name != "" {
+			stages[strings.ToLower(stage.Name)] = true
+		}
+	}
+	slices.SortFunc(replacements, func(a, b replacement) int { return b.start - a.start })
+	for _, r := range replacements {
+		lines = append(append(append([]string{}, lines[:r.start]...), r.text), lines[r.end:]...)
+	}
+	return strings.Join(lines, "\n"), nil
 }

@@ -4,8 +4,14 @@ package kubernetes
 
 import (
 	"errors"
+	"github.com/google/go-containerregistry/pkg/name"
+	"k8s.io/client-go/rest"
+	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -182,4 +188,81 @@ func TestContainerAddressFailsClosedWithoutClusterRanges(t *testing.T) {
 	assert.True(t, a.ContainerAddress(netip.MustParseAddr("::ffff:172.20.0.5")))
 	assert.True(t, a.ContainerAddress(netip.MustParseAddr("100.64.1.2")))
 	assert.False(t, a.ContainerAddress(netip.MustParseAddr("93.184.216.34")))
+}
+
+func TestNetworkGateStartsClosedAndRetriesUnknownTarget(t *testing.T) {
+	t.Setenv("KUBERNETES_SERVICE_HOST", "")
+	t.Setenv("KUBERNETES_SERVICE_PORT", "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			_, _ = w.Write([]byte(`{"gitVersion":"v1.35.0"}`))
+			return
+		}
+		http.Error(w, "discovery denied", http.StatusForbidden)
+	}))
+	t.Cleanup(srv.Close)
+	config := filepath.Join(t.TempDir(), "config")
+	require.NoError(t, os.WriteFile(config, []byte("apiVersion: v1\nkind: Config\nclusters:\n- name: test\n  cluster:\n    server: "+srv.URL+"\ncontexts:\n- name: test\n  context:\n    cluster: test\ncurrent-context: test\n"), 0600))
+	a, err := newAdapter(t.Context(), Config{InstanceID: "test", DefaultImage: "alpine", BrokerHost: "10.1.2.3", Kubeconfig: config, RequireNetworkPolicy: true, Logger: slog.New(slog.DiscardHandler)})
+	require.NoError(t, err)
+	require.ErrorContains(t, a.networkProblem(), "not passed yet")
+	_, err = a.Create(t.Context(), sandbox.Spec{})
+	require.Error(t, err)
+	a.checkNetwork(t.Context())
+	require.ErrorContains(t, a.networkProblem(), "address is unknown")
+	a.checkNetwork(t.Context())
+	require.Error(t, a.networkProblem())
+}
+
+func TestBuildPodIsolatesProcessesAndBoundsResources(t *testing.T) {
+	for _, address := range []string{"", "tcp://buildkit:1234"} {
+		a := testAdapter(t, Config{Registry: "ghcr.io/acme/jobs", BuildkitAddress: address})
+		b := &Builder{Adapter: a}
+		ref, err := name.ParseReference("ghcr.io/acme/jobs/job-1:abc")
+		require.NoError(t, err)
+		pod := b.buildPod("build", ref, sandbox.BuildSpec{WorkspaceID: "workspace-one"})
+		c := pod.Spec.Containers[0]
+		require.Contains(t, c.Args, "build-arg:BUILDKIT_CACHE_MOUNT_NS=workspace-one")
+		require.Contains(t, c.Args, "cmdline=dockerfile.v0")
+		require.Equal(t, "1", c.Resources.Limits.Cpu().String())
+		require.Equal(t, "1Gi", c.Resources.Limits.Memory().String())
+		require.Equal(t, "10Gi", c.Resources.Limits.StorageEphemeral().String())
+		if address == "" {
+			require.False(t, *pod.Spec.HostUsers)
+			require.Equal(t, corev1.UnmaskedProcMount, *c.SecurityContext.ProcMount)
+			require.NotContains(t, c.Env[0].Value, "no-process-sandbox")
+			require.NotNil(t, pod.Spec.Volumes[len(pod.Spec.Volumes)-1].EmptyDir.SizeLimit)
+			require.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "context", MountPath: "/etc/subuid", SubPath: "subids", ReadOnly: true})
+		}
+	}
+}
+
+func TestRegistryCredentialsDoNotCoverSiblingRepositories(t *testing.T) {
+	a := testAdapter(t, Config{Registry: "ghcr.io/acme/jobs"})
+	own, _ := name.ParseReference("ghcr.io/acme/jobs/job-1:abc")
+	sibling, _ := name.ParseReference("ghcr.io/acme/other:abc")
+	require.True(t, a.inRegistry(own))
+	require.False(t, a.inRegistry(sibling))
+}
+
+func TestRequiredProbeTargetCannotBeSkipped(t *testing.T) {
+	t.Setenv("KUBERNETES_SERVICE_HOST", "")
+	t.Setenv("KUBERNETES_SERVICE_PORT", "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "denied", http.StatusForbidden) }))
+	t.Cleanup(srv.Close)
+	kube, err := newKubeClient(&rest.Config{Host: srv.URL}, "test")
+	require.NoError(t, err)
+	a := &Adapter{cfg: Config{RequireNetworkPolicy: true}, kube: kube, log: slog.New(slog.DiscardHandler)}
+	require.Error(t, a.probeNetwork(t.Context()))
+}
+
+func TestCallerSelectedImagesCannotBorrowRegistryCredentials(t *testing.T) {
+	a := &Adapter{cfg: Config{Registry: "ghcr.io/acme/jobs"}}
+	for _, spec := range []sandbox.Spec{
+		{JobID: "1", Image: "ghcr.io/acme/jobs/job-2:ready"},
+		{Image: "ghcr.io/acme/jobs/job-1:ready"},
+	} {
+		_, err := a.Create(t.Context(), spec)
+		require.ErrorContains(t, err, "another job")
+	}
 }

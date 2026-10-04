@@ -45,6 +45,12 @@ func (a *Adapter) create(ctx context.Context, spec sandbox.Spec) (sandbox.Sandbo
 	if spec.Image == "" {
 		spec.Image = a.cfg.DefaultImage
 	}
+	// Operator-selected defaults are trusted, while caller-selected images cannot borrow another job's registry access
+	if spec.Image != a.cfg.DefaultImage {
+		if err := sandbox.CheckRegistrySource(spec.Image, a.cfg.Registry, spec.JobID, a.cfg.DefaultImage); err != nil {
+			return nil, err
+		}
+	}
 	if spec.AgentUser == "" {
 		spec.AgentUser = sandbox.UserAgent
 	}

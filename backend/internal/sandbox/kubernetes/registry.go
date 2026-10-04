@@ -13,6 +13,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +45,7 @@ func (a *Adapter) parseRef(ref string) (name.Reference, error) {
 
 // inRegistry reports whether a reference points into the configured registry
 func (a *Adapter) inRegistry(ref name.Reference) bool {
-	return a.cfg.Registry != "" && ref.Context().RegistryStr() == a.registryHost()
+	return sandbox.InRegistry(ref.Name(), a.cfg.Registry)
 }
 
 // remoteOptions authenticate against the configured registry and go anonymously everywhere else

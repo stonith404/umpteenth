@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox/dockerfile"
 )
 
 const (
@@ -26,12 +27,56 @@ const (
 	buildContainer = "build"
 	// buildHome is the home of the rootless BuildKit image's user
 	buildHome = "/home/user"
+	// buildSubIDs replaces the rootless BuildKit image's subordinate ID ranges, which lie outside the 65536 IDs a pod with its own user namespace has
+	// Together with the user's own ID 1000 they cover IDs 0 to 65535, so build steps keep 65535 IDs including nobody
+	buildSubIDs = "user:1:999\nuser:1001:64535\n"
 )
 
 // BuildImage builds a job image in a one-shot rootless BuildKit pod, which pushes it to the configured registry for every node to pull
 func (b *Builder) BuildImage(ctx context.Context, spec sandbox.BuildSpec) (sandbox.Image, error) {
+	if spec.WorkspaceID == "" {
+		return sandbox.Image{}, errors.New("a Kubernetes image build needs a workspace cache namespace")
+	}
+	if err := dockerfile.Check(spec.Dockerfile); err != nil {
+		return sandbox.Image{}, err
+	}
 	if spec.Tag == "" || strings.TrimSpace(spec.Dockerfile) == "" {
 		return sandbox.Image{}, errors.New("an image build needs a tag and a Dockerfile")
+	}
+
+	// Inherited triggers execute outside the submitted Dockerfile, so vet each base image before delegating its execution
+	bases, err := dockerfile.BaseImages(spec.Dockerfile)
+	if err != nil {
+		return sandbox.Image{}, err
+	}
+	for _, base := range bases {
+		ref, err := b.parseRef(base.Ref)
+		if err != nil {
+			return sandbox.Image{}, err
+		}
+		opts := b.remoteOptions(ctx, ref)
+		platform := v1.Platform{OS: "linux", Architecture: b.arch}
+		if base.Platform != "" {
+			parts := strings.Split(base.Platform, "/")
+			if len(parts) < 2 || len(parts) > 3 {
+				return sandbox.Image{}, fmt.Errorf("invalid image platform %q", base.Platform)
+			}
+			platform.OS, platform.Architecture = parts[0], parts[1]
+			if len(parts) == 3 {
+				platform.Variant = parts[2]
+			}
+		}
+		img, err := remote.Image(ref, append(opts, remote.WithPlatform(platform))...)
+		if err != nil {
+			return sandbox.Image{}, err
+		}
+		config, err := img.ConfigFile()
+		if err != nil {
+			return sandbox.Image{}, err
+		}
+		if err := dockerfile.CheckTriggers(config.Config.OnBuild); err != nil {
+			return sandbox.Image{}, err
+		}
 	}
 
 	// Nodes can only run what they can pull, so every image goes to the registry whether or not the caller asked to push
@@ -55,7 +100,7 @@ func (b *Builder) BuildImage(ctx context.Context, spec sandbox.BuildSpec) (sandb
 	labels := map[string]string{labelInstance: labelValue(b.cfg.InstanceID), labelHost: labelValue(b.cfg.HostID), labelRole: roleBuildContext}
 	buildContext := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: podName, Namespace: b.ns, Labels: labels},
-		Data:       map[string]string{"Dockerfile": spec.Dockerfile},
+		Data:       map[string]string{"Dockerfile": spec.Dockerfile, "subids": buildSubIDs},
 	}
 	if b.cfg.InsecureRegistry {
 		buildContext.Data["buildkitd.toml"] = fmt.Sprintf("[registry.%q]\n  http = true\n  insecure = true\n", b.registryHost())
@@ -118,6 +163,8 @@ func (b *Builder) buildPod(podName string, ref name.Reference, spec sandbox.Buil
 	}
 	args := []string{
 		"build", "--progress=plain", "--frontend=dockerfile.v0",
+		"--opt", "build-arg:BUILDKIT_CACHE_MOUNT_NS=" + spec.WorkspaceID,
+		"--opt", "cmdline=dockerfile.v0",
 		"--local", "context=/ctx", "--local", "dockerfile=/ctx",
 		"--output", output,
 	}
@@ -151,6 +198,7 @@ func (b *Builder) buildPod(podName string, ref name.Reference, spec sandbox.Buil
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Resources: corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("250m"), corev1.ResourceMemory: resource.MustParse("512Mi")},
+			Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("1Gi"), corev1.ResourceEphemeralStorage: resource.MustParse("10Gi")},
 		},
 		VolumeMounts: mounts,
 	}
@@ -168,7 +216,7 @@ func (b *Builder) buildPod(podName string, ref name.Reference, spec sandbox.Buil
 		}
 	} else {
 		// Rootless BuildKit needs its own user namespaces, which the runtime's default seccomp and AppArmor profiles forbid
-		daemonFlags := "--oci-worker-no-process-sandbox"
+		daemonFlags := ""
 		if b.cfg.InsecureRegistry {
 			daemonFlags += " --config=/ctx/buildkitd.toml"
 		}
@@ -176,13 +224,18 @@ func (b *Builder) buildPod(podName string, ref name.Reference, spec sandbox.Buil
 		container.Args = args
 		container.Env = []corev1.EnvVar{{Name: "BUILDKITD_FLAGS", Value: daemonFlags}}
 		container.SecurityContext = &corev1.SecurityContext{
+			ProcMount:       new(corev1.UnmaskedProcMount),
 			RunAsUser:       new(int64(1000)),
 			RunAsGroup:      new(int64(1000)),
 			SeccompProfile:  &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeUnconfined},
 			AppArmorProfile: &corev1.AppArmorProfile{Type: corev1.AppArmorProfileTypeUnconfined},
 		}
-		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: "state", MountPath: buildHome + "/.local/share/buildkit"})
-		volumes = append(volumes, corev1.Volume{Name: "state", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}})
+		container.VolumeMounts = append(container.VolumeMounts,
+			corev1.VolumeMount{Name: "state", MountPath: buildHome + "/.local/share/buildkit"},
+			corev1.VolumeMount{Name: "context", MountPath: "/etc/subuid", SubPath: "subids", ReadOnly: true},
+			corev1.VolumeMount{Name: "context", MountPath: "/etc/subgid", SubPath: "subids", ReadOnly: true},
+		)
+		volumes = append(volumes, corev1.Volume{Name: "state", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: new(resource.MustParse("10Gi"))}}})
 	}
 
 	return &corev1.Pod{
@@ -192,6 +245,7 @@ func (b *Builder) buildPod(podName string, ref name.Reference, spec sandbox.Buil
 			labelRole:     roleBuild,
 		}},
 		Spec: corev1.PodSpec{
+			HostUsers:                    new(b.cfg.BuildkitAddress != ""),
 			RestartPolicy:                corev1.RestartPolicyNever,
 			AutomountServiceAccountToken: new(false),
 			EnableServiceLinks:           new(false),

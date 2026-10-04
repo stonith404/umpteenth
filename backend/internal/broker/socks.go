@@ -88,7 +88,9 @@ func (b *Broker) serveSOCKS(conn net.Conn) {
 		writeSOCKSReply(conn, reply)
 		return
 	}
-	ctx := context.Background()
+	ctx := grant.Context()
+	untrack := grant.TrackConn(conn)
+	defer untrack()
 	if err := checkTarget(grant, host); err != nil {
 		b.recordProxy(ctx, grant, host, err)
 		writeSOCKSReply(conn, socksNotAllowed)
@@ -105,7 +107,7 @@ func (b *Broker) serveSOCKS(conn net.Conn) {
 	// The dial has its own timeout, and the tunnel after it lives as long as both sides keep it open
 	_ = conn.SetDeadline(time.Time{})
 	dialCtx, cancel := context.WithTimeout(ctx, proxyDialTimeout)
-	upstream, err := b.dialer(grant.AllowPrivateNetwork)(dialCtx, "tcp", net.JoinHostPort(host, port))
+	upstream, err := b.grantDialer(grant)(dialCtx, "tcp", net.JoinHostPort(host, port))
 	cancel()
 	b.recordProxy(ctx, grant, host, err)
 	if err != nil {
@@ -156,6 +158,9 @@ func readSOCKSRequest(r io.Reader) (host, port string, reply byte) {
 		name, err := readSOCKSString(r)
 		if err != nil {
 			return "", "", socksGeneralFailure
+		}
+		if !asciiHost(name) {
+			return "", "", socksNotAllowed
 		}
 		host = strings.TrimSuffix(strings.ToLower(name), ".")
 	default:

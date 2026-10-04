@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"context"
+	"net"
 	"sync"
 
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
@@ -23,7 +25,11 @@ type ProxyGrant struct {
 	// hosts are the hosts the sandbox connected to through the egress proxy
 	hosts map[string]bool
 	// conns counts the egress proxy connections the sandbox holds open
-	conns int
+	conns  int
+	closed bool
+	active map[net.Conn]struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // runGrant is the proxy grant of a run's sandbox, which follows the job's network settings
@@ -51,7 +57,7 @@ func (g *ProxyGrant) FirstHost(host string) bool {
 func (g *ProxyGrant) AcquireConn() (release func(), ok bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.conns >= maxProxyConns {
+	if g.closed || g.conns >= maxProxyConns {
 		return nil, false
 	}
 	g.conns++
@@ -73,6 +79,7 @@ func (r *Registry) GrantProxy(token string, g *ProxyGrant) (revoke func()) {
 		r.mu.Lock()
 		delete(r.grants, hash)
 		r.mu.Unlock()
+		g.revoke()
 	}
 }
 
@@ -83,4 +90,62 @@ func (r *Registry) ProxyGrant(token string) (*ProxyGrant, bool) {
 	defer r.mu.RUnlock()
 	g, ok := r.grants[hash]
 	return g, ok
+}
+
+// Context is canceled on revocation, including while a proxy connection is still being established
+func (g *ProxyGrant) Context() context.Context {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.ctx == nil {
+		g.ctx, g.cancel = context.WithCancel(context.Background())
+		if g.closed {
+			g.cancel()
+		}
+	}
+	return g.ctx
+}
+
+// TrackConn closes a connection on revocation even if both relay directions are stalled
+func (g *ProxyGrant) TrackConn(conn net.Conn) (untrack func()) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closed {
+		_ = conn.Close()
+		return func() {}
+	}
+	if g.active == nil {
+		g.active = map[net.Conn]struct{}{}
+	}
+	g.active[conn] = struct{}{}
+	return func() {
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		delete(g.active, conn)
+	}
+}
+
+func (g *ProxyGrant) revoke() {
+	// Detach the sockets under the lock and close them outside it so blocked I/O cannot delay admission checks
+	g.mu.Lock()
+	g.closed = true
+	if g.cancel != nil {
+		g.cancel()
+	}
+	active := g.active
+	g.active = nil
+	g.mu.Unlock()
+	for conn := range active {
+		_ = conn.Close()
+	}
+}
+
+// RevokeProxies closes active proxy connections during broker shutdown
+func (r *Registry) RevokeProxies() {
+	r.mu.Lock()
+	grants := r.grants
+	r.grants = map[string]*ProxyGrant{}
+	r.mu.Unlock()
+	for _, grant := range grants {
+		grant.revoke()
+	}
 }

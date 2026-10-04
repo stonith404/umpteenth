@@ -85,6 +85,18 @@ func (q *Queries) GetImage(ctx context.Context, id string) (Image, error) {
 	return i, err
 }
 
+const getImageWorkspace = `-- name: GetImageWorkspace :one
+SELECT j.workspace_id FROM images i JOIN jobs j ON j.id = i.job_id WHERE i.id = $1
+`
+
+// unscoped: the durable build task identifies its image and inherits the owning job's workspace
+func (q *Queries) GetImageWorkspace(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getImageWorkspace, id)
+	var workspace_id string
+	err := row.Scan(&workspace_id)
+	return workspace_id, err
+}
+
 const latestImageForHash = `-- name: LatestImageForHash :one
 SELECT id, job_id, dockerfile_hash, dockerfile, base_digest, status, ref, digest, size_bytes, error, log_key, created_at, started_at, finished_at FROM images WHERE job_id = $1 AND dockerfile_hash = $2 ORDER BY created_at DESC, id DESC LIMIT 1
 `

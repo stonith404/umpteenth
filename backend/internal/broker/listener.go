@@ -14,7 +14,11 @@ const defaultSniffTimeout = 10 * time.Second
 // Listener lets the SOCKS5 proxy share the broker port with HTTP, so sandboxes and the relay only ever need that one port
 // SOCKS5 connections open with the version byte 5, which no HTTP request starts with, and every other connection goes on to the HTTP server
 func (b *Broker) Listener(ln net.Listener) net.Listener {
-	m := &muxListener{Listener: ln, serveSOCKS: b.serveSOCKS, sniffTimeout: b.sniffTimeout, accepted: make(chan accepted), done: make(chan struct{})}
+	m := &muxListener{Listener: ln, serveSOCKS: b.serveSOCKS, revoke: func() {
+		if b.deps.Live != nil {
+			b.deps.Live.RevokeProxies()
+		}
+	}, sniffTimeout: b.sniffTimeout, accepted: make(chan accepted), done: make(chan struct{})}
 	go m.acceptLoop()
 	return m
 }
@@ -26,6 +30,7 @@ type muxListener struct {
 	accepted     chan accepted
 	done         chan struct{}
 	closeOnce    sync.Once
+	revoke       func()
 }
 
 // accepted is a connection for the HTTP server, or an error of the underlying listener
@@ -87,7 +92,12 @@ func (m *muxListener) Accept() (net.Conn, error) {
 }
 
 func (m *muxListener) Close() error {
-	m.closeOnce.Do(func() { close(m.done) })
+	m.closeOnce.Do(func() {
+		close(m.done)
+		if m.revoke != nil {
+			m.revoke()
+		}
+	})
 	return m.Listener.Close()
 }
 

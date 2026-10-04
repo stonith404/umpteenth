@@ -270,6 +270,7 @@ jobs:
         run: |
           mkdir -p tests/.report
           kubectl get pods --all-namespaces -o wide > tests/.report/pods.txt
+          kubectl get events --all-namespaces --sort-by=.lastTimestamp > tests/.report/events.txt
           kubectl --namespace umpteenth logs --selector app.kubernetes.io/component=server --prefix --timestamps --tail=-1 > tests/.report/stack.log
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()

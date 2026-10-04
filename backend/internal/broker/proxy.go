@@ -47,6 +47,11 @@ func (b *Broker) proxy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		host, port = strings.Trim(target, "[]"), "80"
 	}
+	// Reject Unicode before lowercasing because Transport applies a different IDNA mapping to the original URL
+	if !asciiHost(host) {
+		http.Error(w, "use an ASCII or Punycode target hostname", http.StatusForbidden)
+		return
+	}
 	host = strings.TrimSuffix(strings.ToLower(host), ".")
 	if err := checkTarget(grant, host); err != nil {
 		b.recordProxy(r.Context(), grant, host, err)
@@ -62,7 +67,12 @@ func (b *Broker) proxy(w http.ResponseWriter, r *http.Request) {
 	}
 	defer release()
 
-	dial := b.dialer(grant.AllowPrivateNetwork)
+	ctx, cancel := context.WithCancel(r.Context())
+	stop := context.AfterFunc(grant.Context(), cancel)
+	defer stop()
+	defer cancel()
+	r = r.WithContext(ctx)
+	dial := b.grantDialer(grant)
 	if r.Method == http.MethodConnect {
 		b.tunnel(w, r, grant, host, net.JoinHostPort(host, port), dial)
 		return
@@ -85,6 +95,37 @@ func (b *Broker) proxyGrant(r *http.Request) (*runner.ProxyGrant, bool) {
 		return nil, false
 	}
 	return b.deps.Live.ProxyGrant(token)
+}
+
+// asciiHost keeps the hostname checked by the allowlist identical to the transport destination
+func asciiHost(host string) bool {
+	for _, c := range host {
+		if c > 127 {
+			return false
+		}
+	}
+	return true
+}
+
+// grantDialer binds each upstream socket to the lifetime of its grant
+func (b *Broker) grantDialer(grant *runner.ProxyGrant) dialFunc {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := b.dialer(grant.AllowPrivateNetwork)(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		return &grantConn{Conn: conn, untrack: grant.TrackConn(conn)}, nil
+	}
+}
+
+type grantConn struct {
+	net.Conn
+	untrack func()
+}
+
+func (c *grantConn) Close() error {
+	c.untrack()
+	return c.Conn.Close()
 }
 
 // checkTarget decides by name whether a grant may reach a host, before any address is resolved
@@ -128,6 +169,8 @@ func (b *Broker) tunnel(w http.ResponseWriter, r *http.Request, grant *runner.Pr
 		return
 	}
 	defer func() { _ = client.Close() }()
+	untrack := grant.TrackConn(client)
+	defer untrack()
 
 	// The server may have left a deadline on the connection, which must not cut a long-lived tunnel short
 	_ = client.SetDeadline(time.Time{})

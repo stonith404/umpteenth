@@ -216,19 +216,21 @@ func (s *suite) testImageBuilder(t *testing.T) {
 		t.Skip("the adapter does not implement ImageBuilder")
 	}
 	ctx := t.Context()
-	repo := "umpteenth-sandboxtest/job-" + randomHex(4)
+	jobID := randomHex(4)
+	repo := "umpteenth-sandboxtest/job-" + jobID
 	if s.opts.ImageRepository != "" {
-		repo = strings.TrimRight(s.opts.ImageRepository, "/") + "/job-" + randomHex(4)
+		repo = strings.TrimRight(s.opts.ImageRepository, "/") + "/job-" + jobID
 	}
 
 	t.Run("BuildRunRemove", func(t *testing.T) {
 		tag := repo + ":ok"
 		var logs bytes.Buffer
 		img, err := builder.BuildImage(ctx, sandbox.BuildSpec{
-			Dockerfile: fmt.Sprintf("FROM %s\nRUN echo build-log-marker && echo built > /built.txt\n", DefaultImage),
-			Tag:        tag,
-			Logs:       &logs,
-			Timeout:    5 * time.Minute,
+			WorkspaceID: "sandbox-conformance",
+			Dockerfile:  fmt.Sprintf("FROM %s\nRUN echo build-log-marker && echo built > /built.txt\n", DefaultImage),
+			Tag:         tag,
+			Logs:        &logs,
+			Timeout:     5 * time.Minute,
 		})
 		require.NoError(t, err, logs.String())
 		t.Cleanup(func() { _ = builder.RemoveImage(context.Background(), tag) })
@@ -242,7 +244,7 @@ func (s *suite) testImageBuilder(t *testing.T) {
 		assert.True(t, has)
 
 		// Runs use the built image
-		sb := s.create(t, sandbox.Spec{Image: tag})
+		sb := s.create(t, sandbox.Spec{JobID: jobID, Image: tag})
 		assert.Equal(t, "built", strings.TrimSpace(s.mustSh(t, sb, "cat /built.txt")))
 		require.NoError(t, s.a.Destroy(ctx, sb.ID()))
 
@@ -258,9 +260,10 @@ func (s *suite) testImageBuilder(t *testing.T) {
 	t.Run("FailingBuild", func(t *testing.T) {
 		var logs bytes.Buffer
 		_, err := builder.BuildImage(ctx, sandbox.BuildSpec{
-			Dockerfile: fmt.Sprintf("FROM %s\nRUN echo failing-step && exit 3\n", DefaultImage),
-			Tag:        repo + ":fail",
-			Logs:       &logs,
+			WorkspaceID: "sandbox-conformance",
+			Dockerfile:  fmt.Sprintf("FROM %s\nRUN echo failing-step && exit 3\n", DefaultImage),
+			Tag:         repo + ":fail",
+			Logs:        &logs,
 		})
 		assert.Error(t, err)
 		assert.Contains(t, logs.String(), "failing-step")
@@ -268,7 +271,7 @@ func (s *suite) testImageBuilder(t *testing.T) {
 	})
 	t.Run("MaxSize", func(t *testing.T) {
 		tag := repo + ":big"
-		_, err := builder.BuildImage(ctx, sandbox.BuildSpec{Dockerfile: fmt.Sprintf("FROM %s\nRUN echo x > /x\n", DefaultImage), Tag: tag, MaxSizeBytes: 1})
+		_, err := builder.BuildImage(ctx, sandbox.BuildSpec{WorkspaceID: "sandbox-conformance", Dockerfile: fmt.Sprintf("FROM %s\nRUN echo x > /x\n", DefaultImage), Tag: tag, MaxSizeBytes: 1})
 		assert.Error(t, err)
 		t.Cleanup(func() { _ = builder.RemoveImage(context.Background(), tag) })
 		has, _ := builder.HasImage(ctx, tag)
@@ -278,7 +281,7 @@ func (s *suite) testImageBuilder(t *testing.T) {
 		start := time.Now()
 		// The random suffix keeps an earlier run's cache from answering instantly
 		dockerfile := fmt.Sprintf("FROM %s\nRUN sleep 120 && echo %s\n", DefaultImage, randomHex(4))
-		_, err := builder.BuildImage(ctx, sandbox.BuildSpec{Dockerfile: dockerfile, Tag: repo + ":slow", Timeout: 3 * time.Second})
+		_, err := builder.BuildImage(ctx, sandbox.BuildSpec{WorkspaceID: "sandbox-conformance", Dockerfile: dockerfile, Tag: repo + ":slow", Timeout: 3 * time.Second})
 		assert.Error(t, err)
 		assert.Less(t, time.Since(start), 30*time.Second)
 		t.Cleanup(func() { _ = builder.RemoveImage(context.Background(), repo+":slow") })

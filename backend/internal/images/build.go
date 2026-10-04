@@ -149,16 +149,23 @@ func (m *Module) build(ctx context.Context, img imagesdb.Image) error {
 	logKey := "images/" + img.ID + "/build.log"
 	logs := newBuildLog(ctx, m.deps.Storage, logKey)
 	defer logs.Close()
+	// Registry validation and digest resolution share the execution deadline so a stalled registry cannot retain the sole build slot
+	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout)
+	defer cancel()
+	workspaceID, err := m.queries.GetImageWorkspace(buildCtx, img.ID)
+	if err != nil {
+		return err
+	}
 
 	// A Dockerfile that would make the builder fetch outside the egress proxy fails before anything is pulled
-	checkErr := m.checkDockerfile(ctx, img.Dockerfile)
+	checkErr := m.checkDockerfile(buildCtx, img.Dockerfile, img.JobID)
 
 	// Pinning FROM to a digest makes every replica build the same image
 	dockerfile, baseDigest := img.Dockerfile, img.BaseDigest
 	if baseDigest == nil && checkErr == nil {
 		if ref := firstFrom(dockerfile); ref != "" && !strings.Contains(ref, "@") {
 			fmt.Fprintf(logs, "Resolving base image %s\n", ref)
-			digest, err := m.deps.Builder.ResolveDigest(ctx, ref)
+			digest, err := m.deps.Builder.ResolveDigest(buildCtx, ref)
 			if err == nil && digest != "" {
 				baseDigest = &digest
 			} else if err != nil {
@@ -170,14 +177,15 @@ func (m *Module) build(ctx context.Context, img imagesdb.Image) error {
 		dockerfile = pinFrom(dockerfile, *baseDigest)
 	}
 
-	err := m.queries.MarkBuilding(ctx, imagesdb.MarkBuildingParams{ID: img.ID, StartedAt: new(database.Now()), BaseDigest: baseDigest, LogKey: &logKey})
+	err = m.queries.MarkBuilding(ctx, imagesdb.MarkBuildingParams{ID: img.ID, StartedAt: new(database.Now()), BaseDigest: baseDigest, LogKey: &logKey})
 	if err != nil {
 		return err
 	}
 
 	built, err := sandbox.Image{}, checkErr
 	if err == nil {
-		built, err = m.buildWithProxy(ctx, sandbox.BuildSpec{
+		built, err = m.buildWithProxy(buildCtx, sandbox.BuildSpec{
+			WorkspaceID:  workspaceID,
 			Dockerfile:   dockerfile,
 			Tag:          m.tag(img),
 			Push:         m.deps.Registry != "",
@@ -302,13 +310,10 @@ func (l *buildLog) Close() {
 }
 
 // checkDockerfile refuses what the builder would fetch itself instead of through the egress proxy: ADD sources, and images on registries Umpteenth itself may not reach
-func (m *Module) checkDockerfile(ctx context.Context, text string) error {
+func (m *Module) checkDockerfile(ctx context.Context, text string, jobID ...string) error {
 	err := dockerfile.Check(text)
 	if err != nil {
 		return err
-	}
-	if m.deps.Egress == nil {
-		return nil
 	}
 
 	// The first FROM is what base image pinning pulls, so it is vetted along with every image the builder pulls
@@ -326,10 +331,23 @@ func (m *Module) checkDockerfile(ctx context.Context, text string) error {
 	}
 
 	// The configured registry is the operator's choice, and may well sit on a private network
-	own := registryDomain(m.deps.Registry)
+	own := registryDomain(strings.TrimRight(m.deps.Registry, "/") + "/umpteenth-registry-scope")
 	for _, ref := range refs {
 		domain := registryDomain(ref)
-		if domain == "" || domain == own {
+		if domain == "" {
+			continue
+		}
+		if domain == own {
+			id := ""
+			if len(jobID) > 0 {
+				id = jobID[0]
+			}
+			if err := sandbox.CheckRegistrySource(ref, m.deps.Registry, id, m.deps.DefaultImage); err != nil {
+				return err
+			}
+			continue
+		}
+		if m.deps.Egress == nil {
 			continue
 		}
 		err := m.deps.Egress.CheckURL(ctx, "dockerfile", "https://"+domain)

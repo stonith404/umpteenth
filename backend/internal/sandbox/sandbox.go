@@ -223,6 +223,8 @@ type Adapter interface {
 // BuildSpec describes a job image build
 type BuildSpec struct {
 	Dockerfile string
+	// WorkspaceID gives shared builders an immutable cache namespace
+	WorkspaceID string
 	// Tag is the full image reference to produce, including the registry when pushing
 	Tag     string
 	Push    bool

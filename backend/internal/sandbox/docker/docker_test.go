@@ -230,11 +230,10 @@ func TestRegistryAuth(t *testing.T) {
 	assert.Equal(t, "ghcr.io", registryHost(a.cfg.Registry))
 	assert.NotEmpty(t, a.registryAuth("ghcr.io/acme/jobs/job-1:abc"))
 	assert.Empty(t, a.registryAuth("debian:trixie-slim"), "credentials must only go to the configured registry")
-	assert.Contains(t, a.buildAuthConfigs(), "ghcr.io")
+	assert.Empty(t, a.registryAuth("ghcr.io/acme/sibling:abc"), "credentials must not authorize sibling repositories")
 
 	a.cfg.RegistryUsername = ""
 	assert.Empty(t, a.registryAuth("ghcr.io/acme/jobs/job-1:abc"))
-	assert.Nil(t, a.buildAuthConfigs())
 }
 
 func TestIsUnavailableMessage(t *testing.T) {

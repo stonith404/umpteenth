@@ -389,3 +389,47 @@ func TestRelayEndsWhenEitherSideIsDone(t *testing.T) {
 	close(eof)
 	requireDone(done)
 }
+
+func TestUnicodeProxyTargetIsRejectedBeforeNormalization(t *testing.T) {
+	h := newProxyHarness(t, sandbox.NetworkAllowlist, []string{"github.com"})
+	req := httptest.NewRequest(http.MethodGet, "http://gİthub.com/", nil)
+	req.Host = "github.com"
+	req.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("ump:secret-token")))
+	w := httptest.NewRecorder()
+	h.server.Config.Handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestRevocationEndsABothDirectionsStalledRelay(t *testing.T) {
+	client, sandboxEnd := net.Pipe()
+	upstream, serverEnd := net.Pipe()
+	defer func() { _ = sandboxEnd.Close() }()
+	defer func() { _ = serverEnd.Close() }()
+	grant := &runner.ProxyGrant{}
+	registry := runner.NewRegistry()
+	revoke := registry.GrantProxy("stalled", grant)
+	untrackClient := grant.TrackConn(client)
+	defer untrackClient()
+	untrackUpstream := grant.TrackConn(upstream)
+	defer untrackUpstream()
+	done := make(chan struct{})
+	go func() { relay(client, client, upstream); close(done) }()
+	wrote := make(chan struct{})
+	go func() { _, _ = sandboxEnd.Write(make([]byte, 1<<20)); close(wrote) }()
+	require.Eventually(t, func() bool {
+		select {
+		case <-wrote:
+			return false
+		default:
+			return true
+		}
+	}, time.Second, time.Millisecond)
+	revoke()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("revoked relay retained its sockets")
+	}
+	_, ok := grant.AcquireConn()
+	require.False(t, ok)
+}

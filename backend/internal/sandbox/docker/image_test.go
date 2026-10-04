@@ -16,7 +16,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"encoding/base64"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 	"github.com/stonith404/umpteenth/backend/internal/sandbox/dockerfile"
+	"net/url"
 )
 
 func TestJobImagesAreOnlyPulledFromTheConfiguredRegistry(t *testing.T) {
@@ -78,6 +81,49 @@ func TestCheckBaseImagesRefusesAddTriggers(t *testing.T) {
 		"runs:1":    {"RUN echo hi"},
 		"fetches:1": {"RUN echo hi", "ADD https://example.com/file /file"},
 	})}
-	require.NoError(t, a.checkBaseImages(t.Context(), "FROM plain:1 AS base\nFROM runs:1\nFROM base\n"))
-	require.ErrorIs(t, a.checkBaseImages(t.Context(), "FROM plain:1\nFROM fetches:1\n"), dockerfile.ErrAdd)
+	_, err := a.BuildImage(t.Context(), sandbox.BuildSpec{Dockerfile: "FROM fetches:1\n", Tag: "test"})
+	require.ErrorIs(t, err, dockerfile.ErrAdd)
+}
+
+func TestClassicBuildEnforcesExecutionLimitsAndReceivesNoCredentials(t *testing.T) {
+	var limits url.Values
+	var authHeader string
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /{version}/build", func(w http.ResponseWriter, r *http.Request) {
+		limits, authHeader = r.URL.Query(), r.Header.Get("X-Registry-Config")
+		_, _ = w.Write([]byte(`{"stream":"built\n"}`))
+	})
+	mux.HandleFunc("GET /{version}/images/{name}/json", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"Id":"sha256:fixture","Size":1}`))
+	})
+	engine := httptest.NewServer(mux)
+	t.Cleanup(engine.Close)
+	cli, err := client.NewClientWithOpts(client.WithHost("tcp://"+strings.TrimPrefix(engine.URL, "http://")), client.WithVersion("1.47"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cli.Close() })
+	a := &Adapter{cli: cli, log: slog.New(slog.DiscardHandler), cfg: Config{Registry: "ghcr.io/acme/jobs", RegistryUsername: "fixture", RegistryPassword: "fixture"}}
+	_, err = a.BuildImage(t.Context(), sandbox.BuildSpec{Dockerfile: "FROM scratch\nLABEL test=true\n", Tag: "fixture"})
+	require.NoError(t, err)
+	require.Equal(t, "100000", limits.Get("cpuperiod"))
+	require.Equal(t, "100000", limits.Get("cpuquota"))
+	require.Equal(t, "1073741824", limits.Get("memory"))
+	require.Equal(t, "1073741824", limits.Get("memswap"))
+	if authHeader != "" {
+		data, err := base64.URLEncoding.DecodeString(authHeader)
+		require.NoError(t, err)
+		var auth map[string]any
+		require.NoError(t, json.Unmarshal(data, &auth))
+		require.Empty(t, auth)
+	}
+}
+
+func TestCallerSelectedImagesCannotBorrowRegistryCredentials(t *testing.T) {
+	a := &Adapter{cfg: Config{Registry: "ghcr.io/acme/jobs"}}
+	for _, spec := range []sandbox.Spec{
+		{JobID: "1", Image: "ghcr.io/acme/jobs/job-2:ready"},
+		{Image: "ghcr.io/acme/jobs/job-1:ready"},
+	} {
+		_, err := a.Create(t.Context(), spec)
+		require.ErrorContains(t, err, "another job")
+	}
 }

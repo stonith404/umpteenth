@@ -20,6 +20,9 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
@@ -43,9 +46,28 @@ func (a *Adapter) BuildImage(ctx context.Context, spec sandbox.BuildSpec) (sandb
 		defer cancel()
 	}
 	// Base images are vetted first, since the engine runs their ONBUILD triggers outside the build's network
-	if err := a.checkBaseImages(buildCtx, spec.Dockerfile); err != nil {
+	if err := dockerfile.Check(spec.Dockerfile); err != nil {
+		return sandbox.Image{}, err
+	}
+	prepared, err := dockerfile.RewriteSources(spec.Dockerfile, func(base dockerfile.Base) (string, error) {
+		inspect, err := a.baseImage(buildCtx, base)
+		if err != nil {
+			return "", err
+		}
+		if inspect.Config != nil {
+			if err := dockerfile.CheckTriggers(inspect.Config.OnBuild); err != nil {
+				return "", err
+			}
+		}
+		if inspect.ID == "" {
+			return "", errors.New("the engine returned no local image ID")
+		}
+		return inspect.ID, nil
+	})
+	if err != nil {
 		return sandbox.Image{}, buildError(buildCtx, spec, err)
 	}
+	spec.Dockerfile = prepared
 
 	// Build steps reach the outside only through the egress proxy, so a Dockerfile written by reflection reaches the internet but not private networks, the host or cloud metadata, like an internet sandbox
 	// Without a proxy grant they get no network at all
@@ -72,8 +94,11 @@ func (a *Adapter) BuildImage(ctx context.Context, spec sandbox.BuildSpec) (sandb
 		Remove:      true,
 		ForceRemove: true,
 		Version:     build.BuilderV1,
-		Labels:      map[string]string{labelInstance: a.cfg.InstanceID},
-		AuthConfigs: a.buildAuthConfigs(),
+		CPUPeriod:   100000, CPUQuota: 100000,
+		Memory: 1 << 30, MemorySwap: 1 << 30,
+		Labels: map[string]string{labelInstance: a.cfg.InstanceID},
+		// Every source is a local image ID, so the engine receives no credentials and cannot initiate a registry pull
+		AuthConfigs: nil,
 		NetworkMode: networkMode,
 		BuildArgs:   buildArgs,
 	})
@@ -124,28 +149,6 @@ func (a *Adapter) BuildImage(ctx context.Context, spec sandbox.BuildSpec) (sandb
 	return img, nil
 }
 
-// checkBaseImages refuses base images with an ADD among their ONBUILD triggers
-// The classic builder runs those triggers in the engine, which would fetch an ADD's source from the host's network instead of through the egress proxy
-func (a *Adapter) checkBaseImages(ctx context.Context, text string) error {
-	bases, err := dockerfile.BaseImages(text)
-	if err != nil {
-		return err
-	}
-	for _, base := range bases {
-		inspect, err := a.baseImage(ctx, base)
-		if err != nil {
-			return err
-		}
-		if inspect.Config == nil {
-			continue
-		}
-		if err := dockerfile.CheckTriggers(inspect.Config.OnBuild); err != nil {
-			return fmt.Errorf("base image %s: %w", base.Ref, err)
-		}
-	}
-	return nil
-}
-
 // baseImage returns the image the classic builder takes for a FROM, pulling it for the FROM's platform when the engine lacks it, as the builder would
 func (a *Adapter) baseImage(ctx context.Context, base dockerfile.Base) (image.InspectResponse, error) {
 	var opts []client.ImageInspectOption
@@ -161,7 +164,15 @@ func (a *Adapter) baseImage(ctx context.Context, base dockerfile.Base) (image.In
 		opts = append(opts, client.ImageInspectWithPlatform(platform))
 	}
 
-	inspect, err := a.cli.ImageInspect(ctx, base.Ref, opts...)
+	// Fetch untrusted sources even when their names match a local image, so local IDs and aliases cannot bypass registry validation
+	if a.cfg.RegistryTransport != nil && !a.onRegistry(base.Ref) {
+		if err := a.pullPlatform(ctx, base.Ref, base.Platform); err != nil {
+			return image.InspectResponse{}, err
+		}
+		return a.cli.ImageInspect(ctx, a.imageRef(base.Ref), opts...)
+	}
+
+	inspect, err := a.cli.ImageInspect(ctx, a.imageRef(base.Ref), opts...)
 	if err == nil {
 		return inspect, nil
 	}
@@ -174,7 +185,7 @@ func (a *Adapter) baseImage(ctx context.Context, base dockerfile.Base) (image.In
 	if err := a.pullPlatform(ctx, base.Ref, base.Platform); err != nil {
 		return inspect, err
 	}
-	inspect, err = a.cli.ImageInspect(ctx, base.Ref, opts...)
+	inspect, err = a.cli.ImageInspect(ctx, a.imageRef(base.Ref), opts...)
 	if err != nil {
 		return inspect, fmt.Errorf("failed to inspect image %s: %w", base.Ref, err)
 	}
@@ -211,7 +222,7 @@ func proxyBuildArgs(token string, port int) map[string]*string {
 // HasImage reports whether a job image is present locally or can be pulled from the configured registry
 // It pulls a missing image, since that is what the caller needs next anyway
 func (a *Adapter) HasImage(ctx context.Context, ref string) (bool, error) {
-	_, err := a.cli.ImageInspect(ctx, ref)
+	_, err := a.cli.ImageInspect(ctx, a.imageRef(ref))
 	if err == nil {
 		return true, nil
 	}
@@ -241,9 +252,22 @@ func (a *Adapter) ResolveDigest(ctx context.Context, ref string) (string, error)
 		return canonical.Digest().String(), nil
 	}
 
+	// Guard the actual lookup rather than asking the engine to resolve an untrusted registry
+	if a.cfg.RegistryTransport != nil && !a.onRegistry(ref) {
+		parsed, err := name.ParseReference(ref)
+		if err != nil {
+			return "", err
+		}
+		desc, err := remote.Head(parsed, remote.WithContext(ctx), remote.WithAuth(authn.Anonymous), remote.WithTransport(a.cfg.RegistryTransport))
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve image %s: %w", ref, err)
+		}
+		return desc.Digest.String(), nil
+	}
+
 	// Pull to learn the digest the tag points at now; offline, the local image's digest is the best answer
 	pullErr := a.pullImage(ctx, ref)
-	inspect, err := a.cli.ImageInspect(ctx, ref)
+	inspect, err := a.cli.ImageInspect(ctx, a.imageRef(ref))
 	if err != nil {
 		if pullErr != nil {
 			return "", pullErr
@@ -292,7 +316,7 @@ func (a *Adapter) RemoveImage(ctx context.Context, ref string) error {
 
 // ensureImage returns the local image, pulling it first when it is missing
 func (a *Adapter) ensureImage(ctx context.Context, ref string) (image.InspectResponse, error) {
-	inspect, err := a.cli.ImageInspect(ctx, ref)
+	inspect, err := a.cli.ImageInspect(ctx, a.imageRef(ref))
 	if err == nil {
 		return inspect, nil
 	}
@@ -307,7 +331,7 @@ func (a *Adapter) ensureImage(ctx context.Context, ref string) (image.InspectRes
 	if err := a.pullImage(ctx, ref); err != nil {
 		return inspect, err
 	}
-	inspect, err = a.cli.ImageInspect(ctx, ref)
+	inspect, err = a.cli.ImageInspect(ctx, a.imageRef(ref))
 	if err != nil {
 		return inspect, fmt.Errorf("failed to inspect image %s: %w", ref, err)
 	}
@@ -335,6 +359,9 @@ func (a *Adapter) pullImage(ctx context.Context, ref string) error {
 // pullPlatform pulls an image for a platform such as linux/arm64, or for the engine's own when it is empty
 func (a *Adapter) pullPlatform(ctx context.Context, ref, platform string) error {
 	a.log.InfoContext(ctx, "Pulling image", "image", ref)
+	if a.cfg.RegistryTransport != nil && !a.onRegistry(ref) {
+		return a.pullGuarded(ctx, ref, platform)
+	}
 	rc, err := a.cli.ImagePull(ctx, ref, image.PullOptions{RegistryAuth: a.registryAuth(ref), Platform: platform})
 	if err == nil {
 		err = readProgress(rc, nil)
@@ -384,8 +411,7 @@ func (a *Adapter) registryAuth(ref string) string {
 	if a.cfg.Registry == "" || a.cfg.RegistryUsername == "" {
 		return ""
 	}
-	named, err := reference.ParseNormalizedNamed(ref)
-	if err != nil || reference.Domain(named) != registryHost(a.cfg.Registry) {
+	if !sandbox.InRegistry(ref, a.cfg.Registry) {
 		return ""
 	}
 	auth, err := registry.EncodeAuthConfig(a.registryAuthConfig())
@@ -393,14 +419,6 @@ func (a *Adapter) registryAuth(ref string) string {
 		return ""
 	}
 	return auth
-}
-
-// buildAuthConfigs lets FROM pull from the configured registry
-func (a *Adapter) buildAuthConfigs() map[string]registry.AuthConfig {
-	if a.cfg.Registry == "" || a.cfg.RegistryUsername == "" {
-		return nil
-	}
-	return map[string]registry.AuthConfig{registryHost(a.cfg.Registry): a.registryAuthConfig()}
 }
 
 func (a *Adapter) registryAuthConfig() registry.AuthConfig {

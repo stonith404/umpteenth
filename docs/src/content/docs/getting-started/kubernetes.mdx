@@ -146,6 +146,8 @@ The chart installs NetworkPolicies that let sandbox pods reach the broker port (
 A job's **Network** setting works as it does on Docker: **Internet access** and **Allowed domains only** sandboxes go through the egress proxy on that port, and **Unrestricted network** sandboxes reach public addresses and the cluster DNS, but no address in `networkPolicy.privateRanges`.
 
 At start, each replica starts a sandbox without network and checks that it reaches the broker but not the Kubernetes API server.
+Sandboxes stay blocked until the check passes, including if the replica cannot discover the API server address.
+Umpteenth retries failed checks during maintenance.
 On a cluster that ignores NetworkPolicies, the check fails, the log shows `Sandboxes can't start until the network check passes`, and runs fail with `the cluster does not enforce the sandbox NetworkPolicies`.
 Set `sandbox.requireNetworkPolicy: false` to run sandboxes anyway, for example on a laptop cluster, knowing that they then reach everything in the cluster.
 
@@ -166,10 +168,18 @@ sandbox:
 ```
 
 The Secret holds the password or token under `registry-password`.
+Give that credential access only to `sandbox.registry.repository`, since build clients and nodes use registry credentials at host scope.
 Without a registry, runs of a job with a Dockerfile fail with `the active sandbox adapter cannot build job images`.
 
 The chart runs a rootless BuildKit daemon in the sandbox namespace to build the images.
-Rootless BuildKit needs unconfined seccomp and AppArmor profiles, which the Pod Security level `baseline` forbids, so a sandbox namespace the chart creates gets `privileged` while builds are on.
+Build steps run in separate process namespaces, and each workspace has its own namespace for mutable build caches.
+BuildKit requires pod user namespaces (`hostUsers: false`) and an unmasked `/proc`, plus unconfined seccomp and AppArmor profiles, so your nodes and container runtime must support these settings.
+A sandbox namespace the chart creates gets the Pod Security level `privileged` while builds are on.
+Unsupported runtimes fail the build; Umpteenth does not fall back to sharing the builder's process namespace.
+The chart limits the shared builder to 1 CPU, 1 GiB of memory and 10 GiB of ephemeral storage by default through `sandbox.buildkit.resources`.
+A daemonless build pod has the same limits, with a 10 GiB limit on its build volume.
+Set the kubelet's `podPidsLimit` to bound builder processes.
+An external BuildKit daemon must enforce process isolation and resource limits too.
 For a registry inside the cluster, add a rule for it to `networkPolicy.build.extraEgress` and set `sandbox.registry.insecure: true` if it speaks plain HTTP.
 
 ## Replicas

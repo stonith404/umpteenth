@@ -46,3 +46,7 @@ DELETE FROM images WHERE id = sqlc.arg(id);
 
 -- name: ListImageIDsOfWorkspace :many
 SELECT i.id FROM images i JOIN jobs j ON j.id = i.job_id WHERE j.workspace_id = sqlc.arg(workspace_id);
+
+-- name: GetImageWorkspace :one
+-- unscoped: the durable build task identifies its image and inherits the owning job's workspace
+SELECT j.workspace_id FROM images i JOIN jobs j ON j.id = i.job_id WHERE i.id = sqlc.arg(id);

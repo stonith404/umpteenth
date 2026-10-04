@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/netip"
 	"regexp"
 	"slices"
@@ -95,6 +96,8 @@ type Config struct {
 	// RegistryUsername and RegistryPassword authenticate pulls, pushes and builds against Registry's host
 	RegistryUsername string
 	RegistryPassword string
+	// RegistryTransport validates the actual registry, redirect and token-realm connections of untrusted images
+	RegistryTransport http.RoundTripper
 	// BrokerPort is the port of this replica's broker listener, 8081 by default
 	BrokerPort int
 	// BrokerHost overrides the host the relay forwards to in binary mode (default host.docker.internal)
