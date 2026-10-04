@@ -172,7 +172,7 @@ func (m *Manager) DiscoverOAuth(ctx context.Context, serverURL string, headers m
 	}
 
 	// Servers from before the 2025-06-18 spec are their own authorization server
-	asm, err := findAuthServerMetadata(ctx, client, serverURL, "")
+	asm, err := findAuthServerMetadata(ctx, client, origin(base), origin(base))
 	if err != nil || asm == nil {
 		return nil, err
 	}
@@ -322,7 +322,7 @@ func findAuthServerMetadata(ctx context.Context, client *http.Client, issuer, ex
 		if asm == nil {
 			continue
 		}
-		if expectedIssuer != "" && asm.Issuer != "" && !issuersEqual(asm.Issuer, expectedIssuer) {
+		if expectedIssuer != "" && !issuersEqual(asm.Issuer, expectedIssuer) {
 			return nil, fmt.Errorf("authorization server metadata at %s is for issuer %q, not %q", candidate, asm.Issuer, expectedIssuer)
 		}
 		if asm.AuthorizationEndpoint == "" || asm.TokenEndpoint == "" {
@@ -648,6 +648,10 @@ func (t *OAuthTokens) refreshLocked(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Active sessions must never adopt credentials issued for a replacement login or destination
+	if !sameLogin(t.creds, stored) {
+		return "", ErrLoginExpired
+	}
 	if stored.AccessToken != t.creds.AccessToken {
 		t.creds = stored
 		if !stored.NeedsRefresh(time.Now()) {
@@ -668,7 +672,7 @@ func (t *OAuthTokens) refreshLocked(ctx context.Context) (string, error) {
 
 	// A rejected refresh token ends the login, unless another replica rotated it in the meantime
 	if tokenErr, ok := errors.AsType[*TokenError](err); ok && tokenErr.Code == "invalid_grant" {
-		if latest, loadErr := t.store.Load(ctx); loadErr == nil && latest.RefreshToken != used.RefreshToken && !latest.NeedsRefresh(time.Now()) {
+		if latest, loadErr := t.store.Load(ctx); loadErr == nil && sameLogin(used, latest) && latest.RefreshToken != used.RefreshToken && !latest.NeedsRefresh(time.Now()) {
 			t.creds = latest
 			return latest.AccessToken, nil
 		}
@@ -694,6 +698,11 @@ func (t *OAuthTokens) refreshLocked(ctx context.Context) (string, error) {
 	}
 	t.creds = fresh
 	return t.creds.AccessToken, nil
+}
+
+// sameLogin allows token rotation within one immutable login and rejects credentials for another client or resource
+func sameLogin(a, b OAuthCredentials) bool {
+	return a.LoggedInAt == b.LoggedInAt && a.Resource == b.Resource && a.TokenEndpoint == b.TokenEndpoint && a.Client == b.Client
 }
 
 // saveRefreshed stores refreshed tokens, retrying a failed save while the lease is held

@@ -55,7 +55,9 @@ func New(cfg llm.Config) (*Provider, error) {
 		option.WithHeaderDel("OpenAI-Project"),
 		option.WithHTTPClient(llm.LimitedHTTPClient(cfg.HTTPClient)),
 	}
-	return &Provider{client: openai.NewClient(opts...), openAIAPI: isOpenAIAPI(baseURL)}, nil
+	// Construct only the services we use from explicit options, since NewClient imports host credentials and custom headers
+	client := openai.Client{Options: opts, Chat: openai.NewChatService(opts...)}
+	return &Provider{client: client, openAIAPI: isOpenAIAPI(baseURL)}, nil
 }
 
 // isOpenAIAPI recognizes OpenAI's API by its host, the same rule providers.modelSourceFor uses to sync models from the catalog

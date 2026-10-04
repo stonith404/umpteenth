@@ -324,7 +324,7 @@ func (m *Module) oauthTokens(workspaceID string, s mcpserversdb.McpServer) (*mcp
 		return nil, err
 	}
 	creds.LoggedInAt = loggedInAt
-	tokens := m.manager.NewOAuthTokens(creds, oauthStore{m: m, workspaceID: workspaceID, serverID: s.ID})
+	tokens := m.manager.NewOAuthTokens(creds, oauthStore{m: m, workspaceID: workspaceID, serverID: s.ID, loggedInAt: loggedInAt})
 	m.tokens[s.ID] = cachedTokens{loggedInAt: loggedInAt, tokens: tokens}
 	return tokens, nil
 }
@@ -363,11 +363,12 @@ type oauthStore struct {
 	m           *Module
 	workspaceID string
 	serverID    string
+	loggedInAt  int64
 }
 
 func (s oauthStore) Load(ctx context.Context) (mcp.OAuthCredentials, error) {
 	row, err := s.m.queries.GetOAuthLogin(ctx, mcpserversdb.GetOAuthLoginParams{WorkspaceID: s.workspaceID, ID: s.serverID})
-	if database.IsNotFound(err) || (err == nil && (row.OauthCredentials == nil || row.OauthLoggedInAt == nil)) {
+	if database.IsNotFound(err) || (err == nil && (row.OauthCredentials == nil || row.OauthLoggedInAt == nil || *row.OauthLoggedInAt != s.loggedInAt)) {
 		return mcp.OAuthCredentials{}, mcp.ErrLoginExpired
 	} else if err != nil {
 		return mcp.OAuthCredentials{}, err

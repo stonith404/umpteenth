@@ -7,7 +7,8 @@ VALUES (sqlc.arg(id), sqlc.arg(workspace_id), sqlc.arg(name), sqlc.narg(descript
 UPDATE mcp_servers SET name = sqlc.arg(name), description = sqlc.narg(description), transport = sqlc.arg(transport), command = sqlc.narg(command),
   args = sqlc.arg(args), env = sqlc.arg(env), url = sqlc.narg(url), headers = sqlc.arg(headers), oauth_config = sqlc.arg(oauth_config),
   enabled = sqlc.arg(enabled), updated_at = sqlc.arg(updated_at)
-WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);
+WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id)
+ AND transport = sqlc.arg(previous_transport) AND COALESCE(url, '') = sqlc.arg(previous_url) AND oauth_config = sqlc.arg(previous_oauth_config);
 
 -- name: DeleteServer :execrows
 DELETE FROM mcp_servers WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);

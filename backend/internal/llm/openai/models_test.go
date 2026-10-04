@@ -150,3 +150,19 @@ func TestListModelsRefusesAListLongerThanAProviderHolds(t *testing.T) {
 	_, err = p.ListModels(context.Background())
 	require.ErrorContains(t, err, "more than the 5000 a provider can hold")
 }
+
+func TestListModelsDoesNotInheritHostCredentials(t *testing.T) {
+	t.Setenv("OPENAI_ADMIN_KEY", "host-admin-secret")
+	t.Setenv("OPENAI_CUSTOM_HEADERS", "Authorization: Bearer host-header-secret\nX-Host-Secret: private")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("Authorization"))
+		assert.Empty(t, r.Header.Get("X-Host-Secret"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+	p, err := New(llm.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
+	_, err = p.ListModels(t.Context())
+	require.NoError(t, err)
+}

@@ -476,22 +476,26 @@ UPDATE mcp_servers SET name = $1, description = $2, transport = $3, command = $4
   args = $5, env = $6, url = $7, headers = $8, oauth_config = $9,
   enabled = $10, updated_at = $11
 WHERE workspace_id = $12 AND id = $13
+ AND transport = $14 AND COALESCE(url, '') = $15 AND oauth_config = $16
 `
 
 type UpdateServerParams struct {
-	Name        string
-	Description *string
-	Transport   string
-	Command     *string
-	Args        string
-	Env         string
-	Url         *string
-	Headers     string
-	OauthConfig string
-	Enabled     bool
-	UpdatedAt   int64
-	WorkspaceID string
-	ID          string
+	Name                string
+	Description         *string
+	Transport           string
+	Command             *string
+	Args                string
+	Env                 string
+	Url                 *string
+	Headers             string
+	OauthConfig         string
+	Enabled             bool
+	UpdatedAt           int64
+	WorkspaceID         string
+	ID                  string
+	PreviousTransport   string
+	PreviousUrl         *string
+	PreviousOauthConfig string
 }
 
 func (q *Queries) UpdateServer(ctx context.Context, arg UpdateServerParams) (int64, error) {
@@ -509,6 +513,9 @@ func (q *Queries) UpdateServer(ctx context.Context, arg UpdateServerParams) (int
 		arg.UpdatedAt,
 		arg.WorkspaceID,
 		arg.ID,
+		arg.PreviousTransport,
+		arg.PreviousUrl,
+		arg.PreviousOauthConfig,
 	)
 	if err != nil {
 		return 0, err

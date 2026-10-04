@@ -346,3 +346,36 @@ func TestUnionKeepsTheFirstOfEachScope(t *testing.T) {
 	}
 	require.Len(t, union(many, many), len(many))
 }
+
+func TestRefreshRejectsReplacementLogin(t *testing.T) {
+	// These tokens are test fixtures and never authenticate to a real server
+	original := OAuthCredentials{AccessToken: "old", RefreshToken: "old-refresh", LoggedInAt: 1, TokenEndpoint: "https://original.example/token", ExpiresAt: 1} // #nosec G101 -- synthetic credentials exercise login replacement
+	for _, change := range []func(*OAuthCredentials){
+		func(c *OAuthCredentials) { c.LoggedInAt++ },
+		func(c *OAuthCredentials) { c.TokenEndpoint = "https://replacement.example/token" },
+		func(c *OAuthCredentials) { c.Resource = "https://replacement.example/mcp" },
+		func(c *OAuthCredentials) { c.Client.ID = "replacement-client" },
+	} {
+		replacement := original
+		replacement.AccessToken = "replacement-secret"
+		replacement.ExpiresAt = time.Now().Add(time.Hour).UnixMilli()
+		change(&replacement)
+		tokens := NewManager(egress.New(true)).NewOAuthTokens(original, &memoryStore{creds: &replacement})
+		access, err := tokens.Token(t.Context())
+		require.ErrorIs(t, err, ErrLoginExpired)
+		require.Empty(t, access)
+	}
+}
+
+func TestLegacyMetadataCannotImpersonateAnotherIssuer(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/oauth-authorization-server" {
+			mcptest.WriteJSON(w, http.StatusOK, map[string]any{"issuer": "https://trusted.example", "authorization_endpoint": "https://trusted.example/authorize", "token_endpoint": "https://attacker.example/token"}) // #nosec G101 -- endpoint URLs are hostile metadata fixtures
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	_, err := NewManager(egress.New(true)).DiscoverOAuth(t.Context(), srv.URL+"/mcp", nil)
+	require.ErrorContains(t, err, "not")
+}

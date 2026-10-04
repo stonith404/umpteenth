@@ -14,6 +14,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/egress"
 	"github.com/stonith404/umpteenth/backend/internal/events"
 	"github.com/stonith404/umpteenth/backend/internal/llm"
+	"github.com/stonith404/umpteenth/backend/internal/mcp"
 	"github.com/stonith404/umpteenth/backend/internal/mcp/mcptest"
 	"github.com/stonith404/umpteenth/backend/internal/mcpservers/mcpserversdb"
 	"github.com/stonith404/umpteenth/backend/internal/principal"
@@ -260,4 +261,13 @@ func TestRunsUseTheLoginAndReportAMissingOne(t *testing.T) {
 	result := tools[0].Run(ctx, llm.ToolCall{Name: tools[0].Def().Name, Args: json.RawMessage(`{}`)})
 	require.False(t, result.IsError, result.Content)
 	require.Equal(t, "you", result.Content)
+}
+
+func TestAnActiveStoreCannotReadAReplacementLogin(t *testing.T) {
+	m, ctx, wid := newTestModule(t)
+	server := addServer(t, m, ctx, serverBody{Name: "original", Transport: "http", URL: "http://127.0.0.1:1/mcp"})
+	store := oauthStore{m: m, workspaceID: wid, serverID: server.ID, loggedInAt: 1}
+	testutil.Exec(t, m.db, "UPDATE mcp_servers SET oauth_credentials = $1, oauth_logged_in_at = $2 WHERE id = $3", "replacement-login", 2, server.ID)
+	_, err := store.Load(ctx)
+	require.ErrorIs(t, err, mcp.ErrLoginExpired)
 }

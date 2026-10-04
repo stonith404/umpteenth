@@ -158,22 +158,20 @@ func (m *Module) updateProvider(ctx context.Context, in *updateProviderInput) (*
 			}
 		}
 	}
-	_, err = m.service.queries.UpdateProvider(ctx, providersdb.UpdateProviderParams{Name: name, BaseUrl: baseURL, WorkspaceID: wid, ID: in.ID})
+	// Encrypt before changing the row, so a failed encryption cannot leave a new URL paired with the old key
+	var enc []byte
+	var keyID *string
+	if in.Body.APIKey != nil {
+		enc, keyID, err = m.service.encryptKey(*in.Body.APIKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	_, err = m.service.queries.UpdateProvider(ctx, providersdb.UpdateProviderParams{Name: name, BaseUrl: baseURL, WorkspaceID: wid, ID: in.ID, ReplaceKey: in.Body.APIKey != nil, ApiKeyEnc: enc, KeyID: keyID})
 	if database.IsUniqueViolation(err) {
 		return nil, apperror.AlreadyInUse("Provider name")
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to update provider: %w", err)
-	}
-
-	if in.Body.APIKey != nil {
-		enc, keyID, err := m.service.encryptKey(*in.Body.APIKey)
-		if err != nil {
-			return nil, err
-		}
-		_, err = m.service.queries.UpdateProviderKey(ctx, providersdb.UpdateProviderKeyParams{ApiKeyEnc: enc, KeyID: keyID, WorkspaceID: wid, ID: in.ID})
-		if err != nil {
-			return nil, fmt.Errorf("failed to update provider key: %w", err)
-		}
 	}
 
 	// A new address or key can change which models the server lists

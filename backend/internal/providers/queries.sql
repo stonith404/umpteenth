@@ -6,7 +6,10 @@ INSERT INTO providers (id, workspace_id, name, kind, base_url, api_key_enc, key_
 VALUES (sqlc.arg(id), sqlc.arg(workspace_id), sqlc.arg(name), sqlc.arg(kind), sqlc.narg(base_url), sqlc.narg(api_key_enc), sqlc.narg(key_id), sqlc.arg(created_at));
 
 -- name: UpdateProvider :execrows
-UPDATE providers SET name = sqlc.arg(name), base_url = sqlc.narg(base_url)
+-- Credentials are replaced or cleared atomically with the destination, comparing against the row actually being updated
+UPDATE providers SET name = sqlc.arg(name), base_url = sqlc.narg(base_url),
+ api_key_enc = CASE WHEN CAST(sqlc.arg(replace_key) AS BOOLEAN) THEN sqlc.narg(api_key_enc) WHEN COALESCE(base_url, '') = COALESCE(sqlc.narg(base_url), '') THEN api_key_enc ELSE NULL END,
+ key_id = CASE WHEN CAST(sqlc.arg(replace_key) AS BOOLEAN) THEN sqlc.narg(key_id) WHEN COALESCE(base_url, '') = COALESCE(sqlc.narg(base_url), '') THEN key_id ELSE NULL END
 WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);
 
 -- name: UpdateProviderKey :execrows

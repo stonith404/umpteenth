@@ -21,6 +21,7 @@ Leave **Base URL** empty for the provider's official API.
 For any other OpenAI-compatible server, the **Base URL** must end where the server serves `/models`, which is `/v1` for most of them, and the presets **OpenAI**, **OpenRouter**, **Ollama** and **LM Studio** fill it in.
 The OpenAI API needs an **API key**, while Ollama and LM Studio need none.
 Umpteenth stores the key encrypted and never shows it again.
+Changing **Base URL** clears the stored key unless you supply a replacement in the same save, so enter the key for the new endpoint before saving.
 
 Umpteenth reads the provider's model list as soon as you save it, and if it can't reach the server, it keeps the provider and shows the reason in a warning.
 

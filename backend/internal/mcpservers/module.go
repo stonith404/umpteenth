@@ -420,6 +420,7 @@ func (m *Module) update(ctx context.Context, in *updateInput) (*idOutput, error)
 			Name: b.Name, Description: nonEmpty(b.Description), Transport: b.Transport, Command: nonEmpty(b.Command), Args: string(args),
 			Env: string(env), Url: nonEmpty(b.URL), Headers: string(headers), OauthConfig: string(oauth), Enabled: b.Enabled == nil || *b.Enabled,
 			UpdatedAt: database.Now(), WorkspaceID: wid, ID: in.ID,
+			PreviousTransport: before.Transport, PreviousUrl: new(deref(before.Url)), PreviousOauthConfig: before.OauthConfig,
 		})
 		if database.IsUniqueViolation(err) {
 			return apperror.AlreadyInUse("MCP server name")
@@ -427,7 +428,7 @@ func (m *Module) update(ctx context.Context, in *updateInput) (*idOutput, error)
 			return err
 		}
 		if n == 0 {
-			return apperror.NotFound("MCP server")
+			return apperror.Conflict("The MCP server changed while saving, reload it and try again")
 		}
 		if loginChanged {
 			if _, err := q.ClearOAuthLogin(ctx, mcpserversdb.ClearOAuthLoginParams{WorkspaceID: wid, ID: in.ID}); err != nil {

@@ -606,21 +606,30 @@ func (q *Queries) UpdateModelMetadata(ctx context.Context, arg UpdateModelMetada
 }
 
 const updateProvider = `-- name: UpdateProvider :execrows
-UPDATE providers SET name = $1, base_url = $2
-WHERE workspace_id = $3 AND id = $4
+UPDATE providers SET name = $1, base_url = $2,
+ api_key_enc = CASE WHEN CAST($3 AS BOOLEAN) THEN $4 WHEN COALESCE(base_url, '') = COALESCE($2, '') THEN api_key_enc ELSE NULL END,
+ key_id = CASE WHEN CAST($3 AS BOOLEAN) THEN $5 WHEN COALESCE(base_url, '') = COALESCE($2, '') THEN key_id ELSE NULL END
+WHERE workspace_id = $6 AND id = $7
 `
 
 type UpdateProviderParams struct {
 	Name        string
 	BaseUrl     *string
+	ReplaceKey  bool
+	ApiKeyEnc   []byte
+	KeyID       *string
 	WorkspaceID string
 	ID          string
 }
 
+// Credentials are replaced or cleared atomically with the destination, comparing against the row actually being updated
 func (q *Queries) UpdateProvider(ctx context.Context, arg UpdateProviderParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateProvider,
 		arg.Name,
 		arg.BaseUrl,
+		arg.ReplaceKey,
+		arg.ApiKeyEnc,
+		arg.KeyID,
 		arg.WorkspaceID,
 		arg.ID,
 	)

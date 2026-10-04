@@ -57,3 +57,28 @@ func TestBaseURLMustNotCarryCredentials(t *testing.T) {
 		require.Equal(t, apperror.CodeValidationFailed, appErr.Code(), baseURL)
 	}
 }
+
+func TestProviderKeyStaysBoundToItsURL(t *testing.T) {
+	db := testutil.NewDatabaseForTest(t)
+	wid := testutil.SeedWorkspace(t, db)
+	q := providersdb.New(db)
+	oldURL := "https://original.example/v1"
+	require.NoError(t, q.CreateProvider(t.Context(), providersdb.CreateProviderParams{ID: "p", WorkspaceID: wid, Name: "P", Kind: "openai", BaseUrl: &oldURL, ApiKeyEnc: []byte("old-secret")}))
+	_, err := q.UpdateProvider(t.Context(), providersdb.UpdateProviderParams{ID: "p", WorkspaceID: wid, Name: "P", BaseUrl: &oldURL})
+	require.NoError(t, err)
+	row, err := q.GetProvider(t.Context(), providersdb.GetProviderParams{ID: "p", WorkspaceID: wid})
+	require.NoError(t, err)
+	require.Equal(t, []byte("old-secret"), row.ApiKeyEnc)
+	newURL := "https://replacement.example/v1"
+	_, err = q.UpdateProvider(t.Context(), providersdb.UpdateProviderParams{ID: "p", WorkspaceID: wid, Name: "P", BaseUrl: &newURL})
+	require.NoError(t, err)
+	row, err = q.GetProvider(t.Context(), providersdb.GetProviderParams{ID: "p", WorkspaceID: wid})
+	require.NoError(t, err)
+	require.Empty(t, row.ApiKeyEnc)
+	_, err = q.UpdateProvider(t.Context(), providersdb.UpdateProviderParams{ID: "p", WorkspaceID: wid, Name: "P", BaseUrl: &oldURL, ReplaceKey: true, ApiKeyEnc: []byte("replacement-secret")})
+	require.NoError(t, err)
+	row, err = q.GetProvider(t.Context(), providersdb.GetProviderParams{ID: "p", WorkspaceID: wid})
+	require.NoError(t, err)
+	require.Equal(t, oldURL, *row.BaseUrl)
+	require.Equal(t, []byte("replacement-secret"), row.ApiKeyEnc)
+}
