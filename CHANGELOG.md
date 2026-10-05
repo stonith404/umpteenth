@@ -1,3 +1,34 @@
+## v0.2.0
+
+### Features
+
+- add support for attaching Skills to jobs ([fc6f863](https://github.com/stonith404/umpteenth/commit/fc6f863d056b177ded9f68c37d262acb2b46d204) by @stonith404)
+- add an MCP server for agents ([5f22bf6](https://github.com/stonith404/umpteenth/commit/5f22bf6ebda587237c72548e51daed1108103547) by @stonith404)
+- add search docs MCP tool ([329ea5a](https://github.com/stonith404/umpteenth/commit/329ea5a19c7277ca206be0797e27980da4add5ac) by @stonith404)
+- improve learned tab layout ([dbd699a](https://github.com/stonith404/umpteenth/commit/dbd699a2cf360bdf26f2ee9d9c96ac07f67181ba) by @stonith404)
+
+### Bug Fixes
+
+- flashing of pages because of loading state ([0510b90](https://github.com/stonith404/umpteenth/commit/0510b901b7ba5c914d6e95485181acfd4df2d6f1) by @stonith404)
+- bind provider and MCP credentials to their destinations ([43fb534](https://github.com/stonith404/umpteenth/commit/43fb53449b7d5a9d365d39f0c6a4e565a2e283f1) by @stonith404)
+- revoke unauthorized workspace invites ([03d1ccd](https://github.com/stonith404/umpteenth/commit/03d1ccd6dc1a6e35fac7c60fa4343b69f9ad27a4) by @stonith404)
+- harden sandbox networking and image builds ([d672249](https://github.com/stonith404/umpteenth/commit/d672249908f7b6330109b2f504964c7e7ecc1933) by @stonith404)
+- mount a full sysfs on kind nodes for user namespace pods ([8bca263](https://github.com/stonith404/umpteenth/commit/8bca263d289fc892408e06b342e7f0dfbd5c57e9) by @stonith404)
+
+### Documentation
+
+- add docs for Skills ([9a1d9f5](https://github.com/stonith404/umpteenth/commit/9a1d9f5ef02f7aa26379faadeea4de85bfca2c87) by @stonith404)
+
+### Other
+
+- upgrade to SvelteKit 3 ([f976039](https://github.com/stonith404/umpteenth/commit/f9760397af35ac73935e865046a23c569e57342b) by @stonith404)
+- fix flaky unit test ([0a0edfe](https://github.com/stonith404/umpteenth/commit/0a0edfee4790361b7dd985a3921ae9f8159883b4) by @stonith404)
+
+### Dependencies
+
+- **deps:** bump github.com/go-jose/go-jose/v4 ([#7](https://github.com/stonith404/umpteenth/pull/7) by @dependabot[bot])
+
+**Full Changelog**: https://github.com/stonith404/umpteenth/compare/v0.1.0...v0.2.0
 ## v0.1.0
 
 ### Features
