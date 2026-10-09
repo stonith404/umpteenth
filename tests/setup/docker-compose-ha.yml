@@ -57,7 +57,7 @@ services:
 
   # Any S3-compatible store works; SeaweedFS is used because MinIO no longer publishes images
   s3:
-    image: chrislusf/seaweedfs:4.47
+    image: chrislusf/seaweedfs:4.48
     # SeaweedFS rejects signed requests unless the keys Umpteenth signs with are configured as an identity
     command: server -s3 -dir=/data -s3.config=/etc/seaweedfs/s3.json
     configs:
