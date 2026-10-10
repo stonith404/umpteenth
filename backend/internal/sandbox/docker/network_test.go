@@ -45,6 +45,21 @@ func TestSandboxFacingAddresses(t *testing.T) {
 	assert.False(t, a.SandboxFacing(netip.MustParseAddr("127.0.0.1")))
 }
 
+func TestContainerIDPatternMatchesEnginePaths(t *testing.T) {
+	id := strings.Repeat("ab", 32)
+	for _, line := range []string{
+		"/var/lib/docker/containers/" + id + "/hostname",
+		"/var/lib/containers/storage/overlay-containers/" + id + "/userdata/hostname",
+		"0::/machine.slice/libpod-" + id + ".scope",
+		"/libpod_parent/libpod-" + id,
+	} {
+		m := containerIDPattern.FindStringSubmatch(line)
+		if assert.NotNil(t, m, line) {
+			assert.Equal(t, id, m[1], line)
+		}
+	}
+}
+
 func TestNetworkOptionsKeepTheHostOffRunNetworks(t *testing.T) {
 	assert.Equal(t, map[string]string{"com.docker.network.bridge.inhibit_ipv4": "true"}, networkOptions())
 }
