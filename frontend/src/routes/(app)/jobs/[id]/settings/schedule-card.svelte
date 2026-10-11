@@ -7,7 +7,6 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import JobService from '#lib/services/job-service.js';
-	import { describeCron } from '#lib/utils/cron-util.js';
 	import { createForm } from '#lib/utils/form-util.js';
 	import { cleanSpec, concurrencyOptions, type ConcurrencyPolicy } from '#lib/utils/job-util.js';
 	import { untrack } from 'svelte';
@@ -44,16 +43,12 @@
 		});
 	}
 
-	// Removing the schedule clears the timezone as well, and the spec repeats the schedule, so it goes along with it
+	// Removing the schedule clears the timezone as well, and the spec repeats the cron and timezone, so they go along with it
 	async function save({ cron, timezone, concurrency }: z.infer<typeof formSchema>) {
 		timezone = cron ? timezone || 'UTC' : '';
 		await jobService.updateSpec(
 			job.id,
-			(spec) => {
-				const compiled = spec.schedule;
-				const human = compiled?.cron === cron ? compiled.human : (describeCron(cron) ?? '');
-				return cleanSpec({ ...spec, schedule: cron ? { cron, timezone, human } : undefined });
-			},
+			(spec) => cleanSpec({ ...spec, schedule: cron ? { cron, timezone } : undefined }),
 			{ cron, timezone, concurrency }
 		);
 		await invalidate('app:job');

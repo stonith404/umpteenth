@@ -25,7 +25,6 @@ const (
 type Schedule struct {
 	Cron     string `json:"cron" doc:"Five-field cron expression"`
 	Timezone string `json:"timezone" doc:"IANA time zone the expression runs in, such as Europe/Berlin"`
-	Human    string `json:"human" doc:"The schedule in plain words, such as Weekdays at 08:00"`
 }
 
 // IOField describes one job input or output

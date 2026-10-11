@@ -29,10 +29,9 @@ var specSchema = json.RawMessage(`{
     "schedule": {
       "anyOf": [
         {"type": "null"},
-        {"type": "object", "additionalProperties": false, "required": ["cron", "timezone", "human"], "properties": {
+        {"type": "object", "additionalProperties": false, "required": ["cron", "timezone"], "properties": {
           "cron": {"type": "string", "description": "Standard 5-field cron expression"},
-          "timezone": {"type": "string", "description": "IANA timezone, e.g. Europe/Berlin; UTC when the text names none"},
-          "human": {"type": "string", "description": "Plain words, e.g. Weekdays at 08:00"}
+          "timezone": {"type": "string", "description": "IANA timezone, e.g. Europe/Berlin: the one the text names, otherwise the writer's, otherwise UTC"}
         }}
       ]
     },
@@ -66,7 +65,7 @@ const compileSystem = `You turn a plain-language job description into a structur
 The agent reads the description word for word on every run, with the success criteria and outputs next to it, so the spec must never add work, checks or rules the description doesn't ask for.
 
 Rules:
-- Only include a schedule when the text asks for recurring runs. Convert it to a 5-field cron expression in the timezone the text names (UTC if none).
+- Only include a schedule when the text asks for recurring runs. Convert it to a 5-field cron expression in the timezone the text names, otherwise in the writer's timezone when it is given below, otherwise in UTC.
 - successCriteria describe the end state a successful run leaves behind, as someone checking afterwards would see it: what was created, changed or sent, or that nothing was. Usually one to three are enough. Keep every condition exactly as the text states it, including what happens when there is nothing to do. Never restate the steps, commands or tools of the description and never add requirements the text doesn't ask for.
 - Outputs are small structured values worth tracking across runs (counts, IDs, flags), not long text. Never add an output that only says whether the run itself succeeded, such as a success or ok flag, since every run reports its status anyway.
 - mcp lists the external services the job needs to talk to. Use the exact name of a configured MCP server when one fits.
@@ -114,6 +113,7 @@ type compileInput struct {
 	Body struct {
 		Instruction  string `json:"instruction" minLength:"1" maxLength:"20000"`
 		AskQuestions *bool  `json:"askQuestions,omitempty" doc:"Whether the compile step may ask questions, true when omitted; false once the user answered them, so answers never lead to another round"`
+		Timezone     string `json:"timezone,omitempty" maxLength:"100" doc:"IANA time zone of the person writing the instruction, such as Europe/Zurich, which the schedule uses when the instruction names none; UTC when omitted"`
 	}
 }
 
@@ -143,8 +143,19 @@ func (m *Module) compile(ctx context.Context, in *compileInput) (*compileOutput,
 	if strings.TrimSpace(in.Body.Instruction) == "" {
 		return nil, apperror.InvalidField("instruction", "required", "must not be empty")
 	}
+
+	// A zone that doesn't resolve is refused, since reading the writer's times as UTC instead would shift the schedule silently
+	var writerZone *time.Location
+	if in.Body.Timezone != "" {
+		loc, err := loadTimezone(in.Body.Timezone)
+		if err != nil {
+			return nil, err
+		}
+		writerZone = loc
+	}
+
 	ask := in.Body.AskQuestions == nil || *in.Body.AskQuestions
-	compiled, err := m.compileSpec(ctx, principal.WorkspaceID(ctx), in.Body.Instruction, nil, ask)
+	compiled, err := m.compileSpec(ctx, principal.WorkspaceID(ctx), in.Body.Instruction, writerZone, nil, ask)
 	if err != nil {
 		return nil, err
 	}
@@ -157,8 +168,9 @@ func (m *Module) compile(ctx context.Context, in *compileInput) (*compileOutput,
 }
 
 // compileSpec turns an instruction into a spec, and lists what the user has to answer when ask is true
+// writerZone is the time zone of the person writing the instruction, which a schedule uses when the text names none, or nil when unknown
 // previous is the spec of a job whose instruction changed, so the parts that still hold, such as its output names, stay as they are
-func (m *Module) compileSpec(ctx context.Context, wid, instruction string, previous *Spec, ask bool) (compiledSpec, error) {
+func (m *Module) compileSpec(ctx context.Context, wid, instruction string, writerZone *time.Location, previous *Spec, ask bool) (compiledSpec, error) {
 	ws, err := m.deps.Settings.Get(ctx, wid)
 	if err != nil {
 		return compiledSpec{}, err
@@ -181,12 +193,21 @@ func (m *Module) compileSpec(ctx context.Context, wid, instruction string, previ
 		return compiledSpec{}, err
 	}
 
+	// Times the text gives without a zone are meant in the writer's own, which also decides what today is
+	now := time.Now().UTC()
+	if writerZone != nil {
+		now = now.In(writerZone)
+	}
+	user := "Job description:\n" + instruction + "\n\nToday is " + now.Format("Monday 2006-01-02") + "."
+	if writerZone != nil {
+		user += " The writer's timezone is " + writerZone.String() + "."
+	}
+
 	// Configured MCP servers are listed so the model can match needs to real servers
 	var servers []string
 	if m.deps.MCP != nil {
 		servers, _ = m.deps.MCP.ServerNames(ctx, wid)
 	}
-	user := "Job description:\n" + instruction + "\n\nToday is " + time.Now().UTC().Format("Monday 2006-01-02") + "."
 	if len(servers) > 0 {
 		user += "\nConfigured MCP servers: " + strings.Join(servers, ", ")
 	} else {
@@ -387,7 +408,7 @@ func (m *Module) withRebuiltSpec(ctx context.Context, wid, jobID string, patch j
 	}
 
 	// Only the description is taken from the compile step, since the name, schedule, network and Dockerfile are the settings' to change
-	compiled, err := m.compileSpec(ctx, wid, strings.TrimSpace(*patch.Instruction), stored.Spec, false)
+	compiled, err := m.compileSpec(ctx, wid, strings.TrimSpace(*patch.Instruction), nil, stored.Spec, false)
 	if errors.Is(err, errNoCompileModel) {
 		return patch, nil
 	}

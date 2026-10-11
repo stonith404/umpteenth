@@ -69,7 +69,7 @@ async function startHostService() {
 const compiledSpec = {
 	title: 'Stale PR digest',
 	goal: 'Post a digest of stale pull requests',
-	schedule: { cron: '0 8 * * 1-5', timezone: 'Europe/Berlin', human: 'Weekdays at 08:00' },
+	schedule: { cron: '0 8 * * 1-5', timezone: 'Europe/Berlin' },
 	successCriteria: ['All open PRs are considered', 'Exactly one message is posted'],
 	inputs: [],
 	outputs: [{ name: 'count', type: 'integer', description: 'Number of stale PRs' }],

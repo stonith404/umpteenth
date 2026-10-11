@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 const compiledSpec = {
 	title: 'Stale PR digest',
 	goal: 'Post a digest of stale pull requests',
-	schedule: { cron: '0 8 * * 1-5', timezone: 'Europe/Berlin', human: 'Weekdays at 08:00' },
+	schedule: { cron: '0 8 * * 1-5', timezone: 'Europe/Berlin' },
 	successCriteria: ['All open PRs are considered', 'Exactly one message is posted'],
 	inputs: [],
 	outputs: [{ name: 'count', type: 'integer', description: 'Number of stale PRs' }],
@@ -40,11 +40,18 @@ test('Create a job by compiling a description, then save and run it', async ({ p
 	await expect(page).toHaveURL('/jobs/new');
 
 	// Compile the description and watch the loading state
+	const compileRequest = page.waitForRequest(
+		(r) => r.method() === 'POST' && r.url().endsWith('/api/jobs/compile')
+	);
 	await page
 		.getByRole('textbox', { name: 'Describe the job' })
 		.fill('Every weekday at 8:00 Berlin time, post stale PRs of acme/api to #eng.');
 	await page.getByRole('button', { name: 'Compile' }).click();
 	await expect(page.getByText('Compiling your job')).toBeVisible();
+
+	// The compile step learns the browser's zone, for times a description gives without one
+	const browserZone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+	expect((await compileRequest).postDataJSON().timezone).toBe(browserZone);
 
 	// The compiled spec shows up as editable cards
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Stale PR digest', {
@@ -230,7 +237,7 @@ test('Edit job settings including the schedule', async ({ page }) => {
 	const saved = await response.json();
 	expect(saved.cron).toBe('30 9 * * 1');
 	expect(saved.limits).toEqual({ timeoutSeconds: 1200 });
-	expect(saved.spec.schedule.human).toBe('Mondays at 09:30');
+	expect(saved.spec.schedule).toEqual({ cron: '30 9 * * 1', timezone: saved.timezone });
 	expect(saved.nextRunAt).toBeGreaterThan(Date.now());
 
 	// Removing the schedule makes the job run on demand again

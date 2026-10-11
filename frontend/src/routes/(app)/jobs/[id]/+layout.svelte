@@ -18,7 +18,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 	import { relativeTimeClock } from '#lib/utils/clock.svelte.js';
-	import { GRADUATION_OFF_NOTE, jobScheduleParts } from '#lib/utils/job-util.js';
+	import { GRADUATION_OFF_NOTE, scheduleParts } from '#lib/utils/job-util.js';
 	import { cn } from '#lib/utils/style.js';
 	import {
 		invalidateAfterNavigation,
@@ -38,7 +38,7 @@
 	let { data, children }: LayoutProps = $props();
 
 	const job = $derived(data.job);
-	const schedule = $derived(jobScheduleParts(job));
+	const schedule = $derived(scheduleParts(job));
 	const tabs = $derived(jobPageTabs(job.id));
 
 	// A job that may not graduate never leaves the agent, so the mode gets a note saying why it stays put

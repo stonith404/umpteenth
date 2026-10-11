@@ -51,10 +51,9 @@ func nextRun(expr, timezone string, after time.Time) (time.Time, error) {
 func parseSchedule(expr, timezone string) (cron.Schedule, *time.Location, error) {
 	loc := time.UTC
 	if timezone != "" {
-		// Local would depend on the replica's clock settings, so only real IANA names are accepted
-		l, err := time.LoadLocation(timezone)
-		if err != nil || timezone == "Local" {
-			return nil, nil, apperror.InvalidField("timezone", "invalid", "is not a known IANA timezone")
+		l, err := loadTimezone(timezone)
+		if err != nil {
+			return nil, nil, err
 		}
 		loc = l
 	}
@@ -72,6 +71,16 @@ func parseSchedule(expr, timezone string) (cron.Schedule, *time.Location, error)
 		return nil, nil, apperror.InvalidField("cron", "invalid", "is not a valid cron expression: "+err.Error())
 	}
 	return sched, loc, nil
+}
+
+// loadTimezone resolves an IANA zone name for a schedule or the compile step
+// Local would depend on the replica's clock settings, so only real IANA names are accepted
+func loadTimezone(timezone string) (*time.Location, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil || timezone == "Local" {
+		return nil, apperror.InvalidField("timezone", "invalid", "is not a known IANA timezone")
+	}
+	return loc, nil
 }
 
 // validateSchedule checks a cron/timezone pair, allowing an empty cron for jobs without a schedule

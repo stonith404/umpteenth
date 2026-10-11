@@ -66,7 +66,7 @@ func newCompileFixture(t *testing.T) compileFixture {
 		Spec: &Spec{
 			Title:           "Stale PRs",
 			Goal:            "Post stale PRs",
-			Schedule:        &Schedule{Cron: "0 8 * * *", Timezone: "UTC", Human: "Daily at 08:00"},
+			Schedule:        &Schedule{Cron: "0 8 * * *", Timezone: "UTC"},
 			SuccessCriteria: []string{"One message is posted to #eng"},
 			Outputs:         []IOField{{Name: "count", Type: "integer"}},
 			Network:         "internet",
@@ -290,6 +290,53 @@ func TestCompileSuggestsConfiguredSkills(t *testing.T) {
 	system := f.provider.Requests()[0].System[0].Text
 	require.Contains(t, system, "FROM img.")
 	require.NotContains(t, system, "%!")
+}
+
+func TestCompileReadsTimesInTheWritersTimezone(t *testing.T) {
+	f := newCompileFixture(t)
+	f.useModel(t)
+	f.answer(t, map[string]any{
+		"title": "Digest", "goal": "Post a digest", "schedule": map[string]any{"cron": "0 20 * * *", "timezone": "Europe/Zurich"},
+		"successCriteria": []string{}, "inputs": []any{}, "outputs": []any{}, "mcp": []any{}, "skills": []string{},
+		"network": "internet", "dockerfile": nil, "sideEffects": []string{}, "questions": []any{},
+	})
+
+	ctx := principal.WithPrincipal(context.Background(), principal.Principal{UserID: "u1", WorkspaceID: f.wid})
+	in := &compileInput{}
+	in.Body.Instruction = "Every day at 20:00, post a digest"
+	in.Body.Timezone = "Europe/Zurich"
+	out, err := f.m.compile(ctx, in)
+	require.NoError(t, err)
+	require.Equal(t, &Schedule{Cron: "0 20 * * *", Timezone: "Europe/Zurich"}, out.Body.Spec.Schedule)
+
+	// The model was told the writer's zone, for times the text gives without one
+	prompt := f.provider.Requests()[0].Messages[0].Text()
+	require.Contains(t, prompt, "The writer's timezone is Europe/Zurich.")
+
+	// A zone that doesn't resolve is refused before the model is called
+	for _, zone := range []string{"Mars/Olympus", "Local"} {
+		in.Body.Timezone = zone
+		_, err = f.m.compile(ctx, in)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed), err)
+	}
+	require.Len(t, f.provider.Requests(), 1)
+}
+
+func TestCompileWithoutATimezoneNamesNone(t *testing.T) {
+	f := newCompileFixture(t)
+	f.useModel(t)
+	f.answer(t, map[string]any{
+		"title": "Digest", "goal": "Post a digest", "schedule": nil, "successCriteria": []string{}, "inputs": []any{}, "outputs": []any{},
+		"mcp": []any{}, "skills": []string{}, "network": "internet", "dockerfile": nil, "sideEffects": []string{}, "questions": []any{},
+	})
+
+	// An API client that sends no zone leaves the schedule to the text, or to UTC
+	ctx := principal.WithPrincipal(context.Background(), principal.Principal{UserID: "u1", WorkspaceID: f.wid})
+	in := &compileInput{}
+	in.Body.Instruction = "Post a digest"
+	_, err := f.m.compile(ctx, in)
+	require.NoError(t, err)
+	require.NotContains(t, f.provider.Requests()[0].Messages[0].Text(), "The writer's timezone")
 }
 
 // namedSecrets is a workspace with a fixed list of secrets, whose values the compile step never sees

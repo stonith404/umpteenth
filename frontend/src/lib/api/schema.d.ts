@@ -1686,6 +1686,8 @@ export interface components {
 			/** @description Whether the compile step may ask questions, true when omitted; false once the user answered them, so answers never lead to another round */
 			askQuestions?: boolean;
 			instruction: string;
+			/** @description IANA time zone of the person writing the instruction, such as Europe/Zurich, which the schedule uses when the instruction names none; UTC when omitted */
+			timezone?: string;
 		};
 		CompileOutputBody: {
 			questions: components['schemas']['Question'][] | null;
@@ -2058,7 +2060,6 @@ export interface components {
 			recentRuns: components['schemas']['LastRun'][] | null;
 			/** Format: int64 */
 			runCount: number;
-			scheduleHuman: string | null;
 			timezone: string | null;
 			/** Format: int64 */
 			updatedAt: number;
@@ -2709,8 +2710,6 @@ export interface components {
 		Schedule: {
 			/** @description Five-field cron expression */
 			cron: string;
-			/** @description The schedule in plain words, such as Weekdays at 08:00 */
-			human: string;
 			/** @description IANA time zone the expression runs in, such as Europe/Berlin */
 			timezone: string;
 		};

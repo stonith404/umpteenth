@@ -21,16 +21,15 @@ import (
 
 // JobListDto is a job as listed in the jobs table
 type JobListDto struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Cron          *string  `json:"cron"`
-	Timezone      *string  `json:"timezone"`
-	ScheduleHuman *string  `json:"scheduleHuman"`
-	NextRunAt     *int64   `json:"nextRunAt"`
-	Graduate      bool     `json:"graduate"`
-	CreatedAt     int64    `json:"createdAt"`
-	UpdatedAt     int64    `json:"updatedAt"`
-	LastRun       *LastRun `json:"lastRun" doc:"The latest run, the same as the first of recentRuns"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Cron      *string  `json:"cron"`
+	Timezone  *string  `json:"timezone"`
+	NextRunAt *int64   `json:"nextRunAt"`
+	Graduate  bool     `json:"graduate"`
+	CreatedAt int64    `json:"createdAt"`
+	UpdatedAt int64    `json:"updatedAt"`
+	LastRun   *LastRun `json:"lastRun" doc:"The latest run, the same as the first of recentRuns"`
 	// LastMode is the mode of the latest run
 	LastMode *string `json:"lastMode" doc:"The mode the latest run used, which can differ from nextMode once the playbook changed"`
 	RunCount int64   `json:"runCount"`
@@ -75,12 +74,9 @@ func (m *Module) list(ctx context.Context, in *listInput) (*httpserver.Paginated
 		if err != nil {
 			return d, err
 		}
-		// The spec adds the schedule in words while it still describes the job's cron, and the inputs the run-now dialog prefills
+		// The spec adds the inputs the run-now dialog prefills
 		var s Spec
 		if json.Unmarshal([]byte(spec), &s) == nil {
-			if s.Schedule != nil && s.Schedule.Human != "" && d.Cron != nil && s.Schedule.Cron == *d.Cron {
-				d.ScheduleHuman = &s.Schedule.Human
-			}
 			d.Inputs = s.Inputs
 		}
 		if d.Inputs == nil {

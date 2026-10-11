@@ -435,6 +435,11 @@
 						"maxLength": 20000,
 						"minLength": 1,
 						"type": "string"
+					},
+					"timezone": {
+						"description": "IANA time zone of the person writing the instruction, such as Europe/Zurich, which the schedule uses when the instruction names none; UTC when omitted",
+						"maxLength": 100,
+						"type": "string"
 					}
 				},
 				"required": ["instruction"],
@@ -1487,9 +1492,6 @@
 						"format": "int64",
 						"type": "integer"
 					},
-					"scheduleHuman": {
-						"type": ["string", "null"]
-					},
 					"timezone": {
 						"type": ["string", "null"]
 					},
@@ -1503,7 +1505,6 @@
 					"name",
 					"cron",
 					"timezone",
-					"scheduleHuman",
 					"nextRunAt",
 					"graduate",
 					"createdAt",
@@ -3248,16 +3249,12 @@
 						"description": "Five-field cron expression",
 						"type": "string"
 					},
-					"human": {
-						"description": "The schedule in plain words, such as Weekdays at 08:00",
-						"type": "string"
-					},
 					"timezone": {
 						"description": "IANA time zone the expression runs in, such as Europe/Berlin",
 						"type": "string"
 					}
 				},
-				"required": ["cron", "timezone", "human"],
+				"required": ["cron", "timezone"],
 				"type": "object"
 			},
 			"Script": {

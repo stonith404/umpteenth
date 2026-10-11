@@ -1,4 +1,4 @@
-import type { Job, JobListItem, JobSpec, User } from '#lib/api/types.js';
+import type { JobListItem, JobSpec, User } from '#lib/api/types.js';
 import { describeCron } from '#lib/utils/cron-util.js';
 
 const NEW_JOB_DRAFT_PREFIX = 'umpteenth:new-job-draft:';
@@ -132,14 +132,14 @@ export type ScheduleParts = {
 	detail: string;
 };
 
-type ScheduleSource = Pick<JobListItem, 'cron' | 'timezone'> & { scheduleHuman?: string | null };
+type ScheduleSource = Pick<JobListItem, 'cron' | 'timezone'>;
 
 // Splits a job's schedule into plain words and a zone, or returns null for jobs that only run on demand
-// The words come from the compile step when it described the schedule, otherwise from the cron expression itself
+// The words come from the cron expression itself, so they always match what the scheduler runs
 export function scheduleParts(job: ScheduleSource): ScheduleParts | null {
 	if (!job.cron) return null;
 	const timezone = job.timezone || 'UTC';
-	const label = job.scheduleHuman || describeCron(job.cron) || job.cron;
+	const label = describeCron(job.cron) || job.cron;
 
 	// The zone only adds information when it differs from the one the viewer reads times in
 	const zone = sameTimezone(timezone, localTimezone()) ? null : timezoneCity(timezone);
@@ -182,17 +182,21 @@ export function timezones(): string[] {
 	return Intl.supportedValuesOf('timeZone');
 }
 
-// The browser's own timezone, a sensible default for new schedules
-export function localTimezone(): string {
-	return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+// The browser's own timezone, or undefined when it can't tell, since ICU then reports Etc/Unknown, which no timezone database knows
+export function knownLocalTimezone(): string | undefined {
+	const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	if (!zone || zone === 'Etc/Unknown') return undefined;
+	try {
+		new Intl.DateTimeFormat('en-US', { timeZone: zone });
+	} catch {
+		return undefined;
+	}
+	return zone;
 }
 
-// Splits a loaded job's schedule into parts, using the compiled plain-words description only while it still matches the cron expression
-export function jobScheduleParts(
-	job: Pick<Job, 'cron' | 'timezone' | 'spec'>
-): ScheduleParts | null {
-	const human = job.spec.schedule?.cron === job.cron ? job.spec.schedule?.human : null;
-	return scheduleParts({ cron: job.cron, timezone: job.timezone, scheduleHuman: human });
+// The browser's own timezone, a sensible default for new schedules, falling back to UTC like a schedule without a zone
+export function localTimezone(): string {
+	return knownLocalTimezone() ?? 'UTC';
 }
 
 // The environment variable name a secret's name suggests, e.g. github-token becomes GITHUB_TOKEN

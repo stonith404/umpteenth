@@ -27,6 +27,7 @@
 		cleanSpec,
 		DEFAULT_IMAGE_TOOLS,
 		emptySpec,
+		knownLocalTimezone,
 		localTimezone,
 		scheduleParts,
 		type NetworkPolicy
@@ -125,7 +126,6 @@
 	let name = $state('');
 	let cron = $state('');
 	let timezone = $state('');
-	let compiledSchedule = $state<{ cron: string; human: string } | null>(null);
 	let network = $state<NetworkPolicy>('internet');
 	let useDockerfile = $state(false);
 	let dockerfile = $state('');
@@ -200,9 +200,14 @@
 		compileStartedAt = Date.now();
 		phase = 'compiling';
 
+		// People write times in their own zone, so a schedule whose text names none runs in the browser's, unless the browser can't tell it
 		const controller = compileAbort;
 		const result = await tryCatch(
-			jobService.compile(text, { askQuestions, signal: controller.signal })
+			jobService.compile(text, {
+				askQuestions,
+				timezone: knownLocalTimezone(),
+				signal: controller.signal
+			})
 		);
 
 		// A cancelled compile has already returned to where it started
@@ -277,9 +282,6 @@
 		name = compiled.title;
 		cron = compiled.schedule?.cron ?? '';
 		timezone = compiled.schedule?.timezone ?? '';
-		compiledSchedule = compiled.schedule
-			? { cron: compiled.schedule.cron, human: compiled.schedule.human }
-			: null;
 		network = compiled.network;
 		useDockerfile = !!compiled.dockerfile;
 		dockerfile = compiled.dockerfile ?? dockerfileTemplate(data.defaultImage);
@@ -351,29 +353,18 @@
 		backToDescriptionButton?.focus();
 	}
 
-	// The compiled plain-words schedule is kept while the expression is unchanged, otherwise it is described again
-	function scheduleHuman() {
-		if (compiledSchedule && compiledSchedule.cron === cron.trim()) return compiledSchedule.human;
-		return describeCron(cron) ?? '';
-	}
-
 	// The rail reads the schedule back like the jobs list does, and flags an expression the scheduler would reject
 	// An expression without a description in words shows as it is, in mono like every other cron expression
 	const schedule = $derived.by(() => {
 		const plain = { zone: null, invalid: false, raw: false };
 		if (!cron.trim()) return { ...plain, text: 'On demand' };
 		if (!isValidCron(cron)) return { ...plain, text: 'Invalid schedule', invalid: true };
-		const human = scheduleHuman();
-		const parts = scheduleParts({
-			cron: cron.trim(),
-			timezone: timezone || 'UTC',
-			scheduleHuman: human
-		});
+		const parts = scheduleParts({ cron: cron.trim(), timezone: timezone || 'UTC' });
 		return {
 			text: parts?.label ?? cron.trim(),
 			zone: parts?.zone ?? null,
 			invalid: false,
-			raw: !human
+			raw: !describeCron(cron)
 		};
 	});
 
@@ -422,9 +413,7 @@
 			...spec,
 			title: name.trim(),
 			goal: spec.goal.trim(),
-			schedule: hasSchedule
-				? { cron: cron.trim(), timezone: timezone || 'UTC', human: scheduleHuman() }
-				: undefined,
+			schedule: hasSchedule ? { cron: cron.trim(), timezone: timezone || 'UTC' } : undefined,
 			successCriteria: clean(successCriteria),
 			sideEffects: clean(sideEffects),
 			inputs: cleanFields(inputs),

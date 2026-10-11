@@ -40,12 +40,17 @@ export default class JobService extends APIService {
 
 	// Turns a plain-language description into a spec with the utility model, without saving anything
 	// askQuestions is false once the user answered the questions of an earlier compile, and the signal lets the page cancel a slow compile
+	// timezone is the writer's own, which a schedule uses when the description names none
 	compile = (
 		instruction: string,
-		{ askQuestions = true, signal }: { askQuestions?: boolean; signal?: AbortSignal } = {}
+		{
+			askQuestions = true,
+			timezone,
+			signal
+		}: { askQuestions?: boolean; timezone?: string; signal?: AbortSignal } = {}
 	): Promise<JobCompileResult> =>
 		this.unwrap(
-			this.api.POST('/api/jobs/compile', { body: { instruction, askQuestions }, signal })
+			this.api.POST('/api/jobs/compile', { body: { instruction, askQuestions, timezone }, signal })
 		);
 
 	runNow = (id: string, body: JobRunNow = {}) =>
