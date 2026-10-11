@@ -18,7 +18,7 @@ const baseInstructions = `You are Umpteenth, an autonomous agent that performs o
 - Command output is truncated for you; the full output is saved to the log file named in the tool result.
 - /ump/input.json holds the trigger payload and run input.
 - Files you put in /ump/outputs/ are collected as run artifacts.
-- You are not root. When a Python package is missing, run your script with ` + "`uv run --with <package> python3 script.py`" + `; for Node packages run npm install in /workspace.
+- When a Python package is missing, run your script with ` + "`uv run --with <package> python3 script.py`" + `; for Node packages run npm install in /workspace.
 - The ump CLI (/usr/local/bin/ump) lets scripts call MCP tools, the LLM, job state and outputs without you: run ` + "`ump --help`" + ` to see how.
 
 ## Network
@@ -51,6 +51,20 @@ type PromptInput struct {
 	Skills []PromptSkill
 	// Playbook is the rendered playbook, empty for a job that has not learned anything yet
 	Playbook string
+	// Limits are the job's effective limits, which change only when someone edits the job or the workspace defaults
+	Limits PromptLimits
+	// RunAsRoot is set when the agent's commands run as root, so it can install system packages
+	RunAsRoot bool
+}
+
+// PromptLimits are the run's effective limits as the prompt states them, where a zero value leaves that limit out
+type PromptLimits struct {
+	Timeout  time.Duration
+	MaxTurns int
+	// MaxCost is in micro-USD
+	MaxCost  int64
+	CPUs     float64
+	MemoryMB int
 }
 
 // PromptSkill is a skill as the agent first sees it, which reads the rest from Path when the skill fits
@@ -84,6 +98,8 @@ func SystemBlocks(in PromptInput) []llm.Block {
 			fmt.Fprintf(&job, "- %s\n", o)
 		}
 	}
+	// Limits and the sandbox user change only when someone edits the job or the workspace defaults, so they stay in the job's cached block
+	job.WriteString(limitsSection(in.Limits, in.RunAsRoot))
 
 	blocks := []llm.Block{
 		{Text: baseInstructions, CacheBreakpoint: true},
@@ -106,6 +122,58 @@ func SystemBlocks(in PromptInput) []llm.Block {
 	return blocks
 }
 
+// limitsSection tells the agent what bounds the run, so it plans for them instead of finding out from a killed process
+func limitsSection(l PromptLimits, root bool) string {
+	var b strings.Builder
+	b.WriteString("\n## Limits\n")
+	if l.Timeout > 0 {
+		fmt.Fprintf(&b, "- Time: %s for the whole run. The first message says how much is left.\n", formatDuration(l.Timeout))
+	}
+	if l.MaxTurns > 0 {
+		fmt.Fprintf(&b, "- Turns: %d model calls, the one that calls finish included.\n", l.MaxTurns)
+	}
+	if l.MaxCost > 0 {
+		fmt.Fprintf(&b, "- Model cost: $%.2f, including ump llm calls from your scripts.\n", float64(l.MaxCost)/1e6)
+	}
+	if l.CPUs > 0 {
+		fmt.Fprintf(&b, "- CPUs: %g, so running more in parallel than that doesn't make it faster.\n", l.CPUs)
+	}
+	if l.MemoryMB > 0 {
+		fmt.Fprintf(&b, "- Memory: %d MB for all processes in the sandbox together, with no swap. A process that needs more is killed, usually with exit code 137.\n", l.MemoryMB)
+	}
+	if root {
+		b.WriteString("- User: root, so you can install system packages.\n")
+	} else {
+		b.WriteString("- User: not root, so you can't install system packages.\n")
+	}
+	b.WriteString("Plan your work to fit these limits. When one keeps you from doing the job, end with failure and say in the summary which limit it was and what the job would need.\n")
+	return b.String()
+}
+
+// formatDuration spells out a duration in hours, minutes and seconds, leaving out the parts that are zero
+func formatDuration(d time.Duration) string {
+	h, m, s := int(d/time.Hour), int(d%time.Hour/time.Minute), int(d%time.Minute/time.Second)
+	var parts []string
+	if h > 0 {
+		parts = append(parts, fmt.Sprintf("%d %s", h, plural(h, "hour", "hours")))
+	}
+	if m > 0 {
+		parts = append(parts, fmt.Sprintf("%d %s", m, plural(m, "minute", "minutes")))
+	}
+	if s > 0 {
+		parts = append(parts, fmt.Sprintf("%d %s", s, plural(s, "second", "seconds")))
+	}
+	return strings.Join(parts, " ")
+}
+
+// timeLeft is rounded down to the minute, so the agent never plans with time it doesn't have
+func timeLeft(d time.Duration) string {
+	if d < time.Minute {
+		return "less than a minute"
+	}
+	return formatDuration(d.Truncate(time.Minute))
+}
+
 // RunContext is the volatile part of the prompt, sent as the first user message
 type RunContext struct {
 	Trigger      string
@@ -115,6 +183,8 @@ type RunContext struct {
 	Instructions string
 	// Resume is set for a fallback run, describing what already happened
 	Resume string
+	// Deadline is when the run is stopped, which the message turns into the time left, zero for none
+	Deadline time.Time
 }
 
 // UserMessage renders the run context
@@ -127,6 +197,10 @@ func (r RunContext) UserMessage() llm.Message {
 		}
 	}
 	b.WriteString("\n")
+	// The time left is less than the limit, since preparing the sandbox counts and a fallback agent starts after the main script
+	if !r.Deadline.IsZero() {
+		fmt.Fprintf(&b, "Time left: %s\n", timeLeft(r.Deadline.Sub(r.Time)))
+	}
 	if len(r.Input) > 0 && string(r.Input) != "null" && string(r.Input) != "{}" {
 		input, _ := Truncate(string(r.Input), 3000, 1000)
 		fmt.Fprintf(&b, "\nRun input (also in /ump/input.json):\n%s\n", input)

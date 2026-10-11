@@ -207,6 +207,32 @@ func TestExecuteRunsTheAgentInASandbox(t *testing.T) {
 	require.Equal(t, events.TypeRunStatus, types[len(types)-1])
 }
 
+func TestTheAgentIsToldItsLimits(t *testing.T) {
+	h := newHarness(t)
+	// The job raises the memory and turns the cost limit off, and keeps the workspace defaults for the rest
+	testutil.Exec(t, h.db, `UPDATE jobs SET limits = '{"memoryMb":2048,"maxCostUsd":0}' WHERE id = $1`, h.jobID)
+	h.provider.Enqueue(fake.ScriptedResponse{ToolCalls: []fake.ScriptedToolCall{{Name: "finish", Args: map[string]any{"status": "success", "summary": "done"}}}})
+	id := h.seedRun(t, runner.StatusQueued)
+
+	require.NoError(t, h.runner.Execute(context.Background(), id))
+	status, errMsg, _, _, _ := h.run(t, id)
+	require.Equal(t, runner.StatusSucceeded, status, errMsg)
+
+	// The system prompt states the effective limits
+	var system strings.Builder
+	for _, b := range h.provider.Requests()[0].System {
+		system.WriteString(b.Text)
+	}
+	require.Contains(t, system.String(), "- Time: 15 minutes for the whole run.")
+	require.Contains(t, system.String(), "- Turns: 60 model calls")
+	require.Contains(t, system.String(), "- Memory: 2048 MB")
+	require.Contains(t, system.String(), "- User: not root")
+	require.NotContains(t, system.String(), "Model cost")
+
+	// The first message says how much of the run's time is left
+	require.Contains(t, h.provider.Requests()[0].Messages[0].Text(), "Time left: 14 minutes")
+}
+
 func TestExecuteNeverReExecutesAnInterruptedRun(t *testing.T) {
 	h := newHarness(t)
 	id := h.seedRun(t, runner.StatusRunning)

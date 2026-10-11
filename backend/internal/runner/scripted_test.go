@@ -118,7 +118,7 @@ func TestScriptedRunFallsBackToTheAgentInTheSameSandbox(t *testing.T) {
 	require.Len(t, h.finals, 1)
 	assert.True(t, h.finals[0].FellBack)
 
-	// The agent was told why the script failed, where it stopped, and what must not happen twice
+	// The agent was told why the script failed, where it stopped, what must not happen twice and how much time is left
 	requests := h.provider.Requests()
 	require.Len(t, requests, 1)
 	brief := requests[0].Messages[0].Text()
@@ -127,6 +127,7 @@ func TestScriptedRunFallsBackToTheAgentInTheSameSandbox(t *testing.T) {
 	assert.Contains(t, brief, "KeyError: 'amount'")
 	assert.Contains(t, brief, "Do not repeat them")
 	assert.Contains(t, brief, "slack.post_message")
+	assert.Contains(t, brief, "Time left: 14 minutes")
 }
 
 func TestScriptedRunIsJudgedWhenVerifyAsksForIt(t *testing.T) {

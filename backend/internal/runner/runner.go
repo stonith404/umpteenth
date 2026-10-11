@@ -374,6 +374,8 @@ func (r *Runner) runAgent(ctx context.Context, s *session, resume string) Final 
 			Outputs:         s.job.Outputs,
 			Skills:          promptSkills(s.job.Skills),
 			Playbook:        s.job.PlaybookRendered,
+			Limits:          promptLimits(s.job.Limits),
+			RunAsRoot:       s.job.RunAsRoot,
 		}),
 		Tools: s.tools,
 		Budget: agent.Budget{MaxTurns: s.job.Limits.MaxTurns, MaxCost: s.job.Limits.MaxCost, Deadline: s.deadline, ExtraCost: func() int64 {
@@ -390,6 +392,7 @@ func (r *Runner) runAgent(ctx context.Context, s *session, resume string) Final 
 		Input:        s.run.Input,
 		Instructions: s.run.Instructions,
 		Resume:       resume,
+		Deadline:     s.deadline,
 	}.UserMessage()})
 
 	final := Final{
@@ -510,6 +513,11 @@ func promptSkills(skills []Skill) []agent.PromptSkill {
 		out[i] = agent.PromptSkill{Name: s.Name, Description: s.Description, Path: path.Join(skillsDir, s.Name, "SKILL.md")}
 	}
 	return out
+}
+
+// promptLimits states the job's effective limits in the agent's prompt
+func promptLimits(l Limits) agent.PromptLimits {
+	return agent.PromptLimits{Timeout: time.Duration(l.TimeoutSeconds) * time.Second, MaxTurns: l.MaxTurns, MaxCost: l.MaxCost, CPUs: l.CPUs, MemoryMB: l.MemoryMB}
 }
 
 // validSkillName reports whether a skill name is a single safe path element
