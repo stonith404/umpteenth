@@ -445,9 +445,9 @@ func (a *Adapter) detectSelf(ctx context.Context) string {
 	return ""
 }
 
-// runningInContainer looks for the markers Docker and containerd leave
+// runningInContainer looks for the markers Docker, containerd and Podman leave
 func runningInContainer() bool {
-	for _, marker := range []string{"/.dockerenv"} {
+	for _, marker := range []string{"/.dockerenv", "/run/.containerenv"} {
 		if _, err := os.Stat(marker); err == nil {
 			return true
 		}
@@ -457,11 +457,11 @@ func runningInContainer() bool {
 		return false
 	}
 	content := string(data)
-	return strings.Contains(content, "docker") || strings.Contains(content, "containerd")
+	return strings.Contains(content, "docker") || strings.Contains(content, "containerd") || strings.Contains(content, "libpod")
 }
 
-// containerIDPattern matches the container ID in engine paths such as /var/lib/docker/containers/<id>/hostname
-var containerIDPattern = regexp.MustCompile(`(?:containers|docker)[/-]([0-9a-f]{64})`)
+// containerIDPattern matches the container ID in engine paths such as /var/lib/docker/containers/<id>/hostname or Podman's libpod-<id>.scope
+var containerIDPattern = regexp.MustCompile(`(?:containers|docker|libpod)[/-]([0-9a-f]{64})`)
 
 // selfCandidates collects possible IDs of this process's container, most reliable first
 func selfCandidates(hostname string) []string {
