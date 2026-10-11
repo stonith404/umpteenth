@@ -12,6 +12,7 @@ import {
 	testMcpServer,
 	type FakeMcp
 } from '../utils/mcp.util';
+import { putPlaybook } from '../utils/playbook.util';
 import { timelineStep } from '../utils/run-view.util';
 import runUtil, { type Job } from '../utils/run.util';
 import { createSecret } from '../utils/workspace.util';
@@ -251,6 +252,58 @@ test('A run limited to some tools of a server can neither see nor call the other
 
 	// The agent's allowed call sees the note the script added
 	await expect(toolStep(page, listNotes)).toContainText('#1 From a script');
+});
+
+test('A scripted run connects an MCP server only once main calls it, and before an agent takes over', async ({
+	page,
+	fake
+}) => {
+	// Adding the server probes it for an OAuth login, so only the requests after that count
+	const notes = await createNotesServer(page.request, fake);
+	const job = await runUtil.createJob(page.request, 'Note keeper');
+	await attachMcpServers(page.request, job.id, [{ serverId: notes.id, allowedTools: null }]);
+	const probes = fake.requestHeaders.length;
+
+	// A main script that never calls ump mcp never connects the server
+	await putPlaybook(
+		page.request,
+		job.id,
+		{ main: '#!/usr/bin/env bash\nump summary "Nothing to note"\n' },
+		{ baseVersion: 0 }
+	);
+	const quiet = await runUtil.runScripted(page.request, job.id, []);
+	expect(quiet.status).toBe('succeeded');
+	expect(fake.requestHeaders).toHaveLength(probes);
+	const quietEvents = await runUtil.getEvents(page.request, quiet.runId);
+	expect(quietEvents.filter((e) => e.type === 'mcp.call')).toHaveLength(0);
+
+	// A main script that calls a tool connects the server right then, so the connection comes just before the call on the timeline
+	await putPlaybook(page.request, job.id, {
+		main: `#!/usr/bin/env bash\nset -euo pipefail\nump mcp call notes add_note '{"text":"From main"}'\nump summary "Added a note"\n`
+	});
+	const calling = await runUtil.runScripted(page.request, job.id, []);
+	expect(calling.status).toBe('succeeded');
+	expect(fake.toolCalls.map((call) => call.name)).toEqual(['add_note']);
+	const events = await runUtil.getEvents(page.request, calling.runId);
+	const connected = events.findIndex((e) => e.type === 'mcp.call');
+	const called = events.findIndex(
+		(e) => e.type === 'broker.call' && e.payload.endpoint === 'POST /v1/mcp/call'
+	);
+	expect(connected).toBeGreaterThan(-1);
+	expect(connected).toBeLessThan(called);
+
+	// A main script that fails hands the run to an agent, which has the server's tools from its first turn
+	await putPlaybook(page.request, job.id, { main: '#!/usr/bin/env bash\nexit 1\n' });
+	const fallback = await runUtil.runScripted(page.request, job.id, [
+		{ toolCalls: [{ name: mcpToolName('notes', 'list_notes'), args: {} }] },
+		runUtil.finish('Listed the notes')
+	]);
+	expect(fallback.status).toBe('succeeded');
+	expect((await runUtil.getRun(page.request, fallback.runId)).fellBack).toBe(true);
+	expect(fake.toolCalls.map((call) => call.name)).toEqual(['add_note', 'list_notes']);
+	await page.goto(`/runs/${fallback.runId}`);
+	await expect(connectedStep(page, 'notes')).toHaveCount(1);
+	await expect(connectedStep(page, 'notes')).toContainText('3 tools');
 });
 
 test('Deleting a server detaches it from its jobs, and a stale job settings page cannot attach it again', async ({

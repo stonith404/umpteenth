@@ -242,9 +242,10 @@ func TestRunsUseTheLoginAndReportAMissingOne(t *testing.T) {
 	rc := runner.RunContext{Run: runner.Run{WorkspaceID: wid, JobID: jobID}, Emit: func(e events.Event) { emitted = append(emitted, e) }}
 
 	// Without a login the run is told why the server's tools are missing
-	tools, cleanup, err := m.ToolsForRun(ctx, rc)
+	set, err := m.ToolsForRun(ctx, rc)
 	require.NoError(t, err)
-	cleanup()
+	tools := set.Connect("")
+	set.Close()
 	require.Empty(t, tools)
 	require.Len(t, emitted, 1)
 	require.Contains(t, emitted[0].Payload.(map[string]any)["message"], "requires authorization")
@@ -254,9 +255,10 @@ func TestRunsUseTheLoginAndReportAMissingOne(t *testing.T) {
 	require.NoError(t, err)
 	_, err = m.callback(ctx, callbackFrom(server.ID, mcptest.FollowAuthorization(t, started.Body.AuthorizationURL)))
 	require.NoError(t, err)
-	tools, cleanup, err = m.ToolsForRun(ctx, rc)
+	set, err = m.ToolsForRun(ctx, rc)
 	require.NoError(t, err)
-	t.Cleanup(cleanup)
+	t.Cleanup(set.Close)
+	tools = set.Connect("")
 	require.Len(t, tools, 1)
 	result := tools[0].Run(ctx, llm.ToolCall{Name: tools[0].Def().Name, Args: json.RawMessage(`{}`)})
 	require.False(t, result.IsError, result.Content)

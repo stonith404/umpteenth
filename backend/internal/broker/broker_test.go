@@ -326,3 +326,82 @@ func TestPaidLLMCallsStayOnTheTimeline(t *testing.T) {
 	assert.Contains(t, past[1][1], `"endpoint":"POST /v1/llm"`)
 	assert.Contains(t, past[1][1], `"cost":15`)
 }
+
+// recordingTools stands in for a run's MCP servers, which connect on first use, and records which server each call asked for
+type recordingTools struct {
+	mu        sync.Mutex
+	asked     []string
+	connected map[string]bool
+	// servers holds each server's tools, and failed why a server can't connect
+	servers map[string][]agent.Tool
+	failed  map[string]string
+}
+
+func (r *recordingTools) Connect(server string) []agent.Tool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.asked = append(r.asked, server)
+	for name := range r.servers {
+		if server == "" || server == name {
+			r.connected[name] = true
+		}
+	}
+	var out []agent.Tool
+	for name, tools := range r.servers {
+		if r.connected[name] {
+			out = append(out, tools...)
+		}
+	}
+	return out
+}
+
+func (r *recordingTools) Unavailable(server string) (string, bool) {
+	reason, ok := r.failed[server]
+	return reason, ok
+}
+
+func (r *recordingTools) Close() {}
+
+func (r *recordingTools) calls() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.asked...)
+}
+
+func TestMCPCallsConnectTheirServerFirst(t *testing.T) {
+	h := newBrokerHarness(t, memoryState{})
+	search := &mcpTool{name: mcp.ToolName("github", "search"), readOnly: true}
+	servers := &recordingTools{
+		connected: map[string]bool{},
+		servers:   map[string][]agent.Tool{"github": {search}, "slack": {&mcpTool{name: mcp.ToolName("slack", "post_message")}}},
+		failed:    map[string]string{"broken": "failed to connect to broken: connection refused"},
+	}
+	h.live.SetToolSources([]runner.RunTools{servers})
+
+	// A call connects only the server it names, whose tool is callable right away
+	status, body := h.call(t, http.MethodPost, "/v1/mcp/call", `{"server":"github","tool":"search","arguments":{}}`)
+	require.Equal(t, http.StatusOK, status, body)
+	assert.Contains(t, body, `"content":"done"`)
+	assert.Equal(t, 1, search.calls)
+	assert.Equal(t, []string{"github"}, servers.calls())
+
+	// Listing one server's tools connects that server, and listing all of them connects every server
+	h.call(t, http.MethodGet, "/v1/mcp/tools?server=slack", "")
+	h.call(t, http.MethodGet, "/v1/mcp/tools", "")
+	assert.Equal(t, []string{"github", "slack", ""}, servers.calls())
+
+	// A call without a server is refused before anything connects
+	status, _ = h.call(t, http.MethodPost, "/v1/mcp/call", `{"server":"","tool":"search","arguments":{}}`)
+	assert.Equal(t, http.StatusBadRequest, status)
+	assert.Len(t, servers.calls(), 3)
+
+	// A server that failed to connect says why, instead of claiming its tool doesn't exist
+	status, body = h.call(t, http.MethodPost, "/v1/mcp/call", `{"server":"broken","tool":"search","arguments":{}}`)
+	assert.Equal(t, http.StatusConflict, status)
+	assert.Contains(t, body, "MCP server broken is unavailable: failed to connect to broken: connection refused")
+
+	// A tool a connected server lacks is still not found
+	status, body = h.call(t, http.MethodPost, "/v1/mcp/call", `{"server":"github","tool":"missing","arguments":{}}`)
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.Contains(t, body, "MCP tool missing on server github not found")
+}

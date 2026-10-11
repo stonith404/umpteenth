@@ -225,6 +225,9 @@ type toolDto struct {
 
 func (b *Broker) mcpTools(_ http.ResponseWriter, r *http.Request, live *runner.LiveRun) (any, error) {
 	server := r.URL.Query().Get("server")
+
+	// A scripted run connects its MCP servers on first use, so listing tools connects the servers it lists
+	live.ConnectTools(server)
 	out := []toolDto{}
 	for _, t := range live.Tools() {
 		mt, ok := t.(*mcp.AgentTool)
@@ -267,8 +270,20 @@ func (b *Broker) mcpCall(_ http.ResponseWriter, r *http.Request, live *runner.Li
 	if err := decode(r, &req); err != nil {
 		return nil, err
 	}
+
+	// An empty server name would connect every server, which a call of one tool never needs
+	if req.Server == "" {
+		return nil, apperror.InvalidField("server", "required", "is required")
+	}
+
+	// A scripted run connects a server when main first calls one of its tools
+	live.ConnectTools(req.Server)
 	tool, ok := live.Tool(mcp.ToolName(req.Server, req.Tool))
 	if !ok {
+		// A server that failed to connect says why, so a script's output or an agent taking over never reads it as a missing tool
+		if reason, unavailable := live.ServerUnavailable(req.Server); unavailable {
+			return nil, apperror.Conflict(fmt.Sprintf("MCP server %s is unavailable: %s", req.Server, reason))
+		}
 		return nil, apperror.NotFound(fmt.Sprintf("MCP tool %s on server %s", req.Tool, req.Server))
 	}
 	args, _ := agent.Truncate(string(req.Arguments), 300, 0)

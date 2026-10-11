@@ -71,11 +71,11 @@ func newHarness(t *testing.T) *harness {
 
 // newHarnessWithImages wires an image resolver, e.g. one that waits for a job image to build
 func newHarnessWithImages(t *testing.T, images runner.ImageResolver) *harness {
-	return newHarnessWith(t, images, nil)
+	return newHarnessWith(t, images, nil, nil)
 }
 
-// newHarnessWith wires an image resolver and, when not nil, the job's skills
-func newHarnessWith(t *testing.T, images runner.ImageResolver, skills *fakeSkills) *harness {
+// newHarnessWith wires an image resolver and, when not nil, the job's skills and a tool provider such as MCP
+func newHarnessWith(t *testing.T, images runner.ImageResolver, skills *fakeSkills, tools runner.ToolProvider) *harness {
 	h := &harness{db: testutil.NewDatabaseForTest(t), adapter: sandboxfake.New(), provider: fake.New(), live: runner.NewRegistry()}
 	var err error
 	h.storage, err = storage.NewFilesystemStorage(t.TempDir())
@@ -110,6 +110,9 @@ func newHarnessWith(t *testing.T, images runner.ImageResolver, skills *fakeSkill
 	}
 	if skills != nil {
 		deps.Skills = skills
+	}
+	if tools != nil {
+		deps.Tools = []runner.ToolProvider{tools}
 	}
 	h.runner = runner.New(deps)
 	return h
@@ -401,7 +404,7 @@ func TestSkillsAreCopiedReadOnlyAndListedInThePrompt(t *testing.T) {
 			{Path: "scripts/hello.sh", Mode: 0o755, Content: []byte("echo hi")},
 		}},
 	}
-	h := newHarnessWith(t, baseImages{}, skills)
+	h := newHarnessWith(t, baseImages{}, skills, nil)
 
 	// The agent reads the skill, which is where the test looks at the sandbox
 	type seen struct {
@@ -444,7 +447,7 @@ func TestSkillsAreCopiedReadOnlyAndListedInThePrompt(t *testing.T) {
 
 func TestSkillsOverTheLimitFailTheRun(t *testing.T) {
 	skills := &fakeSkills{skills: []runner.Skill{{ID: "s1", Name: "huge", Description: "Too big", Size: runner.MaxJobSkillsBytes + 1}}}
-	h := newHarnessWith(t, baseImages{}, skills)
+	h := newHarnessWith(t, baseImages{}, skills, nil)
 	id := h.seedRun(t, runner.StatusQueued)
 	require.NoError(t, h.runner.Execute(context.Background(), id))
 	status, errMsg, _, _, _ := h.run(t, id)

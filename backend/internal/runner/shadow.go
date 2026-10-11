@@ -135,20 +135,18 @@ func (r *Runner) Shadow(ctx context.Context, run Run, job JobConfig) (ShadowResu
 	r.d.Live.RegisterShadow(tokenHash, live)
 	defer r.d.Live.UnregisterShadow(tokenHash)
 
-	// MCP servers connect as in a real run, and the broker refuses the tools that aren't read-only
+	// MCP servers connect when main first calls ump mcp, as in a real scripted run, and the broker refuses the tools that aren't read-only
 	rc := RunContext{Run: shadowRun, Job: job, Sandbox: sb, Emit: func(events.Event) {}}
-	var tools []agent.Tool
+	var sources []RunTools
 	for _, tp := range r.d.Tools {
-		extra, cleanup, err := tp.ToolsForRun(ctx, rc)
+		set, err := tp.ToolsForRun(ctx, rc)
 		if err != nil {
 			return res, fmt.Errorf("failed to prepare tools: %w", err)
 		}
-		if cleanup != nil {
-			defer cleanup()
-		}
-		tools = append(tools, extra...)
+		defer set.Close()
+		sources = append(sources, set)
 	}
-	live.SetTools(tools)
+	live.SetToolSources(sources)
 
 	// Run main the way a scripted run does
 	sbTools := &agent.SandboxTools{Sandbox: sb, User: agentUser, Env: job.Env, DefaultTimeout: defaultCmdTimeout, MaxTimeout: maxCmdTimeout}

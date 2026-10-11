@@ -30,8 +30,10 @@ type LiveRun struct {
 	// State replaces the job's persistent state for the broker, such as a shadow run's copy that never writes to the job's own
 	State JobState
 
-	mu      sync.Mutex
-	tools   map[string]agent.Tool
+	mu    sync.Mutex
+	tools map[string]agent.Tool
+	// sources connect the run's MCP servers once the run needs them
+	sources []RunTools
 	outputs map[string]json.RawMessage
 	// outputBytes is the combined size of the output keys and values
 	outputBytes int
@@ -69,6 +71,50 @@ func (l *LiveRun) SetTools(tools []agent.Tool) {
 	for _, t := range tools {
 		l.tools[t.Def().Name] = t
 	}
+}
+
+// SetToolSources gives the run its providers' tools, which connect on first use
+func (l *LiveRun) SetToolSources(sources []RunTools) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.sources = sources
+}
+
+// ConnectTools connects the named MCP server, or all of them when server is empty, and makes their tools callable through the broker
+// It returns every tool connected so far, and connects outside the run's lock since a server can take minutes to start
+func (l *LiveRun) ConnectTools(server string) []agent.Tool {
+	// Each provider connects what it hasn't yet and returns all its tools, so servers connected by an earlier call come back too
+	l.mu.Lock()
+	sources := l.sources
+	l.mu.Unlock()
+	var tools []agent.Tool
+	for _, s := range sources {
+		tools = append(tools, s.Connect(server)...)
+	}
+
+	// Tools are only ever added during a run, so a slower call that connected less never takes away what a faster one added
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.tools == nil {
+		l.tools = make(map[string]agent.Tool, len(tools))
+	}
+	for _, t := range tools {
+		l.tools[t.Def().Name] = t
+	}
+	return tools
+}
+
+// ServerUnavailable returns why the named MCP server has no tools, once connecting it failed or it was skipped
+func (l *LiveRun) ServerUnavailable(server string) (string, bool) {
+	l.mu.Lock()
+	sources := l.sources
+	l.mu.Unlock()
+	for _, s := range sources {
+		if reason, ok := s.Unavailable(server); ok {
+			return reason, true
+		}
+	}
+	return "", false
 }
 
 // Tool returns a tool by name

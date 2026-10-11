@@ -15,11 +15,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/stonith404/umpteenth/backend/internal/agent"
 	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/database"
 	"github.com/stonith404/umpteenth/backend/internal/egress"
-	"github.com/stonith404/umpteenth/backend/internal/events"
 	"github.com/stonith404/umpteenth/backend/internal/httpserver"
 	"github.com/stonith404/umpteenth/backend/internal/listquery"
 	"github.com/stonith404/umpteenth/backend/internal/mcp"
@@ -156,83 +154,22 @@ func (m *Module) expandAll(ctx context.Context, workspaceID string, in map[strin
 	return out, nil
 }
 
-// ToolsForRun implements runner.ToolProvider: it connects the job's MCP servers and exposes their tools
-func (m *Module) ToolsForRun(ctx context.Context, rc runner.RunContext) ([]agent.Tool, func(), error) {
+// ToolsForRun implements runner.ToolProvider: it loads the job's MCP servers, which connect when the run first needs them
+func (m *Module) ToolsForRun(ctx context.Context, rc runner.RunContext) (runner.RunTools, error) {
 	rows, err := m.queries.ListJobServers(ctx, mcpserversdb.ListJobServersParams{WorkspaceID: rc.Run.WorkspaceID, JobID: rc.Run.JobID})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load MCP servers: %w", err)
+		return nil, fmt.Errorf("failed to load MCP servers: %w", err)
 	}
 
-	var (
-		tools    []agent.Tool
-		sessions []*mcp.Session
-		budget   mcp.ToolBudget
-	)
-	cleanup := func() {
-		for _, s := range sessions {
-			s.Close()
-		}
-	}
+	// A disabled server never connects, as if it weren't attached
+	var enabled []mcpserversdb.ListJobServersRow
 	for _, row := range rows {
-		if !row.Enabled {
-			continue
-		}
-		server := mcpserversdb.McpServer{
-			ID: row.ID, WorkspaceID: row.WorkspaceID, Name: row.Name, Transport: row.Transport, Command: row.Command, Args: row.Args, Env: row.Env, Url: row.Url, Headers: row.Headers,
-			OauthCredentials: row.OauthCredentials, OauthLoggedInAt: row.OauthLoggedInAt,
-		}
-		cfg, err := m.serverConfig(ctx, rc.Run.WorkspaceID, server, row.AllowedTools)
-		if err != nil {
-			rc.Emit(events.Event{Type: events.TypeError, Payload: map[string]any{"message": fmt.Sprintf("MCP server %s: %v", row.Name, err)}})
-			continue
-		}
-
-		// Root in the sandbox can take on the mcp user and read a stdio server's environment, which often holds secrets
-		if rc.Job.RunAsRoot && cfg.Transport == mcp.TransportStdio && len(cfg.Env) > 0 {
-			rc.Emit(events.Event{Type: events.TypeError, Payload: map[string]any{"message": fmt.Sprintf("MCP server %s was skipped: a stdio server with environment variables can't run in a root sandbox, because root could read them. Use an HTTP server, or install packages with a job image instead of running as root.", row.Name)}})
-			continue
-		}
-
-		// A server that fails to connect is reported and skipped, so the agent can still finish and explain
-		start := time.Now()
-		connectCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-		session, err := m.manager.Connect(connectCtx, cfg, rc.Sandbox)
-		var infos []mcp.ToolInfo
-		if err == nil {
-			infos, err = session.Tools(connectCtx)
-		}
-		cancel()
-		if err != nil {
-			if session != nil {
-				session.Close()
-			}
-			rc.Emit(events.Event{Type: events.TypeError, Payload: map[string]any{"message": fmt.Sprintf("MCP server %s is unavailable: %s", row.Name, connectError(err))}})
-			continue
-		}
-		// Apply the same aggregate bound across every server attached to the run
-		nextBudget := budget
-		var limitErr error
-		for _, info := range infos {
-			if limitErr = nextBudget.Add(info); limitErr != nil {
-				break
-			}
-		}
-		if limitErr != nil {
-			session.Close()
-			rc.Emit(events.Event{Type: events.TypeError, Payload: map[string]any{"message": fmt.Sprintf("MCP server %s was skipped: %s", row.Name, limitErr)}})
-			break
-		}
-		budget = nextBudget
-		sessions = append(sessions, session)
-		ms := time.Since(start).Milliseconds()
-		rc.Emit(events.Event{Type: events.TypeMCPCall, Ms: &ms, Payload: map[string]any{"server": row.Name, "transport": cfg.Transport, "tools": len(infos)}})
-
-		for _, info := range infos {
-			t := mcp.NewAgentTool(session, row.Name, info)
-			tools = append(tools, t)
+		if row.Enabled {
+			enabled = append(enabled, row)
 		}
 	}
-	return tools, cleanup, nil
+	connectCtx, cancel := context.WithCancel(ctx)
+	return &runServers{m: m, rc: rc, ctx: connectCtx, cancel: cancel, pending: enabled, unavailable: map[string]string{}}, nil
 }
 
 type serverDto struct {

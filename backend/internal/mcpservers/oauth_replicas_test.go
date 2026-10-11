@@ -98,11 +98,13 @@ func TestReplicasRefreshingTogetherKeepTheLogin(t *testing.T) {
 	var eventsA, eventsB runEvents
 	doneA := make(chan []int, 1)
 	go func() {
-		tools, cleanup, err := replicaA.ToolsForRun(ctx, runner.RunContext{Run: runner.Run{WorkspaceID: wid, JobID: jobA}, Emit: eventsA.emit})
-		assert.NoError(t, err)
-		if cleanup != nil {
-			cleanup()
+		set, err := replicaA.ToolsForRun(ctx, runner.RunContext{Run: runner.Run{WorkspaceID: wid, JobID: jobA}, Emit: eventsA.emit})
+		if !assert.NoError(t, err) {
+			doneA <- []int{0}
+			return
 		}
+		tools := set.Connect("")
+		set.Close()
 		doneA <- []int{len(tools)}
 	}()
 	select {
@@ -114,11 +116,13 @@ func TestReplicasRefreshingTogetherKeepTheLogin(t *testing.T) {
 	// Replica B starts its run while A's refresh is in flight
 	doneB := make(chan []int, 1)
 	go func() {
-		tools, cleanup, err := replicaB.ToolsForRun(ctx, runner.RunContext{Run: runner.Run{WorkspaceID: wid, JobID: jobB}, Emit: eventsB.emit})
-		assert.NoError(t, err)
-		if cleanup != nil {
-			cleanup()
+		set, err := replicaB.ToolsForRun(ctx, runner.RunContext{Run: runner.Run{WorkspaceID: wid, JobID: jobB}, Emit: eventsB.emit})
+		if !assert.NoError(t, err) {
+			doneB <- []int{0}
+			return
 		}
+		tools := set.Connect("")
+		set.Close()
 		doneB <- []int{len(tools)}
 	}()
 
@@ -151,8 +155,9 @@ func TestReplicasRefreshingTogetherKeepTheLogin(t *testing.T) {
 
 	// Later runs on either replica still get the server's tools without anyone logging in again
 	var later runEvents
-	tools, cleanup, err := replicaB.ToolsForRun(ctx, runner.RunContext{Run: runner.Run{WorkspaceID: wid, JobID: jobB}, Emit: later.emit})
+	set, err := replicaB.ToolsForRun(ctx, runner.RunContext{Run: runner.Run{WorkspaceID: wid, JobID: jobB}, Emit: later.emit})
 	require.NoError(t, err)
-	cleanup()
+	tools := set.Connect("")
+	set.Close()
 	assert.Len(t, tools, 1, "a later run still gets the tools, errors %q", later.errors())
 }

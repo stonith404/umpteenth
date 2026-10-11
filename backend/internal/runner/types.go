@@ -268,9 +268,21 @@ type ImageResolver interface {
 	ResolveImage(ctx context.Context, job JobConfig, onWait func()) (ref string, imageID string, err error)
 }
 
-// ToolProvider adds tools for a run, such as the job's MCP servers, and cleans them up afterwards
+// ToolProvider adds tools for a run, such as the job's MCP servers
 type ToolProvider interface {
-	ToolsForRun(ctx context.Context, rc RunContext) ([]agent.Tool, func(), error)
+	// ToolsForRun prepares the run's tools without connecting anything, since a main script may never need them
+	ToolsForRun(ctx context.Context, rc RunContext) (RunTools, error)
+}
+
+// RunTools are one provider's tools for one run, whose servers connect on first use under the context ToolsForRun got
+type RunTools interface {
+	// Connect connects the named server, or every server when server is empty, unless that happened before, and returns every tool connected so far
+	// A server that fails to connect is reported on the run's timeline once and not tried again
+	Connect(server string) []agent.Tool
+	// Unavailable returns why the named server has no tools, once connecting it failed or it was skipped
+	Unavailable(server string) (reason string, ok bool)
+	// Close ends the run's connections, and Connect connects nothing after it
+	Close()
 }
 
 // RunContext is what a ToolProvider or broker needs to know about a live run

@@ -148,6 +148,9 @@ func (r *Runner) runScripted(ctx context.Context, s *session) Final {
 
 	// The agent's own outcome decides the run from here, so the script's ump fail no longer counts once it is in the brief
 	s.live.ClearFailure()
+
+	// The agent needs every MCP tool from its first turn, so the servers main never called connect now
+	s.tools = append(s.tools, s.live.ConnectTools("")...)
 	final := r.runAgent(ctx, s, fallbackBrief(s, reason, exitCode, outputs, res.Content))
 	final.FellBack = true
 	final.VerifyCost, final.VerifyTokens = verifyCost, verifyUsage.Tokens()

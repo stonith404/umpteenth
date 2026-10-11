@@ -297,20 +297,24 @@ func (r *Runner) execute(ctx context.Context, run Run, rec *events.Recorder) Fin
 	usage := &toolkitCounter{}
 	tools = append(tools, toolkitTools(ctx, run, job, sbTools, usage)...)
 
+	// Providers' tools connect on first use, since an agent needs them before its first turn while a main script may never call them
 	rc := RunContext{Run: run, Job: job, Sandbox: sb, Emit: func(e events.Event) { rec.Emit(ctx, e) }}
-	var brokerTools []agent.Tool
+	var sources []RunTools
 	for _, tp := range r.d.Tools {
-		extra, cleanup, err := tp.ToolsForRun(ctx, rc)
+		set, err := tp.ToolsForRun(ctx, rc)
 		if err != nil {
 			return fail("Failed to prepare tools: %v", err)
 		}
-		if cleanup != nil {
-			defer cleanup()
-		}
-		tools = append(tools, extra...)
-		brokerTools = append(brokerTools, extra...)
+		defer set.Close()
+		sources = append(sources, set)
 	}
-	live.SetTools(brokerTools)
+	live.SetToolSources(sources)
+
+	// A scripted run connects its MCP servers when main first calls ump mcp, or when an agent takes over
+	scripted := run.Mode == ModeScripted && strings.TrimSpace(job.Main) != ""
+	if !scripted {
+		tools = append(tools, live.ConnectTools("")...)
+	}
 
 	err = r.d.Runs.SetStatus(ctx, run.ID, StatusRunning)
 	if err != nil {
@@ -325,7 +329,7 @@ func (r *Runner) execute(ctx context.Context, run Run, rec *events.Recorder) Fin
 		tools: tools, usage: usage, provider: provider, model: model, deadline: deadline,
 	}
 	var final Final
-	if run.Mode == ModeScripted && strings.TrimSpace(job.Main) != "" {
+	if scripted {
 		final = r.runScripted(ctx, sess)
 		final.MainRan = true
 	} else {

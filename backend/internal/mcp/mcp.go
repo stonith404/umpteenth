@@ -133,11 +133,12 @@ func (m *Manager) connectHTTP(ctx context.Context, cfg ServerConfig) (*Session, 
 }
 
 // connectStdio launches the server inside the sandbox as the mcp user, so the agent cannot read its environment
+// The server starts in /, which only root can write, so nothing the agent put in a shared folder such as /tmp can change what npx or python -m runs with the server's secrets
 func connectStdio(ctx context.Context, cfg ServerConfig, sb sandbox.Sandbox) (*Session, error) {
 	stderr := &ringBuffer{max: 8192}
 	proc, err := sb.Attach(context.WithoutCancel(ctx), sandbox.ExecRequest{
 		Cmd:     append([]string{cfg.Command}, cfg.Args...),
-		WorkDir: "/tmp",
+		WorkDir: "/",
 		Env:     cfg.Env,
 		User:    sandbox.UserMCP,
 	})

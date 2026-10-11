@@ -4,6 +4,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,9 +13,11 @@ import (
 	"testing"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stonith404/umpteenth/backend/internal/egress"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 )
 
 // hostileSession connects to an in-memory server whose tools/list answers come from list instead of its registry
@@ -135,4 +138,25 @@ func TestHeadersStayWithTheServerOrigin(t *testing.T) {
 	for _, key := range elsewhereKeys {
 		require.Empty(t, key)
 	}
+}
+
+// recordingSandbox keeps the request of the process a test starts, and refuses to start it
+type recordingSandbox struct {
+	sandbox.Sandbox
+	req sandbox.ExecRequest
+}
+
+func (s *recordingSandbox) Attach(_ context.Context, req sandbox.ExecRequest) (sandbox.Process, error) {
+	s.req = req
+	return nil, errors.New("not started")
+}
+
+func TestStdioServersStartWhereTheAgentCannotWrite(t *testing.T) {
+	sb := &recordingSandbox{}
+	_, err := connectStdio(t.Context(), ServerConfig{Name: "github", Command: "npx", Args: []string{"-y", "@modelcontextprotocol/server-github"}}, sb)
+	require.Error(t, err)
+
+	// The agent can write /tmp and /workspace, where a planted node_modules or Python module would run instead of the server
+	assert.Equal(t, "/", sb.req.WorkDir)
+	assert.Equal(t, sandbox.UserMCP, sb.req.User)
 }
