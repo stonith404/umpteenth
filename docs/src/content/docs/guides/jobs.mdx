@@ -13,7 +13,7 @@ Starting runs, the sandbox and learning have guides of their own: [Triggers and 
 
 The job page has six tabs:
 
-- **Overview**: performance over 7, 30 or 90 days and the **Graduation** chart.
+- **Overview**: the [suggestions](../self-improvement/#suggestions) waiting for you, performance over 7, 30 or 90 days and the **Graduation** chart.
 - **Runs**: this job's runs ([Reading a run](../runs/)).
 - **Playbook**: the learnings, toolkit scripts and main script the job built up, with every earlier version ([How jobs learn](../self-improvement/)).
 - **Environment**: the job's Dockerfile and its image builds ([Sandboxes](../sandboxes/)).
@@ -38,8 +38,9 @@ To keep a spec you edited by hand, turn off **Rebuild the spec**, which appears 
 In the **Spec** card you edit the goal, success criteria, inputs, outputs and side effects, and saving it costs no model call.
 You attach and detach MCP servers in the **MCP servers** card ([MCP servers](../mcp/#attach-servers-to-a-job)).
 
-A graduated job runs its main script, which doesn't read the instruction.
-After an edit that changes what the job does, update the main script in the **Run scripts** card on the **Playbook** tab, or turn off **Graduate to a script** until you have.
+A graduated job runs its main script, which doesn't read the instruction, so the next run after an edit still follows the old one.
+With **Self-improve** on, reflection on that run updates main.
+To skip that run, update the main script yourself in the **Run scripts** card on the **Playbook** tab, or turn off **Graduate to a script** until you have.
 A new or renamed output makes Scripted runs [fall back](../self-improvement/#fallback) to the agent until main reports it, and the **Spec** card warns you about that.
 
 [Job settings](../../reference/job-settings/) lists every field with its default and allowed values.
@@ -63,6 +64,7 @@ You set them per job in the **Sandbox** card, where an empty field follows the w
 | **CPUs** | 1 | runs slower, since Docker throttles the sandbox to that many CPUs |
 | **Memory** | 1024 MB | loses the command that ran out, which the kernel kills. The sandbox has no swap |
 
+After a run that ran out of memory, time or turns, reflection suggests higher limits, which you apply with one click ([How jobs learn](../self-improvement/#suggestions)).
 [Models and costs](../models/#cost-limit-per-run) explains what the cost limit counts and the workspace's daily spend limit.
 
 ## Stopping automatic runs

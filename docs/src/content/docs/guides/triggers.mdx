@@ -4,9 +4,9 @@ seoTitle: Cron schedules, webhooks and API triggers
 description: Start runs by hand, on a cron schedule, from a webhook or through the API, and choose what happens when runs overlap.
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-import TriggerFlow from '../../../components/diagrams/TriggerFlow.astro';
-import Screenshot from '../../../components/Screenshot.astro';
+import { Steps } from "@astrojs/starlight/components";
+import TriggerFlow from "../../../components/diagrams/TriggerFlow.astro";
+import Screenshot from "../../../components/Screenshot.astro";
 
 A run starts in one of five ways: **Run now** on the job page, the job's schedule, its webhook, the REST API, or **Retry** on an earlier run ([Reading a run](../runs/#stop-retry-and-learn)).
 Every trigger passes the job's overlap policy, which sets what happens while another of its runs is active.
@@ -33,6 +33,7 @@ Cron expressions are easier to write than to read, so the **Presets** menu cover
 There is no seconds field, so the tightest schedule is once a minute.
 
 **Timezone** takes an IANA name such as `Europe/Berlin`, and a schedule without one runs in UTC.
+
 If Umpteenth was down when an occurrence came due, the job runs once as soon as Umpteenth is back, however many occurrences it missed.
 
 ## Webhooks
@@ -53,7 +54,10 @@ The request body becomes the run's input.
 
 </Steps>
 
-<Screenshot name="webhook-token" alt="The Webhook token dialog with the token, a copyable example curl call and a warning that the token won't be shown again" />
+<Screenshot
+  name="webhook-token"
+  alt="The Webhook token dialog with the token, a copyable example curl call and a warning that the token won't be shown again"
+/>
 
 ```bash
 curl -X POST "https://umpteenth.example.com/hooks/$JOB_ID" \

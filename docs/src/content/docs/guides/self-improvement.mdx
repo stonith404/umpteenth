@@ -3,9 +3,9 @@ title: How jobs learn
 description: Reflection writes what each run taught into the job's playbook until the job graduates to a script, and you review, edit or roll back what it learned.
 ---
 
-import ModeMachine from '../../../components/diagrams/ModeMachine.astro';
-import ReflectionFlow from '../../../components/diagrams/ReflectionFlow.astro';
-import Screenshot from '../../../components/Screenshot.astro';
+import ModeMachine from "../../../components/diagrams/ModeMachine.astro";
+import ReflectionFlow from "../../../components/diagrams/ReflectionFlow.astro";
+import Screenshot from "../../../components/Screenshot.astro";
 
 Reflection is a model call after a run that writes what worked into the job's playbook: notes for the next run, tested scripts and, once the runs follow the same steps, a main script that does the whole job without the agent.
 You review each change on the run's **Learned** tab, and edit or roll back what the job learned on its **Playbook** tab.
@@ -41,6 +41,7 @@ Every change to the playbook, yours or reflection's, saves a new numbered versio
 With **Self-improve** on, the default for new jobs, Umpteenth reflects on each run that ends **Succeeded**, **Failed** or **Timed out**.
 It skips a run that failed before any work started, such as on the daily spend limit, unless the setup script caused the failure.
 It also skips a scripted run that succeeded without the agent's help, so a graduated job costs no reflection while its script works.
+After you change a graduated job's instruction, Umpteenth reflects on the next run anyway, so main catches up with the change.
 
 With **Self-improve** off, the playbook changes only through your own edits and through **Learn from this run**, which starts reflection on one run that succeeded, failed or timed out.
 
@@ -69,23 +70,33 @@ Umpteenth holds a change back instead of applying it in three cases:
 - A learning, script or Dockerfile would contain the value of one of the job's secrets, or something shaped like a credential, such as a GitHub token or an AWS access key.
 - A Dockerfile changes for a job set to **No network** or **Allowed domains only**, since image builds reach the internet.
 
-Only Dockerfiles get the download and base image checks, so a setup script that pipes `curl` into a shell applies without review.
-
-Umpteenth has no approve button, so a held change never applies by itself.
+Umpteenth has no approve button for held playbook changes, so they never apply by themselves.
 To apply one, copy what you trust from the change on the **Learned** tab into the playbook with **Edit as JSON** on the **Playbook** tab.
 A Dockerfile goes into the **Environment** tab instead, followed by **Save & build**.
+
+### Suggestions
+
+Reflection can't change a job's limits, secrets or instruction, so if a run shows that one of them must change, it suggests the change to you.
+It asks for more memory after a command ran out of it, for example, or for a token with the `workflow` scope a push needs.
+If the instruction leaves open whether a side effect such as an email happens, or a template the job uses contradicts the instruction, reflection asks which reading applies.
 
 ## Graduation
 
 A job graduates when reflection writes it a main script.
-Umpteenth allows that only while reflecting on the job's newest finished run, and only if that run and the two finished runs before it meet three rules:
+Umpteenth allows that only while reflecting on the job's newest finished run, which must have done the job's work, and only if that run and the two runs before it that did the work meet three rules:
 
 - All three succeeded in **Assisted** mode.
 - Each made at most two `bash` calls that do more than read files.
   Commands such as `cat`, `grep` or `jq` don't count.
 - All three called the same toolkit scripts and MCP tools in the same order, whatever the arguments.
 
+A run that found nothing to do, such as a digest on a day without news, ends its timeline with **Finished with nothing to do** and doesn't count toward the three.
+Neither does a run with [extra instructions](../triggers/#run-now).
+Neither kind breaks the streak, as long as it succeeded in Assisted mode.
+
 If the rules hold, reflection writes a main script and its verify checks from that tool sequence, and once that change applies, the job's next run is **Scripted**.
+If reflection finds a step main can't do, the job stays Assisted, and the reflection summary on the **Learned** tab starts with "Not graduating:".
+
 On a new job, run 5 is the earliest possible scripted run: run 1 explores, its reflection adds the first learnings, and runs 2 to 4 make the streak.
 Umpteenth checks the rules only during reflection, so graduation needs **Self-improve** on, or a click on **Learn from this run** on the newest run.
 
@@ -143,7 +154,10 @@ To hear about fallbacks, turn on `run.fell_back` under [Notifications](../notifi
 
 Each run's **Learned** tab shows what reflection did with that run.
 
-<Screenshot name="run-learned" alt="A run's Learned tab: the reflection summary and cost, the changes with their rationales marked Applied or Held for review, and the playbook diff" />
+<Screenshot
+  name="run-learned"
+  alt="A run's Learned tab: the reflection summary and cost, the changes with their rationales marked Applied or Held for review, and the playbook diff"
+/>
 
 **What this run taught the job** lists each change with its rationale and badge, and a rejected change gives its reason after "Not applied:".
 **Playbook changes** below it compares the new playbook version with the one before.
@@ -155,7 +169,10 @@ Reflection applies its changes to the job's current playbook, so learning from a
 
 The job's **Playbook** tab opens on the current version, such as **Version 4**, and lets you change it by hand.
 
-<Screenshot name="playbook" alt="A job's Playbook tab with the current version, its learnings and toolkit scripts, the Run scripts card and the version history" />
+<Screenshot
+  name="playbook"
+  alt="A job's Playbook tab with the current version, its learnings and toolkit scripts, the Run scripts card and the version history"
+/>
 
 - **Learnings**: edit a learning, or **Retire** and **Restore** it.
 - **Toolkit**: expand a script to read its code, then **Edit** or **Delete** it.
@@ -176,11 +193,13 @@ Open the **Learned** tab of the job's newest run and go through this list:
 
 - **Self-improve** is off, and you haven't clicked **Learn from this run** on the newest run.
 - **Graduate to a script** is off.
-- One of the last three finished runs failed, timed out or ran in Explore.
+- One of the latest finished runs failed, timed out or ran in Explore.
+- The newest run found nothing to do, so its timeline ends in **Finished with nothing to do**, or it had extra instructions.
 - A run made more than two `bash` calls that do more than read files.
   Toolkit script calls don't count.
-- The runs took different paths: other tools, or the same tools in another order.
-  A job that posts to Slack on days with news calls one tool fewer on quiet days, and [Writing instructions](../writing-instructions/#helping-a-job-graduate) has tips for runs that repeat.
+- The runs that did the work took different paths: other tools, or the same tools in another order.
+  [Writing instructions](../writing-instructions/#helping-a-job-graduate) has tips for runs that repeat.
+- Reflection's summary starts with "Not graduating:" and names the step main can't do.
 - Reflection wrote a main script, and it failed its shadow run.
   The change shows **Rejected** with **Show the shadow run's output**.
 - Reflection failed, for example on the daily spend limit.

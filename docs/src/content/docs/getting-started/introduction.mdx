@@ -17,7 +17,7 @@ A new job has nothing but your instruction, so its first run is an **Explore** r
 Umpteenth then hands the run's transcript to a model in a step called **reflection**, which writes down what worked as short learnings, plus **toolkit** scripts for the steps a run repeats.
 Once reflection has saved any of those, runs are **Assisted**: the agent starts from the learnings and calls the toolkit scripts as tools instead of working the steps out again.
 
-After three successful Assisted runs in a row that take the same steps, the job can graduate.
+After three successful Assisted runs that do the work and take the same steps, the job can graduate.
 Reflection writes a main script that does the whole job, and from then on runs are **Scripted**: Umpteenth executes the script and checks its result, with no agent involved.
 A scripted run spends no model tokens unless the script or its checks ask a model for a judgment call, such as writing a summary.
 If a check fails, the agent takes over in the same sandbox and finishes the job.

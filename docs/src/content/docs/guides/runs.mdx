@@ -58,6 +58,7 @@ The **Timeline** streams the run as it happens, one step per event, each marked 
   A red **exit N** badge marks a command that failed, and `timed out` or `out of memory` one that ran out of time or memory.
 - **Verification passed** or **Verification failed** lists each check of a scripted run, and **Fell back to the agent** gives the reason the agent took over.
 - **Finished** or **Finished with a failure** holds the agent's summary and outputs, and **Error** names what stopped the run.
+  **Finished with nothing to do** marks a successful run that found no work, such as a digest on a quiet day.
 
 To debug a failed run, start at the bottom: find the last command with an **exit** badge, then read the turn before **Finished with a failure**.
 The agent's dead ends stay in the timeline next to what worked, which makes it more candid than most incident write-ups.

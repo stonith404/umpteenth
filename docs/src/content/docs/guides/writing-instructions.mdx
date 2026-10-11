@@ -3,7 +3,7 @@ title: Writing instructions
 description: Describe a job in plain language so it compiles into a spec you can trust, and into runs that succeed and graduate to a script.
 ---
 
-import Screenshot from '../../../components/Screenshot.astro';
+import Screenshot from "../../../components/Screenshot.astro";
 
 You describe a job once, in plain language.
 Umpteenth compiles that text into a spec you review before saving, and the agent reads the same text every time it works on a run.
@@ -16,9 +16,12 @@ While the box is empty, the buttons next to **Examples:** fill it with a ready-m
 
 **Compile** sends the text to the utility model, or to the agent model if the workspace has no utility model.
 Its answer fills the review screen: a name and goal, a schedule, success criteria, inputs and outputs, the MCP servers, the secrets, the network and the side effects.
-A schedule without a named time zone runs in UTC.
+The compile step reads a time without a zone, such as "every weekday at 8:00", in your browser's time zone ([Triggers and schedules](../triggers/#schedules)).
 Umpteenth matches each service to your MCP servers by name, ignoring case, and leaves out a service without a match.
 **Custom environment** comes on with a Dockerfile only if the job needs tools beyond the default image.
+
+Success criteria describe what a successful run leaves behind.
+The agent reads them next to your instruction, so delete one that asks for more than your text does.
 
 **Compile again** on the review screen replaces the whole spec, and if you edited it, you confirm with **Discard and compile** first.
 To write the spec yourself, click **Fill in manually** instead of **Compile**.
@@ -30,12 +33,13 @@ Umpteenth then shows **A few questions first**, at most three, one at a time.
 Pick a suggested answer or type your own into **Something else…**.
 
 <Screenshot
-	name="new-job-questions"
-	alt="The New job page asking which Slack channel the report goes to, with #ci picked from the answers #ci, #eng and #dev-alerts, a Something else field and a Compile button"
+  name="new-job-questions"
+  alt="The New job page asking which Slack channel the report goes to, with #ci picked from the answers #ci, #eng and #dev-alerts, a Something else field and a Compile button"
 />
 
 Your answers go to the end of the instruction under `Clarifications:`, so the agent reads them on every run.
 A description that names its repository, channel and schedule skips this step.
+The compile step still asks about a condition that decides a side effect and reaches beyond the job's subject, such as "if there were any notifications, send a summary email" in a job about dependency pull requests.
 
 ## The agent's brief
 
@@ -46,7 +50,7 @@ A job without a schedule has no time zone of its own, so write the zone into the
 ## A checklist
 
 - Spell out the details a colleague would ask for: the repository, the URL, the threshold.
-- Give the schedule a time zone, as in "every weekday at 8:00 Berlin time".
+- Name the schedule's time zone if it isn't your browser's, as in "every weekday at 8:00 Berlin time".
 - Name where the result goes and in what form: "post one message to #eng in Slack", "save it as `/ump/outputs/report.md`".
   A result with no destination ends up in the run's summary and nowhere else.
 - Describe success in terms a run can prove: "the run fails if any certificate expires within 14 days".
@@ -78,7 +82,7 @@ Expect a schedule of `*/15 * * * *`, success criteria about the response and the
 
 ## Helping a job graduate
 
-After three successful Assisted runs in a row that take the same steps, reflection writes a main script that does the work without the agent ([How jobs learn](../self-improvement/#graduation) has the exact rules).
+After three successful Assisted runs that do the work and take the same steps, reflection writes a main script that does the work without the agent ([How jobs learn](../self-improvement/#graduation) has the exact rules).
 Instructions that lead to the same steps on every run get there sooner:
 
 - Keep one job to one outcome, and split unrelated chores into separate jobs.
@@ -88,6 +92,7 @@ Instructions that lead to the same steps on every run get there sooner:
   Before a new main script goes live, Umpteenth runs it once and compares these outputs with the run that reflection learned from.
 - Keep the **Side effects** list on the review screen complete.
   Umpteenth skips that trial for a job with side effects, so a new script can't post your message a second time.
+- Spell out what counts as nothing to do, since runs that find nothing to do don't count toward graduation.
 - Steps that need judgment, such as a summary or a classification, don't block graduation.
   The main script hands them to the utility model with [`ump llm`](../../reference/ump-cli/#ump-llm).
 

@@ -23,10 +23,10 @@ A saved change applies from the next run on.
 | Field | Default | Effect |
 |---|---|---|
 | **Goal** | From the compile step | One sentence on the outcome, shown on the job's **Overview** tab. Optional, up to 2,000 characters. |
-| **Success criteria** | From the compile step | Statements a successful run satisfies, which the agent reads with the instruction |
+| **Success criteria** | From the compile step | The end state a successful run leaves behind, which the agent reads with the instruction |
 | **Inputs** | From the compile step | Named, typed values a run reads from `/ump/input.json` |
 | **Outputs** | From the compile step | Named, typed values each run reports |
-| **Side effects** | From the compile step | The changes the job makes outside its sandbox, such as a Slack post |
+| **Side effects** | From the compile step | The changes the job makes outside its sandbox and when, such as a Slack post when there are stale pull requests |
 
 ## Schedule
 

@@ -19,7 +19,7 @@ Each sandbox gets 1 CPU and 1024 MB of memory by default, which you change in th
 
 ## The default image
 
-Runs use `ghcr.io/stonith404/umpteenth-sandbox:latest`, a Debian trixie-slim image with `bash`, `coreutils`, `curl`, `git`, `jq`, `ripgrep`, `python3`, `pip`, `uv`, `node` and `npm`.
+Runs use `ghcr.io/stonith404/umpteenth-sandbox:latest`, a Debian trixie-slim image with `bash`, `coreutils`, `curl`, `git`, `jq`, `ripgrep`, `python3` with `pip` and `requests`, `uv`, `node` and `npm`.
 
 To start from another image, set **Default image** under **Settings → General → Sandbox defaults** for the workspace, or **Base image** in a job's **Sandbox** card for that job alone.
 A custom image needs `bash` and an `amd64` or `arm64` build, because Umpteenth runs commands with `bash -lc` and ships its `ump` CLI for those two architectures.

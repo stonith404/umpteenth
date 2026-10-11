@@ -46,7 +46,7 @@ ump mcp call github list_pull_requests '{"owner": "acme", "repo": "api", "state"
 
 `ump` prints the tool's result as text, which is JSON only when the tool returns JSON, so look at a tool's output once before you pipe it into `jq`.
 If the tool reports an error, `ump` prints the message and exits with `1`.
-An unknown pair of server and tool fails with `MCP tool <tool> on server <server> not found`.
+An unknown pair of server and tool fails with `MCP tool <tool> on server <server> not found`, and a server that failed to connect with `MCP server <server> is unavailable: <reason>`.
 
 Umpteenth records each call to a tool that its MCP server doesn't mark as read-only.
 If a scripted run falls back to the agent, the agent gets that list so it doesn't repeat those calls.
