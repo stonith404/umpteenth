@@ -139,12 +139,13 @@ func TestEditedInstructionRebuildsTheSpec(t *testing.T) {
 	require.Equal(t, "internet", spec.Network)
 	require.Nil(t, spec.Dockerfile)
 
-	// The compile step saw the spec it replaces, so it can keep output names, and was told not to ask
+	// The compile step saw the spec it replaces, so it can keep output names and fix what breaks a rule, and was told not to ask
 	requests := f.provider.Requests()
 	require.Len(t, requests, 1)
 	prompt := requests[0].Messages[0].Text()
 	require.Contains(t, prompt, "Post stale PRs of acme/api to #ops")
 	require.Contains(t, prompt, "One message is posted to #eng")
+	require.Contains(t, prompt, "follows the rules")
 	require.Contains(t, prompt, "Ask no questions")
 }
 
@@ -284,6 +285,11 @@ func TestCompileSuggestsConfiguredSkills(t *testing.T) {
 	// The model saw each skill with its description
 	prompt := f.provider.Requests()[0].Messages[0].Text()
 	require.Contains(t, prompt, "Configured skills:\n- pdf: Fills PDF forms\n- slack-style: Writes Slack messages")
+
+	// The rules name the workspace's default image and contain no stray format verb
+	system := f.provider.Requests()[0].System[0].Text
+	require.Contains(t, system, "FROM img.")
+	require.NotContains(t, system, "%!")
 }
 
 // namedSecrets is a workspace with a fixed list of secrets, whose values the compile step never sees

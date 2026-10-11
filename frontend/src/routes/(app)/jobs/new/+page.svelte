@@ -847,7 +847,8 @@
 					<Card.Header>
 						<Card.Title>Success criteria</Card.Title>
 						<Card.Description>
-							Checkable statements that decide whether a run succeeded.
+							The end state a successful run leaves behind, which the agent reads with the
+							instruction.
 						</Card.Description>
 					</Card.Header>
 					<Card.Content>
@@ -1006,13 +1007,13 @@
 				<Card.Root>
 					<Card.Header>
 						<Card.Title>Side effects</Card.Title>
-						<Card.Description>What the job changes outside its sandbox.</Card.Description>
+						<Card.Description>What the job changes outside its sandbox, and when.</Card.Description>
 					</Card.Header>
 					<Card.Content>
 						<StringListEditor
 							bind:items={sideEffects}
 							label="Side effect"
-							placeholder="e.g. Posts to Slack"
+							placeholder="e.g. Posts to #eng when PRs are stale"
 							addLabel="Add side effect"
 						/>
 					</Card.Content>

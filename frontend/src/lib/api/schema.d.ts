@@ -2890,9 +2890,9 @@ export interface components {
 			outputs: components['schemas']['IOField'][] | null;
 			/** @description The schedule the instruction asks for, which only takes effect through the job's cron and timezone */
 			schedule?: components['schemas']['Schedule'];
-			/** @description Changes the job makes outside its sandbox, such as posting a message */
+			/** @description Changes the job makes outside its sandbox and when, such as posting a message when there is something to report */
 			sideEffects: string[] | null;
-			/** @description Checkable statements a successful run satisfies */
+			/** @description The end state a successful run leaves behind, which the agent reads with the instruction */
 			successCriteria: string[] | null;
 			/** @description Short name for the job */
 			title: string;

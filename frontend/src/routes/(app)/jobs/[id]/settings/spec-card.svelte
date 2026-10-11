@@ -105,7 +105,7 @@
 		<Field.Set>
 			<Field.Legend variant="label">Success criteria</Field.Legend>
 			<Field.Description
-				>Checkable statements that decide whether a run succeeded.</Field.Description
+				>The end state a successful run leaves behind, which the agent reads with the instruction.</Field.Description
 			>
 			<StringListEditor
 				bind:items={$inputs.successCriteria.value}
@@ -145,11 +145,11 @@
 
 		<Field.Set>
 			<Field.Legend variant="label">Side effects</Field.Legend>
-			<Field.Description>What the job changes outside its sandbox.</Field.Description>
+			<Field.Description>What the job changes outside its sandbox, and when.</Field.Description>
 			<StringListEditor
 				bind:items={$inputs.sideEffects.value}
 				label="Side effect"
-				placeholder="e.g. Posts to Slack"
+				placeholder="e.g. Posts to #eng when PRs are stale"
 				addLabel="Add side effect"
 			/>
 		</Field.Set>

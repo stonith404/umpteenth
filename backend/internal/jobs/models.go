@@ -47,13 +47,13 @@ type Spec struct {
 	Goal  string `json:"goal" doc:"One sentence on the outcome"`
 	// Schedule is omitted for jobs without a recurring schedule, since Huma cannot mark a struct reference as nullable
 	Schedule        *Schedule `json:"schedule,omitempty" doc:"The schedule the instruction asks for, which only takes effect through the job's cron and timezone"`
-	SuccessCriteria []string  `json:"successCriteria" doc:"Checkable statements a successful run satisfies"`
+	SuccessCriteria []string  `json:"successCriteria" doc:"The end state a successful run leaves behind, which the agent reads with the instruction"`
 	Inputs          []IOField `json:"inputs" doc:"Values a run reads from /ump/input.json"`
 	Outputs         []IOField `json:"outputs" doc:"Small structured values each run reports"`
 	MCP             []MCPNeed `json:"mcp" doc:"MCP servers the job needs"`
 	Network         string    `json:"network" enum:"none,internet" doc:"Whether the job needs the internet"`
 	Dockerfile      *string   `json:"dockerfile" doc:"Dockerfile for jobs that need tools beyond the default sandbox image, null otherwise"`
-	SideEffects     []string  `json:"sideEffects" doc:"Changes the job makes outside its sandbox, such as posting a message"`
+	SideEffects     []string  `json:"sideEffects" doc:"Changes the job makes outside its sandbox and when, such as posting a message when there is something to report"`
 }
 
 // LimitOverrides are the per-job limits; unset fields fall back to the workspace defaults

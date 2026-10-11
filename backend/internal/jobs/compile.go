@@ -36,9 +36,9 @@ var specSchema = json.RawMessage(`{
         }}
       ]
     },
-    "successCriteria": {"type": "array", "items": {"type": "string"}, "description": "Verifiable criteria for a successful run"},
+    "successCriteria": {"type": "array", "items": {"type": "string"}, "description": "The end state a successful run leaves behind, usually one to three statements, each following from the text"},
     "inputs": {"type": "array", "items": {"$ref": "#/$defs/field"}},
-    "outputs": {"type": "array", "items": {"$ref": "#/$defs/field"}, "description": "Structured values each run should report"},
+    "outputs": {"type": "array", "items": {"$ref": "#/$defs/field"}, "description": "Small structured values each run reports, never whether the run itself succeeded"},
     "mcp": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["server", "why"], "properties": {
       "server": {"type": "string", "description": "Name of a configured MCP server when one matches, otherwise the service name"},
       "why": {"type": "string"}
@@ -50,8 +50,8 @@ var specSchema = json.RawMessage(`{
       "why": {"type": "string"}
     }}},
     "network": {"type": "string", "enum": ["none", "internet"]},
-    "dockerfile": {"anyOf": [{"type": "null"}, {"type": "string"}], "description": "Only when the job needs tools beyond bash, curl, git, jq, ripgrep, python3, pip, uv and node; FROM the default sandbox image"},
-    "sideEffects": {"type": "array", "items": {"type": "string"}, "description": "External effects such as posting messages"},
+    "dockerfile": {"anyOf": [{"type": "null"}, {"type": "string"}], "description": "Only when the job needs tools the default sandbox image lacks, starting FROM it"},
+    "sideEffects": {"type": "array", "items": {"type": "string"}, "description": "Each change the job makes outside the sandbox, with the condition the text puts on it; effects only, no advice"},
     "questions": {"type": "array", "description": "What the user must answer before the job can be set up, usually nothing", "items": {"type": "object", "additionalProperties": false, "required": ["question", "options"], "properties": {
       "question": {"type": "string", "description": "One short question"},
       "options": {"type": "array", "items": {"type": "string"}, "description": "Up to four likely answers, or none when only the user can know"}
@@ -63,19 +63,21 @@ var specSchema = json.RawMessage(`{
 }`)
 
 const compileSystem = `You turn a plain-language job description into a structured spec for Umpteenth, which runs jobs in a disposable Linux sandbox with an LLM agent.
+The agent reads the description word for word on every run, with the success criteria and outputs next to it, so the spec must never add work, checks or rules the description doesn't ask for.
 
 Rules:
 - Only include a schedule when the text asks for recurring runs. Convert it to a 5-field cron expression in the timezone the text names (UTC if none).
-- Success criteria must be concrete and checkable from what the run did.
-- Outputs are small structured values worth tracking across runs (counts, IDs, flags), not long text.
+- successCriteria describe the end state a successful run leaves behind, as someone checking afterwards would see it: what was created, changed or sent, or that nothing was. Usually one to three are enough. Keep every condition exactly as the text states it, including what happens when there is nothing to do. Never restate the steps, commands or tools of the description and never add requirements the text doesn't ask for.
+- Outputs are small structured values worth tracking across runs (counts, IDs, flags), not long text. Never add an output that only says whether the run itself succeeded, such as a success or ok flag, since every run reports its status anyway.
 - mcp lists the external services the job needs to talk to. Use the exact name of a configured MCP server when one fits.
 - skills lists the configured skills whose description fits the job, by their exact name. Leave it empty when none fit.
 - secrets lists the credentials the job's own commands read from environment variables, such as an API token for a CLI, named as the tool expects them. Set secret to the exact name of the configured secret that holds the value, or leave it empty when none does. MCP servers keep their own credentials, so a job needs no secret for them.
 - network is "none" only when the job clearly needs no internet access.
 - Each job has built-in key-value state that persists between its runs, so remembering values such as the last price or the last seen ID needs no external storage, MCP server or warning.
-- The default sandbox image already has bash, coreutils, curl, git, jq, ripgrep, python3, pip, uv, node and npm. Only propose a dockerfile when the job needs more, starting with FROM %s.
-- sideEffects lists everything the job changes outside the sandbox.
-- questions are rare, and most descriptions need none. Only ask when the job cannot run correctly without the answer and there is no sensible default, such as which repository or channel it works on, or when a wrong guess could cause a harmful side effect. Never ask about anything the agent can find out while running, about wording or formatting, or about details a reasonable default settles. Ask at most three.`
+- The default sandbox image already has bash, coreutils, curl, git, jq, ripgrep, python3 with pip and requests, uv, node and npm. Only propose a dockerfile when the job needs more, starting with FROM %s.
+- sideEffects lists each change the job makes outside the sandbox as one short statement with the condition the text puts on it, such as "Posts one message to #eng when there are stale pull requests". List effects only, never advice, risks, warnings or steps.
+- questions are rare, and most descriptions need none. Only ask when the job cannot run correctly without the answer and there is no sensible default, such as which repository or channel it works on, or when a wrong guess could cause a harmful side effect. Never ask about anything the agent can find out while running, about wording or formatting, or about details a reasonable default settles. Ask at most three.
+- One case always needs a question: a condition that decides whether a side effect happens and reaches beyond what the job is about, such as "if there were any notifications, send a summary email" in a job about dependency pull requests. Ask whether only the job's own subject counts or everything the condition matches, and offer both readings as options.`
 
 // maxQuestions and maxOptions cap what the user is asked, in case the model asks more than it was told to
 const (
@@ -210,7 +212,7 @@ func (m *Module) compileSpec(ctx context.Context, wid, instruction string, previ
 	}
 	if previous != nil {
 		current, _ := json.Marshal(previous)
-		user += "\n\nThe description was edited, and this is the spec compiled from the one before. Keep the input and output names and everything that still matches the description, and change only what the edit changed:\n" + string(current)
+		user += "\n\nThe description was edited, and this is the spec compiled from the one before. Keep its input and output names, keep the rest where it still matches the description and follows the rules, and change only what the edit changed or what breaks a rule:\n" + string(current)
 	}
 	if !ask {
 		user += "\n\nAsk no questions this time: return an empty questions list and settle anything still open with the most sensible choice."
