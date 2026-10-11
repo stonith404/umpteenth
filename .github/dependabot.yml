@@ -35,6 +35,8 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # v3.70.0 refuses API keys over plain HTTP to non-loopback hosts, which breaks compatible servers such as http://cli-proxy-api:8317/v1
+      - dependency-name: "github.com/openai/openai-go/v3"
     cooldown:
       default-days: 7
 
