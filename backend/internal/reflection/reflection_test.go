@@ -71,6 +71,15 @@ func TestInstallRuleNeedsThreeSlowRunsInARow(t *testing.T) {
 	assert.Contains(t, input{InstallHistory: []Timings{slow, slow, slow}}.userMessage(), "move that work into the Dockerfile")
 }
 
+func TestRepairAndGraduationAskForRunTimeData(t *testing.T) {
+	assert.Contains(t, input{Graduation: graduation{FellBack: "a check failed"}}.userMessage(), "instead of adding this run's data to a script")
+	assert.Contains(t, input{Graduation: graduation{Eligible: true}}.userMessage(), "works on whatever data a run finds")
+
+	// The agent's own notes are know-how, never requirements
+	notes := input{Transcript: transcript{Notes: []string{"Run the type check before committing"}}}.userMessage()
+	assert.Contains(t, notes, "never turn one into a requirement of the job")
+}
+
 type fakeJobs struct{ cfg runner.JobConfig }
 
 func (f fakeJobs) LoadForRun(context.Context, string, string, int64) (runner.JobConfig, error) {

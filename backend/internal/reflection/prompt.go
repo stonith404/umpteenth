@@ -12,7 +12,7 @@ import (
 const systemPrompt = `You are the reflection step of Umpteenth. After a run of a job, you improve the job's playbook so that future runs succeed with fewer turns, lower cost and less time.
 
 ## The playbook
-- learnings: short, durable know-how for this job, such as edge cases, workarounds and facts about the systems it touches. The agent reads them before every run.
+- learnings: short, durable know-how for doing what the job's instruction asks, such as edge cases, workarounds and facts about the systems it touches. The agent reads them before every run.
 - toolkit: tested scripts in /ump/toolkit, offered to the agent as toolkit__<name> tools. A script starts with a ump: header, takes its arguments as --name value flags and prints its result to stdout:
     #!/usr/bin/env python3
     # ump:name        short_snake_case_name
@@ -21,7 +21,7 @@ const systemPrompt = `You are the reflection step of Umpteenth. After a run of a
     # ump:side-effects none   (or external, when it posts, writes or sends anything outside the sandbox)
 - dockerfile: the job's environment, built once and cached. Packages installed here are ready when a run starts instead of being installed by hand in every run.
 - setup: a cheap shell step before every run. Installs belong in the Dockerfile, not here.
-- main: once a job graduates, this script does the whole job without the agent. It runs as /ump/main in /workspace, reads every input the job declares from /ump/input.json (falling back to the default the job describes when a run doesn't set it, and never writing an input's value into the script), can call the toolkit scripts in /ump/toolkit, MCP tools with "ump mcp call <server> <tool> '<json>'" and the utility model with "ump llm" for judgment steps such as summarizing or classifying. It reports each output with "ump output set <name> '<json value>'", a markdown summary with "ump summary", and progress with "ump step <name>". It must exit non-zero when anything goes wrong.
+- main: once a job graduates, this script does the whole job without the agent. It runs as /ump/main in /workspace, reads every input the job declares from /ump/input.json (falling back to the default the job describes when a run doesn't set it, and never writing an input's value into the script), can call the toolkit scripts in /ump/toolkit, MCP tools with "ump mcp call <server> <tool> '<json>'" and the utility model with "ump llm" for judgment steps such as writing, summarizing or classifying. It reports each output with "ump output set <name> '<json value>'", a markdown summary with "ump summary", and progress with "ump step <name>". It must exit non-zero when anything goes wrong.
 - verify: {"checks": [...], "llm": false, "varies": []}. Every scripted run must exit 0 and report the job's outputs; checks add conditions in this syntax: ` + playbook.CheckSyntax + `. Write checks against what main actually does: "stdout contains" only sees what main prints, not what it passes to ump summary or ump output. Set llm to true only when success can't be checked mechanically, for example a written summary that must say the right thing, since every judged run costs a model call.
 - Shadow run: for a job without side effects, a new or changed main is run once with this run's input before it is applied. It must pass its checks, and each output the job declares must equal what this run reported, unless verify lists the output under varies. List an output there only when its value legitimately changes between two runs moments apart, such as a timestamp or generated text, never to get around a main that picks the wrong data.
 
@@ -29,6 +29,8 @@ const systemPrompt = `You are the reflection step of Umpteenth. After a run of a
 - Aim for the next run to need as few turns as possible. When the run's work was deterministic, promote a script that does as much of it as possible in one call, ideally a candidate script the run wrote and tested. When the agent did the work with commands in the transcript instead of a candidate script, write the script from those commands. Always give the complete script with its ump: header.
 - Only promote scripts that worked in this run. Fix a toolkit script that failed, and delete scripts that are no longer useful.
 - Keep main short: let it call toolkit scripts the runs tested instead of carrying new inline code, since the main of a job with side effects is not tried before its next run. When you repair main, change only what failed, follow what the agent that took over did successfully, and check every quote and bracket of the code you write.
+- Only the job's instruction and success criteria say what the job must do. Learnings, scripts and main help do exactly that and never add a requirement, precondition, gate or policy the job doesn't state.
+- Main and toolkit scripts must work for every future run, not replay this one. Never write data this run handled into them, such as the keys, IDs, names or texts it found or the text the agent wrote for them, and never branch on a list of this run's items: read such data at run time. Values the instruction names, such as a repository, are fine. Where the agent used judgment, such as writing a description, translation or summary, or classifying items, the script hands that step to "ump llm", for example ump llm --system "<task>" - < item.txt, or with --schema <file> for JSON, so it works for items no run has seen.
 - Scripts must not contain secrets. Read them from the environment variables the job provides.
 - Prefer update_learning over add_learning, retire learnings that turned out wrong or no longer matter, and don't repeat what a toolkit script already handles.
 - Learnings must stay true for future runs: no run-specific values such as today's numbers, prices or IDs (the job's state holds those) and no secrets.
@@ -161,6 +163,7 @@ func (in input) userMessage() string {
 	writeFacts(&b, in.Run)
 	if len(in.Transcript.Notes) > 0 {
 		section("What the agent asked to remember")
+		b.WriteString("These are the agent's own notes: keep what is know-how, and never turn one into a requirement of the job.\n")
 		for _, n := range in.Transcript.Notes {
 			fmt.Fprintf(&b, "- %s\n", n)
 		}
@@ -190,7 +193,7 @@ func (in input) userMessage() string {
 		b.WriteString("Graduation is turned off for this job, so every run uses the agent: don't use propose_main or update_main.\n")
 	case g.FellBack != "":
 		section("The main script failed")
-		fmt.Fprintf(&b, "This run started with the main script, but %s, so an agent finished the job (see the transcript). Repair main with update_main so the next run succeeds on its own: change only what failed, following what the agent did successfully, and fix the toolkit script instead when that is where it failed. Adjust verify if the checks were wrong.\n", g.FellBack)
+		fmt.Fprintf(&b, "This run started with the main script, but %s, so an agent finished the job (see the transcript). Repair main with update_main so the next run succeeds on its own: change only what failed, following what the agent did successfully, and fix the toolkit script instead when that is where it failed. Adjust verify if the checks were wrong. When main failed on data no earlier run had, such as new keys or items, make it handle any such data at run time, with ump llm for what the agent wrote or decided, instead of adding this run's data to a script.\n", g.FellBack)
 		if g.Demoted {
 			b.WriteString("The script failed twice in a row, so the job runs as Assisted again until it qualifies for graduation once more.\n")
 		}
@@ -200,7 +203,7 @@ func (in input) userMessage() string {
 		if len(g.Sequence) > 0 {
 			fmt.Fprintf(&b, ": %s", strings.Join(g.Sequence, " → "))
 		}
-		b.WriteString(". Graduate the job: write a main script with propose_main that does the whole job without the agent, following those steps (a toolkit__<name> tool is /ump/toolkit/<name> with --name value flags), and set its checks with set_verify.\n")
+		b.WriteString(". Graduate the job: write a main script with propose_main that does the whole job without the agent, following those steps (a toolkit__<name> tool is /ump/toolkit/<name> with --name value flags), and set its checks with set_verify. Main must also handle runs with more, fewer or other items than these, so it works on whatever data a run finds, with ump llm for steps where the agent wrote or decided something.\n")
 	case g.Demoted:
 		section("Graduation")
 		fmt.Fprintf(&b, "The job was demoted to Assisted after its main script failed twice in a row. It graduates again once it qualifies; for now %s.\n", g.Reason)
