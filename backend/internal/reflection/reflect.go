@@ -102,7 +102,7 @@ func (m *Module) reflect(ctx context.Context, run reflectiondb.GetRunRow) (resul
 		return res, err
 	}
 	in.Graduation = grad
-	actx := playbook.ApplyContext{SourceRunID: run.ID, BaseImage: job.BaseImage, Network: job.Network, Secrets: slices.Collect(maps.Values(job.Env)), Graduation: grad.Eligible, NotGraduated: grad.Reason, GraduationOff: grad.Off, Inputs: job.InputNames}
+	actx := playbook.ApplyContext{SourceRunID: run.ID, BaseImage: job.BaseImage, Network: job.Network, ImageBuilds: m.deps.Images != nil, Secrets: slices.Collect(maps.Values(job.Env)), Graduation: grad.Eligible, NotGraduated: grad.Reason, GraduationOff: grad.Off, Inputs: job.InputNames}
 
 	// Ask once, and once more with the problems when some operations didn't apply or the playbook grew over its budget
 	messages := []llm.Message{{Role: llm.RoleUser, Parts: []llm.Part{llm.TextPart(in.userMessage())}}}
@@ -320,10 +320,10 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 		Inputs:          job.Inputs,
 		Outputs:         job.Outputs,
 		BaseImage:       job.BaseImage,
+		ImageBuilds:     m.deps.Images != nil,
 		Skills:          skillNames(job.Skills),
 		Playbook:        current,
 		Transcript:      tr,
-		InstallHistory:  []Timings{tr.Timings},
 		Run: runFacts{
 			Number: run.Number, Status: run.Status, Mode: run.Mode, Turns: run.Turns, CostMicro: run.Cost,
 			DurationMs: deref(run.MsTotal), Input: truncated(redact(derefString(run.Input)), 3000), Error: redact(derefString(run.Error)),
@@ -332,19 +332,13 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 	}
 	in.Candidates = m.candidates(ctx, run.ID, redact)
 
-	// Earlier runs show the trend, and their installs decide whether the environment rule applies
+	// Earlier runs show the trend
 	previous, err := m.queries.RecentRuns(ctx, reflectiondb.RecentRunsParams{WorkspaceID: run.WorkspaceID, JobID: run.JobID, Number: run.Number, MaxRuns: maxPreviousRuns})
 	if err != nil {
 		return input{}, fmt.Errorf("failed to load earlier runs: %w", err)
 	}
-	for i, p := range previous {
+	for _, p := range previous {
 		in.Previous = append(in.Previous, runFacts{Number: p.Number, Status: p.Status, Mode: p.Mode, Turns: p.Turns, CostMicro: p.Cost, DurationMs: deref(p.MsTotal)})
-		if i < installRuleRuns-1 {
-			rows, err := m.queries.RunEvents(ctx, p.ID)
-			if err == nil {
-				in.InstallHistory = append(in.InstallHistory, buildTranscript(rows, redact).Timings)
-			}
-		}
 	}
 	return in, nil
 }

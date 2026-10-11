@@ -108,6 +108,8 @@ type ApplyContext struct {
 	BaseImage string
 	// Network is the job's network setting, which decides whether reflection may change the Dockerfile without review
 	Network sandbox.NetworkPolicy
+	// ImageBuilds tells whether the sandbox adapter can build job images, so software can move into the Dockerfile instead of scripts installing it
+	ImageBuilds bool
 	// Secrets are values that must never be written into the playbook
 	Secrets []string
 	// Graduation tells whether the job qualifies for a main script, and NotGraduated explains why not
@@ -305,6 +307,9 @@ func (c *Content) upsertScript(op Op, actx ApplyContext) (string, []string, erro
 	if header.Description == "" {
 		return name, nil, fmt.Errorf("the script needs a # ump:description header line")
 	}
+	if err := rejectInstall("the script "+name, content, actx); err != nil {
+		return name, nil, err
+	}
 
 	content = executable(content, header.Lang)
 	s := Script{Name: name, Lang: header.Lang, Description: header.Description, Args: header.argsJSON(), SideEffects: header.SideEffects, Content: content}
@@ -347,6 +352,9 @@ func (c *Content) setSetup(op Op, actx ApplyContext) (string, []string, error) {
 	}
 	if len(setup) > maxSetupBytes {
 		return "setup", nil, fmt.Errorf("the setup script is %d bytes, the limit is %d", len(setup), maxSetupBytes)
+	}
+	if err := rejectInstall("the setup script", setup, actx); err != nil {
+		return "setup", nil, err
 	}
 	c.Setup = &setup
 	return "setup", secretFlags(setup, actx), nil
@@ -428,6 +436,9 @@ func (c *Content) setMain(op Op, actx ApplyContext) (string, []string, error) {
 	if err != nil {
 		return "main", nil, err
 	}
+	if err := rejectInstall("main", main, actx); err != nil {
+		return "main", nil, err
+	}
 
 	// A main script that carries an input's value instead of reading it silently ignores every run that sets a different one
 	if len(actx.Inputs) > 0 && !strings.Contains(main, inputPath) {
@@ -440,6 +451,19 @@ func (c *Content) setMain(op Op, actx ApplyContext) (string, []string, error) {
 	main = executable(main, header.Lang)
 	c.Main = &main
 	return "main", secretFlags(main, actx), nil
+}
+
+// rejectInstall refuses a script that installs software, since every run would repeat an install the job's image can provide once
+// Without image builds the Dockerfile can't take the install, so the script that needs it keeps it
+func rejectInstall(what, script string, actx ApplyContext) error {
+	if !actx.ImageBuilds {
+		return nil
+	}
+	found := FindInstall(script)
+	if found == "" {
+		return nil
+	}
+	return fmt.Errorf("%s installs software in every run (%s): install it in the job's Dockerfile with set_dockerfile instead, and leave installs out of toolkit scripts, setup and main", what, found)
 }
 
 // setVerify sets the checks every scripted run must pass
@@ -473,7 +497,7 @@ var riskyDockerfile = []struct {
 	re     *regexp.Regexp
 	reason string
 }{
-	{regexp.MustCompile(`(?i)\b(curl|wget)\b[^\n|]*\|\s*(sudo\s+)?(ba|z|da)?sh\b`), "pipes a download into a shell"},
+	{pipeToShell, "pipes a download into a shell"},
 	{regexp.MustCompile(`(?im)^\s*ADD\b[^\n]*(\bhttps?://|\bgit@)`), "adds a file straight from a URL"},
 	{regexp.MustCompile(`(?im)^\s*COPY\b[^\n]*--from=\S*[/:.]`), "copies files out of another image"},
 }

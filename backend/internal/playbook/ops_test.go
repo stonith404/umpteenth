@@ -22,7 +22,7 @@ func ptr(s string) *string { return &s }
 func apply(t *testing.T, c playbook.Content, ops ...playbook.Op) (playbook.Content, []playbook.AppliedOp) {
 	t.Helper()
 	c.Normalize()
-	return playbook.Apply(c, ops, playbook.ApplyContext{SourceRunID: "run-1", BaseImage: baseImage, Network: sandbox.NetworkInternet, Secrets: []string{"hunter2-secret"}})
+	return playbook.Apply(c, ops, playbook.ApplyContext{SourceRunID: "run-1", BaseImage: baseImage, Network: sandbox.NetworkInternet, ImageBuilds: true, Secrets: []string{"hunter2-secret"}})
 }
 
 func TestParseScriptHeader(t *testing.T) {
@@ -141,6 +141,54 @@ func TestApplyScriptOperations(t *testing.T) {
 	next, res = apply(t, next, playbook.Op{Op: playbook.OpDeleteScript, Name: ptr("list_prs")})
 	assert.Equal(t, playbook.OpApplied, res[0].Status)
 	assert.Empty(t, next.Toolkit)
+}
+
+func TestApplyRejectsScriptsThatInstallSoftware(t *testing.T) {
+	installNode := "#!/usr/bin/env python3\n# ump:name install_node26\n# ump:description Install Node 26 and print its path\nimport urllib.request\nurllib.request.urlretrieve('https://nodejs.org/dist/v26.0.0/node-v26.0.0-linux-x64.tar.gz', '/tmp/node.tar.gz')"
+	build := "# ump:name build\n# ump:description Build the cloned project\ncd repo && npm ci && npm run build"
+	mentions := "# ump:name chart\n# ump:description Render the chart\n# matplotlib comes from the Dockerfile, which runs pip install matplotlib\npython3 chart.py"
+	next, res := apply(t, playbook.Content{},
+		playbook.Op{Op: playbook.OpUpsertScript, Content: ptr(installNode)},
+		playbook.Op{Op: playbook.OpSetSetup, Content: ptr("pip install --user requests")},
+		playbook.Op{Op: playbook.OpSetSetup, Content: ptr("mkdir -p /workspace/out")},
+		playbook.Op{Op: playbook.OpUpsertScript, Content: ptr(build)},
+		playbook.Op{Op: playbook.OpUpsertScript, Content: ptr(mentions)},
+	)
+
+	// Every run would repeat an install in a script or setup, so reflection is told to move it into the Dockerfile
+	assert.Equal(t, playbook.OpRejected, res[0].Status)
+	assert.Equal(t, "install_node26", res[0].Target)
+	assert.Contains(t, res[0].Reason, "set_dockerfile")
+	assert.Contains(t, res[0].Reason, "nodejs.org")
+	assert.Equal(t, playbook.OpRejected, res[1].Status)
+	assert.Contains(t, res[1].Reason, "pip install --user requests")
+
+	// A cheap setup step, a project's own dependencies and an install a comment mentions all apply
+	assert.Equal(t, playbook.OpApplied, res[2].Status, res[2].Reason)
+	assert.Equal(t, playbook.OpApplied, res[3].Status, res[3].Reason)
+	assert.Equal(t, playbook.OpApplied, res[4].Status, res[4].Reason)
+	require.NotNil(t, next.Setup)
+	assert.Equal(t, "mkdir -p /workspace/out", *next.Setup)
+	assert.Len(t, next.Toolkit, 2)
+
+	// Main runs in every scripted run too, so neither a new nor a repaired main may install software
+	c := playbook.Content{}
+	c.Normalize()
+	_, res = playbook.Apply(c, []playbook.Op{{Op: playbook.OpProposeMain, Content: ptr("#!/usr/bin/env bash\nuv run --with pandas python3 report.py")}}, playbook.ApplyContext{Graduation: true, ImageBuilds: true})
+	assert.Equal(t, playbook.OpRejected, res[0].Status)
+	assert.Contains(t, res[0].Reason, "set_dockerfile")
+	graduated := playbook.Content{Main: ptr("#!/usr/bin/env bash\npython3 report.py\n")}
+	graduated.Normalize()
+	after, res := playbook.Apply(graduated, []playbook.Op{{Op: playbook.OpUpdateMain, Content: ptr("#!/usr/bin/env bash\nnpm install -g x\nx report")}}, playbook.ApplyContext{ImageBuilds: true})
+	assert.Equal(t, playbook.OpRejected, res[0].Status)
+	assert.Equal(t, *graduated.Main, *after.Main)
+
+	// Without image builds the Dockerfile can't take the install, so a script keeps the one it needs
+	fetch := "# ump:name fetch\n# ump:description Fetch the page\npip install requests\npython3 fetch.py"
+	_, res = playbook.Apply(playbook.Content{}, []playbook.Op{{Op: playbook.OpUpsertScript, Content: ptr(fetch)}}, playbook.ApplyContext{ImageBuilds: false})
+	assert.Equal(t, playbook.OpApplied, res[0].Status, res[0].Reason)
+	_, res = playbook.Apply(playbook.Content{}, []playbook.Op{{Op: playbook.OpUpsertScript, Content: ptr(fetch)}}, playbook.ApplyContext{ImageBuilds: true})
+	assert.Equal(t, playbook.OpRejected, res[0].Status)
 }
 
 func TestApplyDockerfileRules(t *testing.T) {

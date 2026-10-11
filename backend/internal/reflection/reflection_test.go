@@ -63,17 +63,72 @@ func TestTranscriptCondensesRedactsAndTimesInstalls(t *testing.T) {
 	assert.Equal(t, []string{"pip install --user matplotlib"}, tr.Timings.Installs)
 }
 
-func TestInstallRuleNeedsThreeSlowRunsInARow(t *testing.T) {
-	slow, fast := Timings{InstallMs: 12_000}, Timings{SetupMs: 2_000}
-	assert.True(t, input{InstallHistory: []Timings{slow, slow, slow}}.installRuleTriggered())
-	assert.False(t, input{InstallHistory: []Timings{slow, fast, slow}}.installRuleTriggered())
-	assert.False(t, input{InstallHistory: []Timings{slow, slow}}.installRuleTriggered())
-	assert.Contains(t, input{InstallHistory: []Timings{slow, slow, slow}}.userMessage(), "move that work into the Dockerfile")
+func TestTranscriptCountsRuntimeDownloadsAsInstalls(t *testing.T) {
+	getNode := "import urllib.request\nurllib.request.urlretrieve('https://nodejs.org/dist/v26.0.0/node-v26.0.0-linux-x64.tar.gz', 'node.tar.gz')"
+	bash := func(id, command string) reflectiondb.RunEventsRow {
+		return event("tool.call", 0, map[string]any{"callId": id, "name": "bash", "args": map[string]any{"command": command}})
+	}
+	result := func(id string, ms int64) reflectiondb.RunEventsRow {
+		return event("tool.result", ms, map[string]any{"callId": id, "content": "done", "isError": false})
+	}
+	rows := []reflectiondb.RunEventsRow{
+		bash("c1", "python3 - <<'EOF'\n"+getNode+"\nEOF"), result("c1", 40_000),
+		event("tool.call", 0, map[string]any{"callId": "c2", "name": "write_file", "args": map[string]any{"path": "/workspace/get_node.py", "content": getNode}}), result("c2", 100),
+		bash("c3", "cat get_node.py"), result("c3", 100),
+		bash("c4", "python3 get_node.py"), result("c4", 30_000),
+		bash("c5", "cd repo && npm ci"), result("c5", 20_000),
+		bash("c6", "npm install puppeteer"), result("c6", 5_000),
+	}
+	tr := buildTranscript(rows, newRedactor(nil))
+
+	// Downloading a runtime, running a file that does and fetching a library count, while reading that file and a project's own dependencies don't
+	assert.EqualValues(t, 75_000, tr.Timings.InstallMs)
+	assert.Len(t, tr.Timings.Installs, 3)
+
+	// A file that mentions an install counts only when a command runs it, so staging a repository's Dockerfile installs nothing
+	rows = []reflectiondb.RunEventsRow{
+		event("tool.call", 0, map[string]any{"callId": "c1", "name": "write_file", "args": map[string]any{"path": "repo/Dockerfile", "content": "FROM alpine\nRUN apk add --no-cache git"}}), result("c1", 100),
+		bash("c2", "cd repo && git add Dockerfile && git rebase --continue"), result("c2", 2_000),
+		event("tool.call", 0, map[string]any{"callId": "c3", "name": "write_file", "args": map[string]any{"path": "/workspace/get_node.sh", "content": "curl -fsSL https://example.com/install.sh | sh"}}), result("c3", 100),
+		bash("c4", "bash get_node.sh"), result("c4", 10_000),
+		bash("c5", "chmod +x get_node.sh && ./get_node.sh"), result("c5", 20_000),
+	}
+	tr = buildTranscript(rows, newRedactor(nil))
+	assert.Equal(t, []string{"bash get_node.sh", "chmod +x get_node.sh && ./get_node.sh"}, tr.Timings.Installs)
+	assert.EqualValues(t, 30_000, tr.Timings.InstallMs)
+}
+
+func TestEnvironmentSectionMovesInstallsRightAway(t *testing.T) {
+	const moveNow = "Move the software this run installed into the Dockerfile with set_dockerfile now"
+
+	// One run that installed something by hand is enough, since the next run would repeat it
+	timings := Timings{InstallMs: 2_000, Installs: []string{"pip install --user requests"}}
+	installed := input{ImageBuilds: true, Transcript: transcript{Timings: timings}}.userMessage()
+	assert.Contains(t, installed, moveNow)
+	assert.Contains(t, installed, "2.0s installing software by hand (pip install --user requests)")
+	assert.NotContains(t, input{ImageBuilds: true}.userMessage(), moveNow)
+
+	// A playbook that already installs software in a script is pointed out too
+	installNode := playbook.Script{Name: "install_node26", Content: "#!/usr/bin/env python3\nurl = 'https://nodejs.org/dist/v26.0.0/node-v26.0.0-linux-x64.tar.gz'"}
+	msg := input{ImageBuilds: true, Playbook: playbook.Content{Toolkit: []playbook.Script{installNode}}}.userMessage()
+	assert.Contains(t, msg, "The playbook installs software in every run, in the toolkit script install_node26 (")
+
+	// Without image builds nothing can move into the Dockerfile, so reflection is told to keep installs where they are
+	fetch := candidate{Name: "fetch.py", Content: "import subprocess\nsubprocess.run('pip install requests', shell=True)"}
+	noBuilds := input{Transcript: transcript{Timings: timings}, Playbook: playbook.Content{Toolkit: []playbook.Script{installNode}}, Candidates: []candidate{fetch}}.userMessage()
+	assert.Contains(t, noBuilds, "cannot build images, so never use set_dockerfile")
+	assert.NotContains(t, noBuilds, moveNow)
+	assert.NotContains(t, noBuilds, "into the Dockerfile with set_dockerfile")
+	assert.NotContains(t, noBuilds, "put that into the Dockerfile")
 }
 
 func TestRepairAndGraduationAskForRunTimeData(t *testing.T) {
 	assert.Contains(t, input{Graduation: graduation{FellBack: "a check failed"}}.userMessage(), "instead of adding this run's data to a script")
 	assert.Contains(t, input{Graduation: graduation{Eligible: true}}.userMessage(), "works on whatever data a run finds")
+
+	// A candidate that installs software is flagged before reflection promotes it as it is
+	msg := input{ImageBuilds: true, Candidates: []candidate{{Name: "fetch.py", Content: "import subprocess\nsubprocess.run('pip install requests', shell=True)"}}}.userMessage()
+	assert.Contains(t, msg, "It installs software (subprocess.run('pip install requests', shell=True))")
 
 	// The agent's own notes are know-how, never requirements
 	notes := input{Transcript: transcript{Notes: []string{"Run the type check before committing"}}}.userMessage()

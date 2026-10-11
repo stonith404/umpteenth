@@ -3,6 +3,7 @@ package reflection
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -24,11 +25,11 @@ const (
 	shortResultTail    = 200
 )
 
-// installCommand recognizes package installs, the work the environment rule moves into the Dockerfile
-// uv run --with and npx fetch packages on the fly, which also repeats in every run
-var installCommand = regexp.MustCompile(`(?i)\b(pip3?\s+install|uv\s+(pip\s+install|tool\s+install|add)|uv\s+run\b[^|;&\n]*--with|uvx\s|npx\s|npm\s+(install|i)\b|pnpm\s+(add|install)|yarn\s+add|apt(-get)?\s+install|apk\s+add|cargo\s+install|go\s+install|gem\s+install)`)
+// localInstall recognizes npm, pnpm, yarn and bun adding named packages, which in a run usually means the agent fetched a library for its own script
+// A script may do the same as its own work in a cloned repository, so only the transcript counts it, while playbook.FindInstall decides what scripts may not do
+var localInstall = regexp.MustCompile(`(?i)\b(?:npm\s+(?:install|i|add)|pnpm\s+add|yarn\s+add|bun\s+add)\s+(?:-\S+\s+)*[@A-Za-z]`)
 
-// Timings is how much of a run went into preparing its environment
+// Timings is how much of a run went into setup and installing software by hand
 type Timings struct {
 	SetupMs   int64
 	InstallMs int64
@@ -78,6 +79,8 @@ func buildWithLimits(rows []reflectiondb.RunEventsRow, redact func(string) strin
 		t       transcript
 		b       strings.Builder
 		pending = map[string]string{}
+		// installers are the base names of files the run wrote that install software
+		installers []string
 	)
 	line := func(format string, args ...any) {
 		fmt.Fprintf(&b, format, args...)
@@ -108,6 +111,11 @@ func buildWithLimits(rows []reflectiondb.RunEventsRow, redact func(string) strin
 			var p toolCallPayload
 			_ = json.Unmarshal([]byte(row.Payload), &p)
 			pending[p.CallID] = commandOf(p)
+
+			// A script the agent wrote that installs software counts as an install once a bash command runs it
+			if file, text := writtenFile(p); file != "" && playbook.FindInstall(text) != "" {
+				installers = append(installers, path.Base(file))
+			}
 			if p.Name == "remember" {
 				var note struct {
 					Note string `json:"note"`
@@ -124,7 +132,7 @@ func buildWithLimits(rows []reflectiondb.RunEventsRow, redact func(string) strin
 				status = "error"
 			}
 			line("  -> %s after %s: %s", status, seconds(ms), clip(strings.TrimSpace(p.Content), head, tail))
-			if cmd := pending[p.CallID]; cmd != "" && installCommand.MatchString(cmd) {
+			if cmd := pending[p.CallID]; cmd != "" && installs(cmd, installers) {
 				t.Timings.InstallMs += ms
 				t.Timings.Installs = append(t.Timings.Installs, clip(cmd, 200, 0))
 			}
@@ -170,6 +178,66 @@ func commandOf(p toolCallPayload) string {
 	}
 	_ = json.Unmarshal(p.Args, &args)
 	return args.Command
+}
+
+// writtenFile returns the path and new text of a write_file or edit_file call
+func writtenFile(p toolCallPayload) (string, string) {
+	if p.Name != "write_file" && p.Name != "edit_file" {
+		return "", ""
+	}
+	var args struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+		New     string `json:"new"`
+	}
+	_ = json.Unmarshal(p.Args, &args)
+	return args.Path, args.Content + args.New
+}
+
+// installs reports whether a bash command installs software, directly or by running a file the run wrote that does
+func installs(cmd string, installers []string) bool {
+	if playbook.FindInstall(cmd) != "" || localInstall.MatchString(cmd) {
+		return true
+	}
+
+	// A file the run wrote counts only when the command executes it, since git add or an editor naming a repository's Dockerfile installs nothing
+	return slices.ContainsFunc(installers, func(name string) bool { return runsFile(cmd, name) })
+}
+
+// interpreters run the file named in their arguments, such as bash get_node.sh or python3 get_node.py
+var interpreters = regexp.MustCompile(`^(?:bash|sh|zsh|dash|source|\.|python(?:3(?:\.\d+)?)?|node|bun|deno|tsx|ts-node|ruby|perl)$`)
+
+// runsFile reports whether a shell command executes a file with the given base name, as a command of its own or through an interpreter
+func runsFile(cmd, name string) bool {
+	replacer := strings.NewReplacer("&&", "\n", "||", "\n", ";", "\n", "|", "\n")
+	for part := range strings.SplitSeq(replacer.Replace(cmd), "\n") {
+		// Variable assignments and wrappers such as sudo come before the command that runs
+		fields := strings.Fields(part)
+		for len(fields) > 0 && (strings.Contains(fields[0], "=") || fields[0] == "sudo" || fields[0] == "env") {
+			fields = fields[1:]
+		}
+		if len(fields) == 0 {
+			continue
+		}
+
+		// The file runs as the command itself, such as ./get_node.sh or /workspace/get_node.sh
+		if path.Base(fields[0]) == name {
+			return true
+		}
+
+		// Runners such as uv run and npx tsx pass the file on to an interpreter
+		args := fields[1:]
+		switch {
+		case fields[0] == "uv" && len(args) > 0 && args[0] == "run", fields[0] == "npx" && len(args) > 0 && args[0] == "tsx":
+			args = args[1:]
+		case !interpreters.MatchString(fields[0]):
+			continue
+		}
+		if slices.ContainsFunc(args, func(arg string) bool { return path.Base(arg) == name }) {
+			return true
+		}
+	}
+	return false
 }
 
 // newRedactor replaces the job's secret values, so they never reach the reflection model or the playbook
