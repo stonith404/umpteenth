@@ -57,6 +57,7 @@ var operationAccess = map[string]httpserver.Access{
 	"run-job": anyone, "rotate-webhook-token": anyone, "trigger-webhook": anyone, "get-job-stats": anyone,
 	"list-job-state": anyone, "get-job-state": anyone, "put-job-state": anyone, "delete-job-state": anyone,
 	"get-job-secrets": anyone, "set-job-secrets": anyone, "get-job-mcp-servers": anyone, "set-job-mcp-servers": anyone,
+	"list-job-suggestions": anyone, "apply-job-suggestion": anyone, "dismiss-job-suggestion": anyone,
 	"list-job-images": anyone, "get-image": anyone, "rebuild-job-image": anyone,
 	"get-playbook": anyone, "update-playbook": anyone, "list-playbook-versions": anyone, "get-playbook-version": anyone, "rollback-playbook": anyone,
 	"list-runs": anyone, "get-run": anyone, "cancel-run": anyone, "retry-run": anyone, "learn-from-run": anyone, "delete-run": admin, "delete-runs": admin,

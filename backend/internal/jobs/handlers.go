@@ -13,6 +13,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/httpserver"
 	"github.com/stonith404/umpteenth/backend/internal/jobs/jobsdb"
 	"github.com/stonith404/umpteenth/backend/internal/listquery"
+	"github.com/stonith404/umpteenth/backend/internal/playbook"
 	"github.com/stonith404/umpteenth/backend/internal/principal"
 	"github.com/stonith404/umpteenth/backend/internal/runner"
 	"github.com/stonith404/umpteenth/backend/internal/runs"
@@ -169,17 +170,9 @@ func (m *Module) update(ctx context.Context, in *updateInput) (*jobOutput, error
 	if err != nil {
 		return nil, err
 	}
-	for attempt := 1; ; attempt++ {
-		applied, err := m.applyPatch(ctx, wid, in.ID, patch)
-		if err != nil {
-			return nil, err
-		}
-		if applied {
-			break
-		}
-		if attempt == maxUpdateAttempts {
-			return nil, apperror.Conflict("The job was changed at the same time, try again")
-		}
+	err = m.patchJob(ctx, wid, in.ID, patch.apply)
+	if err != nil {
+		return nil, err
 	}
 
 	// Any change can affect the schedule, so the actor re-arms it
@@ -190,20 +183,31 @@ func (m *Module) update(ctx context.Context, in *updateInput) (*jobOutput, error
 	return m.get(ctx, &idInput{ID: in.ID})
 }
 
-// applyPatch writes the patch over the stored job, and reports false when another write changed the job since it was read
+// patchJob applies an edit, and reapplies it over the newer job when a concurrent write changed it, up to maxUpdateAttempts times
+func (m *Module) patchJob(ctx context.Context, wid, jobID string, edit func(*jobFields)) error {
+	for range maxUpdateAttempts {
+		applied, err := m.applyPatch(ctx, wid, jobID, edit)
+		if err != nil || applied {
+			return err
+		}
+	}
+	return apperror.Conflict("The job was changed at the same time, try again")
+}
+
+// applyPatch writes an edit over the stored job, and reports false when another write changed the job since it was read
 // Comparing updated_at keeps concurrent edits of different fields from silently undoing each other
-func (m *Module) applyPatch(ctx context.Context, wid, jobID string, patch jobPatch) (bool, error) {
+func (m *Module) applyPatch(ctx context.Context, wid, jobID string, edit func(*jobFields)) (bool, error) {
 	current, err := m.getJob(ctx, wid, jobID)
 	if err != nil {
 		return false, err
 	}
 
-	// The patch only replaces the fields it carries
+	// The edit only replaces the fields it sets
 	f, err := fieldsOf(current)
 	if err != nil {
 		return false, err
 	}
-	patch.apply(&f)
+	edit(&f)
 	err = f.normalize()
 	if err != nil {
 		return false, err
@@ -257,6 +261,35 @@ func (m *Module) applyPatch(ctx context.Context, wid, jobID string, patch jobPat
 		return false, fmt.Errorf("failed to update job: %w", err)
 	}
 	return n == 1, nil
+}
+
+// ApplyLimits sets the limits a suggestion names over the job's own and keeps the others, when someone applies a limits suggestion
+// before holds the values the suggestion saw when it was raised, and a limit the job has set to another value since stays as it is
+// Limits don't affect the schedule, so unlike update it leaves the schedule alone
+func (m *Module) ApplyLimits(ctx context.Context, workspaceID, jobID string, change, before playbook.LimitChange) error {
+	// Each limit the suggestion names replaces the job's own, unless someone changed it by hand since, and the others stay as they are
+	edit := func(f *jobFields) {
+		if change.TimeoutSeconds != nil && !changedSince(f.Limits.TimeoutSeconds, before.TimeoutSeconds) {
+			f.Limits.TimeoutSeconds = change.TimeoutSeconds
+		}
+		if change.MaxTurns != nil && !changedSince(f.Limits.MaxTurns, before.MaxTurns) {
+			f.Limits.MaxTurns = change.MaxTurns
+		}
+		if change.CPUs != nil && !changedSince(f.Limits.CPUs, before.CPUs) {
+			f.Limits.CPUs = change.CPUs
+		}
+		if change.MemoryMB != nil && !changedSince(f.Limits.MemoryMB, before.MemoryMB) {
+			f.Limits.MemoryMB = change.MemoryMB
+		}
+	}
+
+	// An edit someone saved meanwhile is read again rather than undone, like an update does
+	return m.patchJob(ctx, workspaceID, jobID, edit)
+}
+
+// changedSince reports whether the job's own limit differs from the value a suggestion saw when it was raised
+func changedSince[T comparable](own, seen *T) bool {
+	return own != nil && seen != nil && *own != *seen
 }
 
 func (m *Module) archive(ctx context.Context, in *idInput) (*struct{}, error) {

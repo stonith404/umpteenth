@@ -3,6 +3,7 @@
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
 	import ContainerIcon from '@lucide/svelte/icons/container';
 	import FileCodeIcon from '@lucide/svelte/icons/file-code';
+	import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
 	import ListChecksIcon from '@lucide/svelte/icons/list-checks';
 	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
 	import WrenchIcon from '@lucide/svelte/icons/wrench';
@@ -16,7 +17,8 @@
 		dockerfile: ContainerIcon,
 		setup: WrenchIcon,
 		main: SquareTerminalIcon,
-		verify: ListChecksIcon
+		verify: ListChecksIcon,
+		suggestion: LightbulbIcon
 	};
 
 	const Icon = $derived(kindIcons[kind] ?? FileCodeIcon);

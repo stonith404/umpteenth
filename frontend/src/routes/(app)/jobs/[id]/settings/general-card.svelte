@@ -4,12 +4,14 @@
 	import FormCard from '#lib/components/form/form-card.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import ModelSelect from '#lib/components/model-select.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import JobService from '#lib/services/job-service.js';
 	import { createForm } from '#lib/utils/form-util.js';
 	import { cleanSpec } from '#lib/utils/job-util.js';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import { z } from 'zod/v4';
 	import LoadError from './load-error.svelte';
 
@@ -81,6 +83,23 @@
 				class="min-h-32"
 			/>
 		</FormInput>
+		<!-- A main script keeps doing what the old instruction said until reflection or someone changes it -->
+		{#if job.nextMode === 'scripted' && instructionChanged}
+			<Alert.Root variant="warning">
+				<TriangleAlertIcon />
+				<Alert.Description>
+					{#if job.selfImprove}
+						This job runs as a script, which a new instruction doesn't change by itself. Reflection
+						on the next run updates the main script to match, or change it right away on the
+						<a href="/jobs/{job.id}/playbook" class="link-underline">Playbook</a> tab.
+					{:else}
+						This job runs as a script, which a new instruction doesn't change by itself, and it
+						doesn't learn from its runs. Change the main script to match on the
+						<a href="/jobs/{job.id}/playbook" class="link-underline">Playbook</a> tab.
+					{/if}
+				</Alert.Description>
+			</Alert.Root>
+		{/if}
 		<!-- Only asked once the instruction changed, since saving anything else never touches the spec -->
 		{#if canCompile && instructionChanged}
 			<Field.Field orientation="horizontal">

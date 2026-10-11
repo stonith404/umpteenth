@@ -23,10 +23,21 @@ const (
 	OpProposeMain    = "propose_main"
 	OpUpdateMain     = "update_main"
 	OpSetVerify      = "set_verify"
+	OpSuggest        = "suggest"
 )
 
 // OpKinds lists every operation, in the order the reflection schema offers them
-var OpKinds = []string{OpAddLearning, OpUpdateLearning, OpRetireLearning, OpUpsertScript, OpDeleteScript, OpSetSetup, OpSetDockerfile, OpProposeMain, OpUpdateMain, OpSetVerify}
+var OpKinds = []string{OpAddLearning, OpUpdateLearning, OpRetireLearning, OpUpsertScript, OpDeleteScript, OpSetSetup, OpSetDockerfile, OpProposeMain, OpUpdateMain, OpSetVerify, OpSuggest}
+
+// What a suggestion asks the owner to change
+const (
+	SuggestLimits      = "limits"
+	SuggestCredentials = "credentials"
+	SuggestInstruction = "instruction"
+)
+
+// SuggestionKinds lists the kinds of suggest operations
+var SuggestionKinds = []string{SuggestLimits, SuggestCredentials, SuggestInstruction}
 
 // What happened to an operation
 const (
@@ -49,6 +60,7 @@ const (
 	maxDockerfileBytes = 16 << 10
 	maxMainBytes       = 64 << 10
 	maxChecks          = 20
+	maxSuggestionText  = 600
 	// inputPath is where a run's input is, which a main script reads instead of carrying input values
 	inputPath = "/ump/input.json"
 )
@@ -59,16 +71,18 @@ const MinSecretLen = 6
 // Op is one change to a playbook, as proposed by reflection
 // Every field is present in the JSON so strict structured output can describe it, and fields an operation doesn't use are null
 type Op struct {
-	Op        string `json:"op" enum:"add_learning,update_learning,retire_learning,upsert_script,delete_script,set_setup,set_dockerfile,propose_main,update_main,set_verify"`
+	Op        string `json:"op" enum:"add_learning,update_learning,retire_learning,upsert_script,delete_script,set_setup,set_dockerfile,propose_main,update_main,set_verify,suggest"`
 	Rationale string `json:"rationale"`
 	// ID names the learning for update_learning and retire_learning
-	ID   *string `json:"id"`
+	ID *string `json:"id"`
+	// Kind is the kind of a learning, and of a suggestion
 	Kind *string `json:"kind"`
+	// Text is the text of a learning, and what the owner reads of a suggestion
 	Text *string `json:"text"`
 	When *string `json:"when"`
-	// Name names the script for upsert_script and delete_script
+	// Name names the script for upsert_script and delete_script, and a suggestion's subject
 	Name *string `json:"name"`
-	// Content is the script for upsert_script, propose_main and update_main, the new text for set_setup and set_dockerfile, where null removes it, and the verify JSON for set_verify
+	// Content is the script for upsert_script, propose_main and update_main, the new text for set_setup and set_dockerfile, where null removes it, the verify JSON for set_verify and the limits JSON of a limits suggestion
 	Content *string `json:"content"`
 }
 
@@ -119,6 +133,8 @@ type ApplyContext struct {
 	GraduationOff bool
 	// Inputs are the names of the inputs the job declares, which a main script must read from the run input
 	Inputs []string
+	// Limits are the job's limits when the run ran, which a limits suggestion must change
+	Limits LimitChange
 }
 
 // Apply applies operations in order to a copy of the content
@@ -134,6 +150,9 @@ func Apply(c Content, ops []Op, actx ApplyContext) (Content, []AppliedOp) {
 		switch {
 		case err != nil:
 			res.Status, res.Reason = OpRejected, err.Error()
+		// A suggestion never changes the playbook, it waits for the owner like a held change
+		case op.Op == OpSuggest:
+			res.Status = OpHeld
 		case len(flags) > 0:
 			res.Status, res.Flags = OpHeld, flags
 		default:
@@ -198,6 +217,8 @@ func (c *Content) applyOp(op Op, actx ApplyContext) (string, []string, error) {
 		return c.updateMain(op, actx)
 	case OpSetVerify:
 		return c.setVerify(op)
+	case OpSuggest:
+		return suggest(op, actx)
 	}
 	return "", nil, fmt.Errorf("unknown operation %q, use one of %s", op.Op, strings.Join(OpKinds, ", "))
 }
@@ -491,6 +512,49 @@ func (c *Content) setVerify(op Op) (string, []string, error) {
 	}
 	c.Verify, _ = json.Marshal(v)
 	return "verify", nil, nil
+}
+
+// suggestionName is the shape of a suggestion's subject, which identifies it across runs
+var suggestionName = regexp.MustCompile(`^[a-z0-9][a-z0-9_]{0,63}$`)
+
+// suggest checks a suggestion to the owner and returns its subject, which identifies it across runs
+func suggest(op Op, actx ApplyContext) (string, []string, error) {
+	kind := strings.ToLower(trimmed(op.Kind))
+	if !slices.Contains(SuggestionKinds, kind) {
+		return "", nil, fmt.Errorf("suggest needs kind limits, credentials or instruction")
+	}
+	text := trimmed(op.Text)
+	if text == "" {
+		return "", nil, fmt.Errorf("suggest needs text that tells the owner what to change")
+	}
+	if len(text) > maxSuggestionText {
+		return "", nil, fmt.Errorf("text is %d characters, keep a suggestion under %d", len(text), maxSuggestionText)
+	}
+
+	// The text is shown to people, so one that carries a secret is never stored, unlike a held playbook change
+	if secretFlags(text, actx) != nil {
+		return "", nil, fmt.Errorf("the text contains a secret or something shaped like a credential, name the secret's environment variable instead")
+	}
+
+	// A limits suggestion is keyed by its kind, since one job has one set of limits
+	if kind == SuggestLimits {
+		change, err := ParseLimitChange(deref(op.Content))
+		if err != nil {
+			return SuggestLimits, nil, err
+		}
+		if same := change.Unchanged(actx.Limits); len(same) > 0 {
+			return SuggestLimits, nil, fmt.Errorf("the job already has %s, suggest only limits that change", change.describe(same))
+		}
+		return SuggestLimits, nil, nil
+	}
+
+	// Other suggestions are keyed by the subject the model names, so a later run can update the same one
+	name := strings.ToLower(trimmed(op.Name))
+	name = strings.NewReplacer(" ", "_", "-", "_").Replace(name)
+	if !suggestionName.MatchString(name) || name == SuggestLimits {
+		return name, nil, fmt.Errorf("suggest needs a short snake_case name for its subject, such as github_token_workflow_scope")
+	}
+	return name, nil, nil
 }
 
 var riskyDockerfile = []struct {

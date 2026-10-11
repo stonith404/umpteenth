@@ -56,6 +56,13 @@ type DemotionChecker interface {
 	Demoted(ctx context.Context, workspaceID, jobID string) (bool, error)
 }
 
+// JobEditor checks that a job belongs to the workspace and changes its limits when someone applies a limits suggestion
+type JobEditor interface {
+	JobExists(ctx context.Context, workspaceID, jobID string) error
+	// ApplyLimits sets the limits change names, except those the job set to another value than before since the suggestion was raised
+	ApplyLimits(ctx context.Context, workspaceID, jobID string, change, before playbook.LimitChange) error
+}
+
 // SettingsReader reads the workspace's reflection model and spend limit
 type SettingsReader interface {
 	Get(ctx context.Context, workspaceID string) (settings.WorkspaceSettings, error)
@@ -73,6 +80,8 @@ type Dependencies struct {
 	// Images is nil when the sandbox adapter cannot build images, and reflection then never changes the Dockerfile
 	Images   ImageVerifier
 	Demotion DemotionChecker
+	// JobEditor serves the suggestion routes, which tests that only reflect leave out
+	JobEditor JobEditor
 	// MaintenanceDisabled skips the reconciler, like Pocket ID does in test mode
 	MaintenanceDisabled bool
 }
@@ -126,6 +135,11 @@ func (m *Module) RegisterRoutes(api huma.API, auth huma.Middlewares) {
 	learn := httpserver.Operation("learn-from-run", http.MethodPost, "/api/runs/{id}/learn", "Runs")
 	learn.DefaultStatus = http.StatusAccepted
 	httpserver.Register(api, learn, auth, m.learn)
+
+	// Suggestions are changes only the owner can make, so they belong to the job rather than to its playbook
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("list-job-suggestions", http.MethodGet, "/api/jobs/{id}/suggestions", "Jobs"), "Lists the open changes reflection suggested to the job's owner, such as more memory, a token scope or a clearer instruction, newest first."), auth, m.listSuggestions)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("apply-job-suggestion", http.MethodPost, "/api/jobs/{id}/suggestions/{suggestionId}/apply", "Jobs"), "Marks an open suggestion as done, and for a limits suggestion first sets the job's limits it names, keeping any of them someone changed by hand since it was raised."), auth, m.applySuggestion)
+	httpserver.Register(api, httpserver.Describe(httpserver.Operation("dismiss-job-suggestion", http.MethodPost, "/api/jobs/{id}/suggestions/{suggestionId}/dismiss", "Jobs"), "Dismisses an open suggestion, so reflection doesn't raise its subject again for 30 days."), auth, m.dismissSuggestion)
 }
 
 // RunFinished records the run's toolkit usage and starts reflection when the job learns automatically
@@ -253,6 +267,10 @@ type result struct {
 	Summary string
 	Ops     []playbook.AppliedOp
 	Version *int64
+	// Suggestions are the changes the reflection asks the owner to make, stored with the result
+	Suggestions []suggestion
+	// InstructionChangedAt is the change of the job's instruction this reflection saw, which recording its result clears
+	InstructionChangedAt *int64
 	// Cost is what the reflection's model calls and shadow runs cost in micro-USD, and Tokens their input and output tokens
 	Cost   int64
 	Tokens int64
@@ -286,7 +304,7 @@ func (m *Module) finish(ctx context.Context, workspaceID, jobID, runID string, r
 		params.ReflectionOps = new(string(raw))
 	}
 	for attempt := 1; ; attempt++ {
-		n, err := m.record(ctx, params, res)
+		n, err := m.record(ctx, jobID, params, res)
 		if err == nil {
 			// A result that was too late changed nothing that open pages show
 			if n > 0 {
@@ -304,7 +322,7 @@ func (m *Module) finish(ctx context.Context, workspaceID, jobID, runID string, r
 }
 
 // record writes a reflection's spend and result in one transaction, so a retried write never counts the spend twice
-func (m *Module) record(ctx context.Context, params reflectiondb.FinishReflectionParams, res result) (int64, error) {
+func (m *Module) record(ctx context.Context, jobID string, params reflectiondb.FinishReflectionParams, res result) (int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, finishTimeout)
 	defer cancel()
 
@@ -322,7 +340,26 @@ func (m *Module) record(ctx context.Context, params reflectiondb.FinishReflectio
 
 		var err error
 		n, err = q.FinishReflection(ctx, params)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Suggestions are stored with the result that lists them, so a reflection that lost its claim leaves none behind
+		if n == 0 || res.Status != StatusDone {
+			return nil
+		}
+
+		// The reflection saw the changed instruction, so later successful scripted runs need no reflection for it
+		if res.InstructionChangedAt != nil {
+			err = q.ClearInstructionChanged(ctx, reflectiondb.ClearInstructionChangedParams{WorkspaceID: params.WorkspaceID, ID: jobID, ChangedAt: res.InstructionChangedAt})
+			if err != nil {
+				return fmt.Errorf("failed to record that reflection saw the changed instruction: %w", err)
+			}
+		}
+		if len(res.Suggestions) == 0 {
+			return nil
+		}
+		return storeSuggestions(ctx, q, params.WorkspaceID, jobID, params.ID, res.Suggestions)
 	})
 	return n, err
 }

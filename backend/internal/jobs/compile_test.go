@@ -93,7 +93,7 @@ func (f compileFixture) patch(t *testing.T, p jobPatch) Spec {
 	ctx := context.Background()
 	p, err := f.m.withRebuiltSpec(ctx, f.wid, f.jobID, p)
 	require.NoError(t, err)
-	applied, err := f.m.applyPatch(ctx, f.wid, f.jobID, p)
+	applied, err := f.m.applyPatch(ctx, f.wid, f.jobID, p.apply)
 	require.NoError(t, err)
 	require.True(t, applied)
 	job, err := f.m.getJob(ctx, f.wid, f.jobID)

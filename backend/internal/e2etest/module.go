@@ -38,7 +38,7 @@ type Dependencies struct {
 
 // resetTables lists every application table, children before parents
 var resetTables = []string{
-	"run_events", "images", "playbook_versions", "job_state", "job_secrets", "job_mcp_servers", "job_skills",
+	"run_events", "images", "playbook_versions", "job_state", "job_secrets", "job_mcp_servers", "job_skills", "job_suggestions",
 	"api_tokens", "runs", "jobs", "mcp_servers", "skills", "secrets", "settings", "models", "providers",
 	"blobs", "workspace_invites", "workspace_members", "sessions", "passkeys", "passkey_ceremonies", "sign_in_links", "users", "workspaces",
 }

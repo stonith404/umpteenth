@@ -112,7 +112,7 @@ func (q *Queries) DeleteState(ctx context.Context, arg DeleteStateParams) (int64
 }
 
 const getJob = `-- name: GetJob :one
-SELECT id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, graduated_version, playbook_version, concurrency, cron, timezone, next_run_at, webhook_token_hash, run_counter, created_by, created_at, updated_at, archived_at FROM jobs WHERE workspace_id = $1 AND id = $2 AND archived_at IS NULL
+SELECT id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, graduated_version, playbook_version, concurrency, cron, timezone, next_run_at, webhook_token_hash, run_counter, created_by, created_at, updated_at, archived_at, instruction_changed_at FROM jobs WHERE workspace_id = $1 AND id = $2 AND archived_at IS NULL
 `
 
 type GetJobParams struct {
@@ -150,12 +150,13 @@ func (q *Queries) GetJob(ctx context.Context, arg GetJobParams) (Job, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ArchivedAt,
+		&i.InstructionChangedAt,
 	)
 	return i, err
 }
 
 const getJobUnscoped = `-- name: GetJobUnscoped :one
-SELECT id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, graduated_version, playbook_version, concurrency, cron, timezone, next_run_at, webhook_token_hash, run_counter, created_by, created_at, updated_at, archived_at FROM jobs WHERE id = $1
+SELECT id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, graduated_version, playbook_version, concurrency, cron, timezone, next_run_at, webhook_token_hash, run_counter, created_by, created_at, updated_at, archived_at, instruction_changed_at FROM jobs WHERE id = $1
 `
 
 // unscoped: used by the job actor and webhooks, which are keyed by the globally unique job ID and then act within the job's workspace
@@ -189,6 +190,7 @@ func (q *Queries) GetJobUnscoped(ctx context.Context, id string) (Job, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ArchivedAt,
+		&i.InstructionChangedAt,
 	)
 	return i, err
 }
@@ -500,10 +502,11 @@ func (q *Queries) StateUsage(ctx context.Context, jobID string) (StateUsageRow, 
 
 const updateJob = `-- name: UpdateJob :execrows
 UPDATE jobs SET name = $1, instruction = $2, spec = $3,
-  model_id = $4, image = $5, network = $6,
-  allowed_domains = $7, allow_private_network = $8, run_as_root = $9,
-  limits = $10, self_improve = $11, graduate = $12, concurrency = $13,
-  cron = $14, timezone = $15, updated_at = $16
+  instruction_changed_at = CASE WHEN instruction <> $2 THEN $4 ELSE instruction_changed_at END,
+  model_id = $5, image = $6, network = $7,
+  allowed_domains = $8, allow_private_network = $9, run_as_root = $10,
+  limits = $11, self_improve = $12, graduate = $13, concurrency = $14,
+  cron = $15, timezone = $16, updated_at = $4
 WHERE workspace_id = $17 AND id = $18 AND archived_at IS NULL AND updated_at = $19
 `
 
@@ -511,6 +514,7 @@ type UpdateJobParams struct {
 	Name                string
 	Instruction         string
 	Spec                string
+	UpdatedAt           int64
 	ModelID             *string
 	Image               *string
 	Network             string
@@ -523,18 +527,19 @@ type UpdateJobParams struct {
 	Concurrency         string
 	Cron                *string
 	Timezone            *string
-	UpdatedAt           int64
 	WorkspaceID         string
 	ID                  string
 	ReadUpdatedAt       int64
 }
 
 // Only a job still at the updated_at it was read with is written, so a concurrent change is detected instead of overwritten
+// A changed instruction is stamped, so the next reflection makes a main script written for the old one follow it
 func (q *Queries) UpdateJob(ctx context.Context, arg UpdateJobParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateJob,
 		arg.Name,
 		arg.Instruction,
 		arg.Spec,
+		arg.UpdatedAt,
 		arg.ModelID,
 		arg.Image,
 		arg.Network,
@@ -547,7 +552,6 @@ func (q *Queries) UpdateJob(ctx context.Context, arg UpdateJobParams) (int64, er
 		arg.Concurrency,
 		arg.Cron,
 		arg.Timezone,
-		arg.UpdatedAt,
 		arg.WorkspaceID,
 		arg.ID,
 		arg.ReadUpdatedAt,

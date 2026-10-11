@@ -46,6 +46,9 @@ func (m *Module) reflect(ctx context.Context, run reflectiondb.GetRunRow) (resul
 		return res, err
 	}
 
+	// The result remembers which change of the instruction this reflection saw, so recording it ends the reflections that change asks for
+	res.InstructionChangedAt = job.InstructionChangedAt
+
 	// Resolve the reflection model, which defaults to the job's own model
 	ws, err := m.deps.Settings.Get(ctx, run.WorkspaceID)
 	if err != nil {
@@ -103,7 +106,7 @@ func (m *Module) reflect(ctx context.Context, run reflectiondb.GetRunRow) (resul
 		return res, err
 	}
 	in.Graduation = grad
-	actx := playbook.ApplyContext{SourceRunID: run.ID, BaseImage: job.BaseImage, Network: job.Network, ImageBuilds: m.deps.Images != nil, Secrets: slices.Collect(maps.Values(job.Env)), Graduation: grad.Eligible, NotGraduated: grad.Reason, GraduationOff: grad.Off, Inputs: job.InputNames}
+	actx := playbook.ApplyContext{SourceRunID: run.ID, BaseImage: job.BaseImage, Network: job.Network, ImageBuilds: m.deps.Images != nil, Secrets: slices.Collect(maps.Values(job.Env)), Graduation: grad.Eligible, NotGraduated: grad.Reason, GraduationOff: grad.Off, Inputs: job.InputNames, Limits: limitsOf(job.Limits)}
 
 	// Ask once, and once more with the problems when some operations didn't apply or the playbook grew over its budget
 	messages := []llm.Message{{Role: llm.RoleUser, Parts: []llm.Part{llm.TextPart(in.userMessage())}}}
@@ -140,6 +143,9 @@ func (m *Module) reflect(ctx context.Context, run reflectiondb.GetRunRow) (resul
 		)
 	}
 	res.Summary, res.Ops = strings.TrimSpace(ans.Summary), results
+
+	// Suggestions wait for the owner, so subjects they dismissed lately are rejected here instead of reaching them again
+	res.Suggestions = screenSuggestions(results, in.Suggestions, actx.Limits)
 
 	// Hits count how often runs relied on a learning, which reflection weighs when the list grows
 	hits := knownLearnings(current, ans.UsedLearnings)
@@ -323,9 +329,13 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 		SideEffects:     job.SideEffects,
 		BaseImage:       job.BaseImage,
 		ImageBuilds:     m.deps.Images != nil,
-		Skills:          skillNames(job.Skills),
-		Playbook:        current,
-		Transcript:      tr,
+		Limits:          job.Limits,
+		SecretNames:     slices.Sorted(maps.Keys(job.Env)),
+		// Only a main script can lag behind the instruction, since every agent run reads the current one
+		InstructionChanged: job.InstructionChangedAt != nil && current.Main != nil,
+		Skills:             skillNames(job.Skills),
+		Playbook:           current,
+		Transcript:         tr,
 		Run: runFacts{
 			Number: run.Number, Status: run.Status, Mode: run.Mode, Turns: run.Turns, CostMicro: run.Cost,
 			DurationMs: deref(run.MsTotal), Input: truncated(redact(derefString(run.Input)), 3000), Instructions: truncated(redact(derefString(run.Instructions)), 3000), Error: redact(derefString(run.Error)),
@@ -342,7 +352,18 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 	for _, p := range previous {
 		in.Previous = append(in.Previous, runFacts{Number: p.Number, Status: p.Status, Mode: p.Mode, Turns: p.Turns, CostMicro: p.Cost, DurationMs: deref(p.MsTotal)})
 	}
+
+	// Reflection sees what waits for the owner and what they turned down, so it updates a suggestion instead of repeating it
+	in.Suggestions, err = m.queries.SuggestionsForReflection(ctx, reflectiondb.SuggestionsForReflectionParams{WorkspaceID: run.WorkspaceID, JobID: run.JobID, DismissedSince: new(time.Now().Add(-dismissedFor).UnixMilli())})
+	if err != nil {
+		return input{}, fmt.Errorf("failed to load the job's suggestions: %w", err)
+	}
 	return in, nil
+}
+
+// limitsOf is the job's effective limits in the shape a limits suggestion compares against
+func limitsOf(l runner.Limits) playbook.LimitChange {
+	return playbook.LimitChange{TimeoutSeconds: &l.TimeoutSeconds, MaxTurns: &l.MaxTurns, CPUs: &l.CPUs, MemoryMB: &l.MemoryMB}
 }
 
 // candidates reads the scripts the run left in /ump/candidates

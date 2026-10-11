@@ -103,8 +103,9 @@ export function changedSections(
 	return sections;
 }
 
-// The part of a playbook a change touches, which picks its icon
-export type PlaybookChangeKind = 'learning' | 'script' | 'dockerfile' | 'setup' | 'main' | 'verify';
+// The part of a playbook a change touches, which picks its icon, or a suggestion to the job's owner, which touches none
+export type PlaybookChangeKind =
+	'learning' | 'script' | 'dockerfile' | 'setup' | 'main' | 'verify' | 'suggestion';
 
 // One change in a version: the proposal behind it and the diff it made
 // A hand edit has no proposal, and a held or rejected proposal has no diff
@@ -136,6 +137,8 @@ function opSectionKey(op: PlaybookAppliedOp): string {
 			return 'main';
 		case 'set_verify':
 			return 'verify';
+		case 'suggest':
+			return `suggestion:${op.target ?? op.name ?? ''}`;
 	}
 	return op.op;
 }
@@ -143,6 +146,7 @@ function opSectionKey(op: PlaybookAppliedOp): string {
 function sectionKind(key: string): PlaybookChangeKind {
 	if (key.startsWith('learning')) return 'learning';
 	if (key.startsWith('script:')) return 'script';
+	if (key.startsWith('suggestion')) return 'suggestion';
 	return key as PlaybookChangeKind;
 }
 
@@ -224,6 +228,13 @@ export function playbookToJson(content: PlaybookContent): string {
 	return JSON.stringify(ordered, null, 2);
 }
 
+// What a suggestion to the job's owner asks for, by its kind
+const suggestionLabels: Record<string, string> = {
+	limits: 'Suggest new limits',
+	credentials: 'Suggest a credentials fix',
+	instruction: 'Ask to clarify the instruction'
+};
+
 // A readable sentence for one reflection operation, e.g. "Add learning L3"
 export function opLabel(op: PlaybookAppliedOp): string {
 	const target = op.target ?? op.id ?? op.name ?? '';
@@ -248,6 +259,11 @@ export function opLabel(op: PlaybookAppliedOp): string {
 			return 'Update the main script';
 		case 'set_verify':
 			return op.content ? 'Set the verify checks' : 'Remove the verify checks';
+		case 'suggest':
+			// The model names the kind, so a kind like `constructor` must not resolve to an inherited property
+			return op.kind && Object.hasOwn(suggestionLabels, op.kind)
+				? suggestionLabels[op.kind]
+				: 'Suggest a change';
 	}
 	return op.op;
 }
@@ -262,13 +278,20 @@ export function opStatusLabel(status: PlaybookAppliedOp['status']) {
 	return opStatusLabels[status];
 }
 
-// How a reflection's proposals ended, e.g. `2 applied · 1 rejected`
+// How a reflection's proposals ended, e.g. `2 applied · 1 rejected · 1 suggested`
+// Suggestions are held too, but they wait for the owner on the job's Overview, so they get a count of their own
 export function opsOutcome(ops: PlaybookAppliedOp[]) {
-	return (Object.keys(opStatusLabels) as PlaybookAppliedOp['status'][])
-		.map((status) => [status, ops.filter((op) => op.status === status).length] as const)
+	const suggested = (op: PlaybookAppliedOp) => op.op === 'suggest' && op.status === 'held';
+	const parts = (Object.keys(opStatusLabels) as PlaybookAppliedOp['status'][])
+		.map(
+			(status) =>
+				[status, ops.filter((op) => op.status === status && !suggested(op)).length] as const
+		)
 		.filter(([, n]) => n > 0)
-		.map(([status, n]) => `${n} ${opStatusLabel(status).toLowerCase()}`)
-		.join(' · ');
+		.map(([status, n]) => `${n} ${opStatusLabel(status).toLowerCase()}`);
+	const suggestions = ops.filter(suggested).length;
+	if (suggestions > 0) parts.push(`${suggestions} suggested`);
+	return parts.join(' · ');
 }
 
 // The editor language of an operation's content

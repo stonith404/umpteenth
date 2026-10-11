@@ -40,32 +40,33 @@ type Image struct {
 }
 
 type Job struct {
-	ID                  string
-	WorkspaceID         string
-	Name                string
-	Instruction         string
-	Spec                string
-	ModelID             *string
-	Image               *string
-	Network             string
-	AllowedDomains      string
-	AllowPrivateNetwork bool
-	RunAsRoot           bool
-	Limits              string
-	SelfImprove         bool
-	Graduate            bool
-	GraduatedVersion    *int64
-	PlaybookVersion     int64
-	Concurrency         string
-	Cron                *string
-	Timezone            *string
-	NextRunAt           *int64
-	WebhookTokenHash    *string
-	RunCounter          int64
-	CreatedBy           *string
-	CreatedAt           int64
-	UpdatedAt           int64
-	ArchivedAt          *int64
+	ID                   string
+	WorkspaceID          string
+	Name                 string
+	Instruction          string
+	Spec                 string
+	ModelID              *string
+	Image                *string
+	Network              string
+	AllowedDomains       string
+	AllowPrivateNetwork  bool
+	RunAsRoot            bool
+	Limits               string
+	SelfImprove          bool
+	Graduate             bool
+	GraduatedVersion     *int64
+	PlaybookVersion      int64
+	Concurrency          string
+	Cron                 *string
+	Timezone             *string
+	NextRunAt            *int64
+	WebhookTokenHash     *string
+	RunCounter           int64
+	CreatedBy            *string
+	CreatedAt            int64
+	UpdatedAt            int64
+	ArchivedAt           *int64
+	InstructionChangedAt *int64
 }
 
 type JobMcpServer struct {
@@ -90,6 +91,23 @@ type JobState struct {
 	Key       string
 	Value     string
 	UpdatedAt int64
+}
+
+type JobSuggestion struct {
+	ID           string
+	WorkspaceID  string
+	JobID        string
+	Key          string
+	Kind         string
+	Text         string
+	Limits       *string
+	LimitsBefore *string
+	Status       string
+	RunID        *string
+	Seen         int64
+	CreatedAt    int64
+	UpdatedAt    int64
+	ResolvedAt   *int64
 }
 
 type Kv struct {

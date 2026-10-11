@@ -101,4 +101,24 @@ export default class JobService extends APIService {
 		this.unwrap(
 			this.api.PUT('/api/jobs/{id}/secrets', { params: { path: { id } }, body: secrets })
 		);
+
+	// The open suggestions reflection made for the job, newest first
+	suggestions = async (id: string) =>
+		(await this.unwrap(this.api.GET('/api/jobs/{id}/suggestions', { params: { path: { id } } }))) ??
+		[];
+
+	// Marks a suggestion as done, and a limits suggestion first sets the job's limits it names
+	applySuggestion = (id: string, suggestionId: string) =>
+		this.unwrap(
+			this.api.POST('/api/jobs/{id}/suggestions/{suggestionId}/apply', {
+				params: { path: { id, suggestionId } }
+			})
+		);
+
+	dismissSuggestion = (id: string, suggestionId: string) =>
+		this.unwrap(
+			this.api.POST('/api/jobs/{id}/suggestions/{suggestionId}/dismiss', {
+				params: { path: { id, suggestionId } }
+			})
+		);
 }

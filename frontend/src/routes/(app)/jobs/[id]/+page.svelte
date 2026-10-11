@@ -13,6 +13,7 @@
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import GraduationChart from './graduation-chart.svelte';
 	import { DEFAULT_STATS_RANGE, statsRanges } from './stats-ranges';
+	import SuggestionsSection from './suggestions-section.svelte';
 
 	let { data } = $props();
 
@@ -82,6 +83,11 @@
 <svelte:head>
 	<title>Overview · {job.name} · Umpteenth</title>
 </svelte:head>
+
+<!-- Suggestions wait for a decision only the owner can make, so they come before the numbers -->
+{#if data.suggestions.length > 0}
+	<SuggestionsSection {job} suggestions={data.suggestions} />
+{/if}
 
 <section class="flex flex-col gap-4" aria-labelledby="performance-heading">
 	<div class="flex flex-wrap items-center justify-between gap-3">

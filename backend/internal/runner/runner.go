@@ -343,6 +343,7 @@ func (r *Runner) execute(ctx context.Context, run Run, rec *events.Recorder) Fin
 	r.collectArtifacts(collectCtx, sb, run, rec)
 	r.collectCandidates(collectCtx, sb, run)
 	final.SelfImprove = job.SelfImprove
+	final.InstructionChanged = job.InstructionChangedAt != nil
 	return final
 }
 

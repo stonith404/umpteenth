@@ -75,6 +75,8 @@ export type JobSkill = Schemas['JobSkill'];
 export type JobSecret = Schemas['JobSecret'];
 // A credential the compile step found the job's commands need, with the configured secret that holds it
 export type JobSecretNeed = Schemas['SecretNeed'];
+// A change reflection asks the job's owner to make, such as more memory, a token scope or a clearer instruction
+export type JobSuggestion = Schemas['SuggestionDto'];
 export type PlaybookVersion = Schemas['VersionDto'];
 export type PlaybookVersionListItem = Schemas['VersionListDto'];
 export type PlaybookContent = Schemas['Content'];

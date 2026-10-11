@@ -5,6 +5,7 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
 	import { diffLines, diffStats } from '#lib/utils/diff-util.js';
+	import { LIMIT_FIELDS } from '#lib/utils/job-util.js';
 	import { opLanguage, opStatusLabel, type PlaybookChange } from '#lib/utils/playbook-util.js';
 	import { cn } from '#lib/utils/style.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
@@ -26,6 +27,25 @@
 	const section = $derived(change.section);
 	const stats = $derived(section ? diffStats(diffLines(section.before, section.after)) : null);
 	const notApplied = $derived(op !== undefined && op.status !== 'applied');
+	// A suggestion asks the job's owner for a change outside the playbook, so its text says everything there is to judge
+	const isSuggestion = $derived(op?.op === 'suggest');
+
+	// A limits suggestion's values live only in its content, so they are spelled out the way the Overview shows them
+	const proposedLimits = $derived.by(() => {
+		if (!isSuggestion || op?.kind !== 'limits' || !op.content) return [];
+		let parsed: Record<string, unknown>;
+		try {
+			parsed = JSON.parse(op.content);
+		} catch {
+			return [];
+		}
+		return LIMIT_FIELDS.flatMap((f) => {
+			const value = parsed?.[f.key];
+			if (typeof value !== 'number') return [];
+			const suffix = 'suffix' in f ? f.suffix : undefined;
+			return [`${f.label} ${suffix ? `${value} ${suffix}` : value}`];
+		});
+	});
 
 	// Small diffs start open, and so does the first, so a long version still opens with something to read
 	// Only the initial value matters, the reader toggles it from there
@@ -47,14 +67,15 @@
 		{/if}
 		{#if op}
 			<span class="ml-auto">
+				<!-- A suggestion waits on the job's Overview, where it may already be decided, so its badge names what happened rather than a status -->
 				<Badge
 					variant={op.status === 'applied'
 						? 'success'
-						: op.status === 'held'
+						: op.status === 'held' && !isSuggestion
 							? 'warning'
 							: 'secondary'}
 				>
-					{opStatusLabel(op.status)}
+					{op.status === 'held' && isSuggestion ? 'Suggested' : opStatusLabel(op.status)}
 				</Badge>
 			</span>
 		{/if}
@@ -67,6 +88,9 @@
 			<!-- A proposal that changed nothing has no diff, so its learning text is the only place to read it -->
 			{#if op.text && !section}
 				<p class="border-l-2 pl-3 text-sm">{op.text}</p>
+			{/if}
+			{#if proposedLimits.length > 0}
+				<p class="numeric text-sm">{proposedLimits.join(' · ')}</p>
 			{/if}
 
 			{#if op.status === 'rejected' && op.reason}
@@ -92,7 +116,11 @@
 					{flag}
 				</p>
 			{/each}
-			{#if op.status === 'held'}
+			{#if op.status === 'held' && isSuggestion}
+				<p class="text-muted-foreground text-xs">
+					Sent to the job's owner as a suggestion on the job's Overview.
+				</p>
+			{:else if op.status === 'held'}
 				<p class="text-muted-foreground text-xs">
 					Held back for review. If it is safe, apply it by hand in the playbook.
 				</p>
@@ -115,7 +143,7 @@
 			{/if}
 
 			<!-- Without a diff, the proposed content is the only way to judge a held or rejected proposal -->
-			{#if op.content && !section}
+			{#if op.content && !section && !isSuggestion}
 				<Collapsible.Root>
 					<Collapsible.Trigger variant="link">
 						<ChevronRightIcon />

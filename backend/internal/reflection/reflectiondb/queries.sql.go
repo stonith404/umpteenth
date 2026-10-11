@@ -60,6 +60,23 @@ func (q *Queries) ClaimReflection(ctx context.Context, arg ClaimReflectionParams
 	return result.RowsAffected()
 }
 
+const clearInstructionChanged = `-- name: ClearInstructionChanged :exec
+UPDATE jobs SET instruction_changed_at = NULL
+WHERE workspace_id = $1 AND id = $2 AND instruction_changed_at = $3
+`
+
+type ClearInstructionChangedParams struct {
+	WorkspaceID string
+	ID          string
+	ChangedAt   *int64
+}
+
+// A reflection that saw the job's changed instruction clears its stamp, unless the instruction changed again meanwhile
+func (q *Queries) ClearInstructionChanged(ctx context.Context, arg ClearInstructionChangedParams) error {
+	_, err := q.db.ExecContext(ctx, clearInstructionChanged, arg.WorkspaceID, arg.ID, arg.ChangedAt)
+	return err
+}
+
 const failStalePending = `-- name: FailStalePending :execrows
 UPDATE runs SET reflection = 'failed', reflection_error = 'Reflection did not finish, start it again from the run page'
 WHERE reflection = 'pending' AND reflection_requested_at < $1
@@ -168,6 +185,135 @@ func (q *Queries) GetRun(ctx context.Context, arg GetRunParams) (GetRunRow, erro
 	return i, err
 }
 
+const getSuggestion = `-- name: GetSuggestion :one
+SELECT id, kind, status, limits, limits_before FROM job_suggestions
+WHERE workspace_id = $1 AND job_id = $2 AND id = $3
+`
+
+type GetSuggestionParams struct {
+	WorkspaceID string
+	JobID       string
+	ID          string
+}
+
+type GetSuggestionRow struct {
+	ID           string
+	Kind         string
+	Status       string
+	Limits       *string
+	LimitsBefore *string
+}
+
+func (q *Queries) GetSuggestion(ctx context.Context, arg GetSuggestionParams) (GetSuggestionRow, error) {
+	row := q.db.QueryRowContext(ctx, getSuggestion, arg.WorkspaceID, arg.JobID, arg.ID)
+	var i GetSuggestionRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Status,
+		&i.Limits,
+		&i.LimitsBefore,
+	)
+	return i, err
+}
+
+const insertSuggestion = `-- name: InsertSuggestion :exec
+INSERT INTO job_suggestions (id, workspace_id, job_id, key, kind, text, limits, limits_before, run_id, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+`
+
+type InsertSuggestionParams struct {
+	ID           string
+	WorkspaceID  string
+	JobID        string
+	Key          string
+	Kind         string
+	Text         string
+	Limits       *string
+	LimitsBefore *string
+	RunID        *string
+	CreatedAt    int64
+	UpdatedAt    int64
+}
+
+func (q *Queries) InsertSuggestion(ctx context.Context, arg InsertSuggestionParams) error {
+	_, err := q.db.ExecContext(ctx, insertSuggestion,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.JobID,
+		arg.Key,
+		arg.Kind,
+		arg.Text,
+		arg.Limits,
+		arg.LimitsBefore,
+		arg.RunID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
+const listOpenSuggestions = `-- name: ListOpenSuggestions :many
+SELECT s.id, s.key, s.kind, s.text, s.limits, s.limits_before, s.run_id, r.number AS run_number, s.seen, s.created_at, s.updated_at
+FROM job_suggestions s LEFT JOIN runs r ON r.id = s.run_id AND r.workspace_id = s.workspace_id
+WHERE s.workspace_id = $1 AND s.job_id = $2 AND s.status = 'open'
+ORDER BY s.updated_at DESC, s.id DESC
+`
+
+type ListOpenSuggestionsParams struct {
+	WorkspaceID string
+	JobID       string
+}
+
+type ListOpenSuggestionsRow struct {
+	ID           string
+	Key          string
+	Kind         string
+	Text         string
+	Limits       *string
+	LimitsBefore *string
+	RunID        *string
+	RunNumber    *int64
+	Seen         int64
+	CreatedAt    int64
+	UpdatedAt    int64
+}
+
+func (q *Queries) ListOpenSuggestions(ctx context.Context, arg ListOpenSuggestionsParams) ([]ListOpenSuggestionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOpenSuggestions, arg.WorkspaceID, arg.JobID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOpenSuggestionsRow{}
+	for rows.Next() {
+		var i ListOpenSuggestionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.Kind,
+			&i.Text,
+			&i.Limits,
+			&i.LimitsBefore,
+			&i.RunID,
+			&i.RunNumber,
+			&i.Seen,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markPending = `-- name: MarkPending :execrows
 UPDATE runs SET reflection = 'pending', reflection_error = NULL, reflection_requested_at = $1
 WHERE workspace_id = $2 AND id = $3 AND reflection <> 'pending'
@@ -187,6 +333,53 @@ func (q *Queries) MarkPending(ctx context.Context, arg MarkPendingParams) (int64
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const openSuggestionByKey = `-- name: OpenSuggestionByKey :one
+SELECT id, run_id, seen FROM job_suggestions
+WHERE workspace_id = $1 AND job_id = $2 AND key = $3 AND status = 'open'
+`
+
+type OpenSuggestionByKeyParams struct {
+	WorkspaceID string
+	JobID       string
+	Key         string
+}
+
+type OpenSuggestionByKeyRow struct {
+	ID    string
+	RunID *string
+	Seen  int64
+}
+
+func (q *Queries) OpenSuggestionByKey(ctx context.Context, arg OpenSuggestionByKeyParams) (OpenSuggestionByKeyRow, error) {
+	row := q.db.QueryRowContext(ctx, openSuggestionByKey, arg.WorkspaceID, arg.JobID, arg.Key)
+	var i OpenSuggestionByKeyRow
+	err := row.Scan(&i.ID, &i.RunID, &i.Seen)
+	return i, err
+}
+
+const overruleDismissal = `-- name: OverruleDismissal :exec
+UPDATE job_suggestions SET status = 'done', updated_at = $1
+WHERE workspace_id = $2 AND job_id = $3 AND id = $4 AND status = 'dismissed'
+`
+
+type OverruleDismissalParams struct {
+	UpdatedAt   int64
+	WorkspaceID string
+	JobID       string
+	ID          string
+}
+
+// An apply that set the job's limits wins over a dismissal that raced it, so the suggestion's status matches the job and doesn't hold back later limits suggestions
+func (q *Queries) OverruleDismissal(ctx context.Context, arg OverruleDismissalParams) error {
+	_, err := q.db.ExecContext(ctx, overruleDismissal,
+		arg.UpdatedAt,
+		arg.WorkspaceID,
+		arg.JobID,
+		arg.ID,
+	)
+	return err
 }
 
 const recentRuns = `-- name: RecentRuns :many
@@ -252,6 +445,70 @@ func (q *Queries) RecentRuns(ctx context.Context, arg RecentRunsParams) ([]Recen
 	return items, nil
 }
 
+const refreshSuggestion = `-- name: RefreshSuggestion :exec
+UPDATE job_suggestions SET kind = $1, text = $2, limits = $3, limits_before = $4,
+  run_id = $5, seen = $6, updated_at = $7
+WHERE workspace_id = $8 AND id = $9 AND status = 'open'
+`
+
+type RefreshSuggestionParams struct {
+	Kind         string
+	Text         string
+	Limits       *string
+	LimitsBefore *string
+	RunID        *string
+	Seen         int64
+	UpdatedAt    int64
+	WorkspaceID  string
+	ID           string
+}
+
+// A later run that raises the same subject rewords the open suggestion instead of adding another
+func (q *Queries) RefreshSuggestion(ctx context.Context, arg RefreshSuggestionParams) error {
+	_, err := q.db.ExecContext(ctx, refreshSuggestion,
+		arg.Kind,
+		arg.Text,
+		arg.Limits,
+		arg.LimitsBefore,
+		arg.RunID,
+		arg.Seen,
+		arg.UpdatedAt,
+		arg.WorkspaceID,
+		arg.ID,
+	)
+	return err
+}
+
+const resolveSuggestion = `-- name: ResolveSuggestion :execrows
+UPDATE job_suggestions SET status = $1, resolved_at = $2, updated_at = $3
+WHERE workspace_id = $4 AND job_id = $5 AND id = $6 AND status = 'open'
+`
+
+type ResolveSuggestionParams struct {
+	Status      string
+	ResolvedAt  *int64
+	UpdatedAt   int64
+	WorkspaceID string
+	JobID       string
+	ID          string
+}
+
+// Only an open suggestion is resolved, so two people deciding at once resolve it once
+func (q *Queries) ResolveSuggestion(ctx context.Context, arg ResolveSuggestionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, resolveSuggestion,
+		arg.Status,
+		arg.ResolvedAt,
+		arg.UpdatedAt,
+		arg.WorkspaceID,
+		arg.JobID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const runEvents = `-- name: RunEvents :many
 SELECT type, ms, payload FROM run_events WHERE run_id = $1 ORDER BY seq
 `
@@ -273,6 +530,57 @@ func (q *Queries) RunEvents(ctx context.Context, runID string) ([]RunEventsRow, 
 	for rows.Next() {
 		var i RunEventsRow
 		if err := rows.Scan(&i.Type, &i.Ms, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const suggestionsForReflection = `-- name: SuggestionsForReflection :many
+SELECT key, kind, text, status, seen FROM job_suggestions
+WHERE workspace_id = $1 AND job_id = $2
+  AND (status = 'open' OR (status = 'dismissed' AND resolved_at >= $3))
+ORDER BY created_at, id
+`
+
+type SuggestionsForReflectionParams struct {
+	WorkspaceID    string
+	JobID          string
+	DismissedSince *int64
+}
+
+type SuggestionsForReflectionRow struct {
+	Key    string
+	Kind   string
+	Text   string
+	Status string
+	Seen   int64
+}
+
+// Reflection sees the open suggestions it may update and the ones the owner dismissed lately, which it must not raise again
+func (q *Queries) SuggestionsForReflection(ctx context.Context, arg SuggestionsForReflectionParams) ([]SuggestionsForReflectionRow, error) {
+	rows, err := q.db.QueryContext(ctx, suggestionsForReflection, arg.WorkspaceID, arg.JobID, arg.DismissedSince)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SuggestionsForReflectionRow{}
+	for rows.Next() {
+		var i SuggestionsForReflectionRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.Kind,
+			&i.Text,
+			&i.Status,
+			&i.Seen,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

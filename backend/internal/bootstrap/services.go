@@ -248,6 +248,7 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 		Jobs: svc.jobs, Models: runnerModels{svc.providers.Service()}, Playbook: svc.playbook, Settings: svc.settings,
 		Images:              imageVerifier(svc.images),
 		Demotion:            svc.jobs,
+		JobEditor:           svc.jobs,
 		MaintenanceDisabled: cfg.App.Env.IsTest(),
 	})
 	if err != nil {

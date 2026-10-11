@@ -9,7 +9,7 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import JobService from '#lib/services/job-service.js';
 	import { createForm } from '#lib/utils/form-util.js';
-	import { cleanSpec } from '#lib/utils/job-util.js';
+	import { cleanSpec, LIMIT_FIELDS } from '#lib/utils/job-util.js';
 	import { z } from 'zod/v4';
 
 	let {
@@ -103,14 +103,6 @@
 
 	// The placeholder spans two lines, which only a script string can hold
 	const domainsPlaceholder = 'api.github.com\n*.githubusercontent.com';
-
-	const limitFields = [
-		{ key: 'timeoutSeconds', label: 'Timeout', suffix: 'seconds' },
-		{ key: 'maxTurns', label: 'Max turns' },
-		{ key: 'maxCostUsd', label: 'Max cost per run', suffix: 'USD', step: 'any' },
-		{ key: 'cpus', label: 'CPUs', suffix: 'cores', step: 'any' },
-		{ key: 'memoryMb', label: 'Memory', suffix: 'MB' }
-	] as const;
 </script>
 
 {#snippet allowedDomainsDescription()}
@@ -180,7 +172,7 @@
 			<Field.Legend>Limits</Field.Legend>
 			<Field.Description>Empty fields use the workspace default, shown in grey.</Field.Description>
 			<div class="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 md:gap-x-6 md:gap-y-7">
-				{#each limitFields as field (field.key)}
+				{#each LIMIT_FIELDS as field (field.key)}
 					<FormInput
 						label={field.label}
 						type="number"

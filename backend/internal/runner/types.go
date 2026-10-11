@@ -106,8 +106,10 @@ type JobConfig struct {
 	SelfImprove bool
 	// Graduate lets reflection turn the job into a main script that runs without the agent
 	Graduate bool
-	Limits   Limits
-	Timezone string
+	// InstructionChangedAt is when the instruction last changed, until a reflection saw the new one
+	InstructionChangedAt *int64
+	Limits               Limits
+	Timezone             string
 	// DailySpendLimit is the workspace cap in micro-USD, zero means none
 	DailySpendLimit int64
 	// Env holds the job's secrets mapped to environment variable names
@@ -186,6 +188,8 @@ type Final struct {
 	VerifyTokens int64
 	// SelfImprove tells whether the job learns from its runs automatically
 	SelfImprove bool
+	// InstructionChanged is set while no reflection saw the job's changed instruction, which a main script written before it may not follow
+	InstructionChanged bool
 }
 
 // Reflection states of a run
@@ -211,7 +215,8 @@ func ReflectionWanted(run Run, final Final) bool {
 	}
 
 	// A successful scripted run costs nothing extra, since reflection has nothing to add, while a fallback means main needs repair
-	return run.Mode != ModeScripted || final.FellBack || final.Status != StatusSucceeded
+	// A changed instruction gets one reflection, which brings a main script written for the old one in line
+	return run.Mode != ModeScripted || final.FellBack || final.Status != StatusSucceeded || final.InstructionChanged
 }
 
 // RunStore reads and updates run rows

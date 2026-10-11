@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/stonith404/umpteenth/backend/internal/jobs/jobsdb"
+	"github.com/stonith404/umpteenth/backend/internal/playbook"
 )
 
 func TestPatchKeepsOmittedFieldsAndClearsEmptyOnes(t *testing.T) {
@@ -91,4 +92,52 @@ func TestAllowlistDomains(t *testing.T) {
 	require.Error(t, f.normalize())
 	f.AllowedDomains = []string{"api.example.com"}
 	require.NoError(t, f.normalize())
+}
+
+func TestApplyLimitsKeepsTheJobsOtherLimits(t *testing.T) {
+	f := newCompileFixture(t)
+	ctx := t.Context()
+
+	// The owner gave the job a longer timeout before reflection suggested more memory
+	applied, err := f.m.applyPatch(ctx, f.wid, f.jobID, jobPatch{Limits: &LimitOverrides{TimeoutSeconds: new(1200)}}.apply)
+	require.NoError(t, err)
+	require.True(t, applied)
+
+	// Applying the suggestion sets the memory and keeps the timeout
+	limits := func() LimitOverrides {
+		job, err := f.m.getJob(ctx, f.wid, f.jobID)
+		require.NoError(t, err)
+		d, err := toDto(job)
+		require.NoError(t, err)
+		return d.Limits
+	}
+	require.NoError(t, f.m.ApplyLimits(ctx, f.wid, f.jobID, playbook.LimitChange{MemoryMB: new(4096)}, playbook.LimitChange{MemoryMB: new(1024)}))
+	require.Equal(t, LimitOverrides{TimeoutSeconds: new(1200), MemoryMB: new(4096)}, limits())
+
+	// A limit the owner changed by hand since the suggestion was raised stays, while the others it names still apply
+	require.NoError(t, f.m.ApplyLimits(ctx, f.wid, f.jobID, playbook.LimitChange{MemoryMB: new(2048), MaxTurns: new(80)}, playbook.LimitChange{MemoryMB: new(1024), MaxTurns: new(40)}))
+	require.Equal(t, LimitOverrides{TimeoutSeconds: new(1200), MemoryMB: new(4096), MaxTurns: new(80)}, limits())
+
+	// A job that is gone can't take the limits
+	require.Error(t, f.m.ApplyLimits(ctx, f.wid, "missing", playbook.LimitChange{MemoryMB: new(4096)}, playbook.LimitChange{}))
+}
+
+func TestAChangedInstructionIsStamped(t *testing.T) {
+	f := newCompileFixture(t)
+	ctx := t.Context()
+	stamp := func() *int64 {
+		job, err := f.m.getJob(ctx, f.wid, f.jobID)
+		require.NoError(t, err)
+		return job.InstructionChangedAt
+	}
+
+	// Other edits leave the stamp alone, while a new instruction sets it, so reflection can bring a main script in line
+	applied, err := f.m.applyPatch(ctx, f.wid, f.jobID, jobPatch{Name: new("Renamed")}.apply)
+	require.NoError(t, err)
+	require.True(t, applied)
+	require.Nil(t, stamp())
+	applied, err = f.m.applyPatch(ctx, f.wid, f.jobID, jobPatch{Instruction: new("Post stale PRs of acme/api to #eng, and email the owners")}.apply)
+	require.NoError(t, err)
+	require.True(t, applied)
+	require.NotNil(t, stamp())
 }

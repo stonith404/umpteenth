@@ -73,6 +73,15 @@ export const DEFAULT_IMAGE_TOOLS = [
 	'npm'
 ];
 
+// The per-run limits a job can set, with the labels the settings and the suggestions show
+export const LIMIT_FIELDS = [
+	{ key: 'timeoutSeconds', label: 'Timeout', suffix: 'seconds' },
+	{ key: 'maxTurns', label: 'Max turns' },
+	{ key: 'maxCostUsd', label: 'Max cost per run', suffix: 'USD', step: 'any' },
+	{ key: 'cpus', label: 'CPUs', suffix: 'cores', step: 'any' },
+	{ key: 'memoryMb', label: 'Memory', suffix: 'MB' }
+] as const;
+
 // The API rejects `schedule: null`, so a spec without a schedule must omit the key entirely
 export function cleanSpec(spec: JobSpec): JobSpec {
 	const { schedule, ...rest } = spec;

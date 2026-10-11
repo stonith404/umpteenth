@@ -600,6 +600,57 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/jobs/{id}/suggestions': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Lists the open changes reflection suggested to the job's owner, such as more memory, a token scope or a clearer instruction, newest first. */
+		get: operations['list-job-suggestions'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/jobs/{id}/suggestions/{suggestionId}/apply': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Marks an open suggestion as done, and for a limits suggestion first sets the job's limits it names, keeping any of them someone changed by hand since it was raised. */
+		post: operations['apply-job-suggestion'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/jobs/{id}/suggestions/{suggestionId}/dismiss': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Dismisses an open suggestion, so reflection doesn't raise its subject again for 30 days. */
+		post: operations['dismiss-job-suggestion'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/jobs/{id}/webhook-token': {
 		parameters: {
 			query?: never;
@@ -1570,7 +1621,8 @@ export interface components {
 				| 'set_dockerfile'
 				| 'propose_main'
 				| 'update_main'
-				| 'set_verify';
+				| 'set_verify'
+				| 'suggest';
 			rationale: string;
 			reason?: string;
 			/** @enum {string} */
@@ -2184,6 +2236,16 @@ export interface components {
 			status: 'active' | 'retired';
 			text: string;
 			when?: string;
+		};
+		LimitChange: {
+			/** Format: double */
+			cpus?: number;
+			/** Format: int64 */
+			maxTurns?: number;
+			/** Format: int64 */
+			memoryMb?: number;
+			/** Format: int64 */
+			timeoutSeconds?: number;
 		};
 		LimitOverrides: {
 			/** Format: double */
@@ -2904,6 +2966,35 @@ export interface components {
 		};
 		StatusDto: {
 			status: string;
+		};
+		SuggestionDto: {
+			/** Format: int64 */
+			createdAt: number;
+			id: string;
+			/** @description The suggestion's subject, which later runs that raise it again update */
+			key: string;
+			/** @enum {string} */
+			kind: 'limits' | 'credentials' | 'instruction';
+			/** @description For kind limits: the limits applying the suggestion sets */
+			limits?: components['schemas']['LimitChange'];
+			/** @description For kind limits: the job's limits when the suggestion was raised */
+			limitsBefore?: components['schemas']['LimitChange'];
+			/** @description The latest run whose reflection raised it */
+			runId: string | null;
+			/**
+			 * Format: int64
+			 * @description The number of that run, null once the run was deleted
+			 */
+			runNumber: number | null;
+			/**
+			 * Format: int64
+			 * @description How many runs' reflections raised it
+			 */
+			seen: number;
+			/** @description What to change and what in the run showed it, written by reflection */
+			text: string;
+			/** Format: int64 */
+			updatedAt: number;
 		};
 		SyncResult: {
 			/** Format: int64 */
@@ -4693,6 +4784,97 @@ export interface operations {
 				content: {
 					'application/json': components['schemas']['JobStatsOutputBody'];
 				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'list-job-suggestions': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SuggestionDto'][] | null;
+				};
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'apply-job-suggestion': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+				suggestionId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description No Content */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Error */
+			default: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Body'];
+				};
+			};
+		};
+	};
+	'dismiss-job-suggestion': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+				suggestionId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description No Content */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
 			};
 			/** @description Error */
 			default: {

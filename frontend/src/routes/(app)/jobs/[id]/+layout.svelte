@@ -29,6 +29,7 @@
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
 	import ClockIcon from '@lucide/svelte/icons/clock';
 	import GraduationCapIcon from '@lucide/svelte/icons/graduation-cap';
+	import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import { onMount } from 'svelte';
@@ -40,6 +41,7 @@
 	const job = $derived(data.job);
 	const schedule = $derived(scheduleParts(job));
 	const tabs = $derived(jobPageTabs(job.id));
+	const suggestionCount = $derived(data.suggestions.length);
 
 	// A job that may not graduate never leaves the agent, so the mode gets a note saying why it stays put
 	const graduationNote = $derived(job.graduate ? null : GRADUATION_OFF_NOTE);
@@ -173,6 +175,17 @@
 	</span>
 {/snippet}
 
+{#snippet suggestionsFact()}
+	<!-- Suggestions wait for the owner, so the header points at them from every tab -->
+	<a href="/jobs/{job.id}#suggestions" class={cn(factClass, 'link-underline')}>
+		<LightbulbIcon class={iconClass} aria-hidden="true" />
+		<span class={statusToneClasses.warning.label}
+			>{suggestionCount}
+			{suggestionCount === 1 ? 'suggestion' : 'suggestions'}</span
+		>
+	</a>
+{/snippet}
+
 {#snippet learningFact()}
 	<Tooltip.Root>
 		<Tooltip.Trigger>
@@ -199,6 +212,9 @@
 			{@render lastRunFact()}
 			{#if job.nextMode}
 				{@render modeFact(job.nextMode)}
+			{/if}
+			{#if suggestionCount > 0}
+				{@render suggestionsFact()}
 			{/if}
 			{#if !job.selfImprove}
 				{@render learningFact()}

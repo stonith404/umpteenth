@@ -11,7 +11,9 @@ SELECT * FROM jobs WHERE id = sqlc.arg(id);
 
 -- name: UpdateJob :execrows
 -- Only a job still at the updated_at it was read with is written, so a concurrent change is detected instead of overwritten
+-- A changed instruction is stamped, so the next reflection makes a main script written for the old one follow it
 UPDATE jobs SET name = sqlc.arg(name), instruction = sqlc.arg(instruction), spec = sqlc.arg(spec),
+  instruction_changed_at = CASE WHEN instruction <> sqlc.arg(instruction) THEN sqlc.arg(updated_at) ELSE instruction_changed_at END,
   model_id = sqlc.narg(model_id), image = sqlc.narg(image), network = sqlc.arg(network),
   allowed_domains = sqlc.arg(allowed_domains), allow_private_network = sqlc.arg(allow_private_network), run_as_root = sqlc.arg(run_as_root),
   limits = sqlc.arg(limits), self_improve = sqlc.arg(self_improve), graduate = sqlc.arg(graduate), concurrency = sqlc.arg(concurrency),

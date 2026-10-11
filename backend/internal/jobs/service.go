@@ -178,20 +178,21 @@ func (m *Module) LoadForRun(ctx context.Context, workspaceID, jobID string, play
 	}
 
 	cfg := runner.JobConfig{
-		ID:                  job.ID,
-		Instruction:         job.Instruction,
-		SuccessCriteria:     dto.Spec.SuccessCriteria,
-		BaseImage:           ws.DefaultImage,
-		Network:             sandbox.NetworkPolicy(job.Network),
-		AllowedDomains:      dto.AllowedDomains,
-		AllowPrivateNetwork: job.AllowPrivateNetwork,
-		RunAsRoot:           job.RunAsRoot,
-		SelfImprove:         job.SelfImprove,
-		Graduate:            job.Graduate,
-		Limits:              effectiveLimits(ws.DefaultLimits, dto.Limits),
-		DailySpendLimit:     usdToMicro(ws.DailySpendLimit),
-		SideEffects:         dto.Spec.SideEffects,
-		Timezone:            deref(job.Timezone),
+		ID:                   job.ID,
+		Instruction:          job.Instruction,
+		SuccessCriteria:      dto.Spec.SuccessCriteria,
+		BaseImage:            ws.DefaultImage,
+		Network:              sandbox.NetworkPolicy(job.Network),
+		AllowedDomains:       dto.AllowedDomains,
+		AllowPrivateNetwork:  job.AllowPrivateNetwork,
+		RunAsRoot:            job.RunAsRoot,
+		SelfImprove:          job.SelfImprove,
+		Graduate:             job.Graduate,
+		InstructionChangedAt: job.InstructionChangedAt,
+		Limits:               effectiveLimits(ws.DefaultLimits, dto.Limits),
+		DailySpendLimit:      usdToMicro(ws.DailySpendLimit),
+		SideEffects:          dto.Spec.SideEffects,
+		Timezone:             deref(job.Timezone),
 	}
 	for _, o := range dto.Spec.Outputs {
 		cfg.OutputNames = append(cfg.OutputNames, o.Name)
