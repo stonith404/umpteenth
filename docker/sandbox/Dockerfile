@@ -12,6 +12,7 @@ FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee
 
 # Node, Python, pip and uv are included so npx and uvx stdio MCP servers work out of the box
 # The SSH client lets git reach SSH remotes, which Umpteenth routes through the egress proxy with ump connect
+# Python's requests is included since scripts reach for it first, and it honors the egress proxy variables
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
@@ -24,6 +25,7 @@ RUN apt-get update \
         procps \
         python3 \
         python3-pip \
+        python3-requests \
         ripgrep \
     && rm -rf /var/lib/apt/lists/*
 
