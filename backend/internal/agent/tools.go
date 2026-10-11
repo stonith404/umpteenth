@@ -444,13 +444,15 @@ func (finishTool) Def() llm.ToolDef {
 		Schema: json.RawMessage(`{"type":"object","properties":{` +
 			`"status":{"type":"string","enum":["success","failure"]},` +
 			`"summary":{"type":"string","description":"Markdown summary of what was done, ending with a ` + OwnerNotesHeading + ` section when the owner needs to decide or fix something"},` +
+			`"nothingToDo":{"type":"boolean","description":"true when the run found nothing to handle, such as no new notifications, pull requests or strings, so it skipped every step the job takes only when there is something to handle; false when it took any of them or tried to"},` +
 			`"outputs":{"type":"object","description":"Structured outputs, keyed by output name"}` +
-			`},"required":["status","summary"],"additionalProperties":false}`),
+			`},"required":["status","summary","nothingToDo"],"additionalProperties":false}`),
 	}
 }
 
 func (finishTool) Run(_ context.Context, call llm.ToolCall) Result {
 	var f Finish
+	// nothingToDo is required in the schema so models always decide it, but a finish without it counts as a run that did the work
 	if err := DecodeArgs(call, &f); err != nil || (f.Status != "success" && f.Status != "failure") {
 		return Errorf("finish needs `status` (success or failure) and `summary`.")
 	}

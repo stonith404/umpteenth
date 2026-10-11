@@ -98,6 +98,8 @@ export type VerifyPayload = {
 export type FinishPayload = {
 	status?: string;
 	summary?: string;
+	// Set when the agent found nothing to handle, which keeps the run from counting toward graduation
+	nothingToDo?: boolean;
 	outputs?: Record<string, unknown> | null;
 };
 

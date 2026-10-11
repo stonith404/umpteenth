@@ -41,6 +41,8 @@ type transcript struct {
 	Text    string
 	Notes   []string
 	Timings Timings
+	// NothingToDo is set when the agent finished saying the run found nothing to do
+	NothingToDo bool
 }
 
 type toolCallPayload struct {
@@ -161,6 +163,11 @@ func buildWithLimits(rows []reflectiondb.RunEventsRow, redact func(string) strin
 			_ = json.Unmarshal([]byte(row.Payload), &p)
 			line("[error] %s", redact(p.Message))
 		case events.TypeFinish:
+			var p struct {
+				NothingToDo bool `json:"nothingToDo"`
+			}
+			_ = json.Unmarshal([]byte(row.Payload), &p)
+			t.NothingToDo = p.NothingToDo
 			line("[finish] %s", clip(row.Payload, 3000, 0))
 		}
 	}

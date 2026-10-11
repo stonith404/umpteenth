@@ -298,9 +298,15 @@ async function fireSchedule(request: APIRequestContext, jobId: string) {
 	expect(response.status()).toBe(204);
 }
 
-// The agent's finish call for a successful run
-function finish(summary: string, outputs?: Record<string, unknown>): ScriptedResponse {
-	return { toolCalls: [{ name: 'finish', args: { status: 'success', summary, outputs } }] };
+// The agent's finish call for a successful run, which counts as one that did the job's work unless options say otherwise
+function finish(
+	summary: string,
+	outputs?: Record<string, unknown>,
+	options?: { nothingToDo?: boolean }
+): ScriptedResponse {
+	return {
+		toolCalls: [{ name: 'finish', args: { status: 'success', summary, outputs, ...options } }]
+	};
 }
 
 // One structured reflection answer, which the fake model returns as native JSON output

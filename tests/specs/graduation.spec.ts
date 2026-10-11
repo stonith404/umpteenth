@@ -80,22 +80,34 @@ test('A job graduates to a main script, falls back when it breaks, and gets repa
 	expect(run.mode).toBe('explore');
 
 	// Three Assisted runs take the same single step, and the third qualifies the job for graduation
-	// Its first draft of main fails in a shadow run, so reflection gets a second chance before the job graduates
+	// A run between them found nothing to do, which neither counts toward the three nor breaks the streak
+	// The third's first draft of main fails in a shadow run, so reflection gets a second chance before the job graduates
 	const verify = JSON.stringify({ checks: ['output.count >= 1'], llm: false });
 	let runId = '';
-	for (const last of [false, false, true]) {
-		const answers = last
-			? [
-					reflection('Graduated the job', [
-						{ op: 'propose_main', content: brokenMain },
-						{ op: 'set_verify', content: verify }
-					]),
-					reflection('Graduated the job', [
-						{ op: 'propose_main', content: main },
-						{ op: 'set_verify', content: verify }
-					])
-				]
-			: [reflection('Nothing new')];
+	let idleRunId = '';
+	for (const step of ['work', 'nothing to do', 'work', 'graduate'] as const) {
+		if (step === 'nothing to do') {
+			({ runId: idleRunId, run } = await runWith(request, id, input, [
+				finish('No new stories', undefined, { nothingToDo: true }),
+				reflection('Nothing new')
+			]));
+			expect(run.mode).toBe('assisted');
+			expect((await job(request, id)).nextMode).toBe('assisted');
+			continue;
+		}
+		const answers =
+			step === 'graduate'
+				? [
+						reflection('Graduated the job', [
+							{ op: 'propose_main', content: brokenMain },
+							{ op: 'set_verify', content: verify }
+						]),
+						reflection('Graduated the job', [
+							{ op: 'propose_main', content: main },
+							{ op: 'set_verify', content: verify }
+						])
+					]
+				: [reflection('Nothing new')];
 		({ runId, run } = await runWith(request, id, input, [
 			{ toolCalls: [{ name: 'toolkit__top_stories', args: { count: 2 } }] },
 			finish('Reported the stories', { count: 2 }),
@@ -113,6 +125,10 @@ test('A job graduates to a main script, falls back when it breaks, and gets repa
 	// The run's Learned tab shows that main was tried before it was applied
 	await page.goto(`/runs/${runId}?tab=learned`);
 	await expect(page.getByText('Main passed its checks in a shadow run')).toBeVisible();
+
+	// The quiet run's timeline says it found nothing to do, which is why it didn't count
+	await page.goto(`/runs/${idleRunId}`);
+	await expect(page.getByText('Finished with nothing to do')).toBeVisible();
 
 	// The scripted run needs no model at all, and reflection skips it
 	({ run } = await runWith(request, id, input, []));

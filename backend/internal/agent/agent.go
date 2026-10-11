@@ -38,9 +38,12 @@ type Result struct {
 
 // Finish is the required end of every agent run
 type Finish struct {
-	Status  string         `json:"status"`
-	Summary string         `json:"summary"`
-	Outputs map[string]any `json:"outputs,omitempty"`
+	Status  string `json:"status"`
+	Summary string `json:"summary"`
+	// NothingToDo is the agent's word that the run found nothing to handle, so graduation doesn't count it
+	// It comes before the outputs, since the reflection transcript keeps only the start of a large finish payload
+	NothingToDo bool           `json:"nothingToDo,omitempty"`
+	Outputs     map[string]any `json:"outputs,omitempty"`
 }
 
 // Status is how an agent run ended

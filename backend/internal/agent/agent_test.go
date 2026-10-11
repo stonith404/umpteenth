@@ -73,6 +73,29 @@ func TestRunFinishesWithOutputs(t *testing.T) {
 	require.Equal(t, 1, out.Turns)
 }
 
+func TestFinishReportsNothingToDo(t *testing.T) {
+	finish := func(args map[string]any) *Finish {
+		raw, err := json.Marshal(args)
+		require.NoError(t, err)
+		res := FinishTool().Run(context.Background(), llm.ToolCall{ID: "c1", Name: "finish", Args: raw})
+		require.False(t, res.IsError, res.Content)
+		return res.Finish
+	}
+
+	// The agent says whether the run found nothing to do, which graduation reads from the finish event
+	require.True(t, finish(map[string]any{"status": "success", "summary": "No new notifications", "nothingToDo": true}).NothingToDo)
+
+	// A finish without the flag still ends the run, as one that did the work
+	require.False(t, finish(map[string]any{"status": "success", "summary": "Sent the summary"}).NothingToDo)
+
+	// The schema requires the flag, so models always decide it
+	var schema struct {
+		Required []string `json:"required"`
+	}
+	require.NoError(t, json.Unmarshal(FinishTool().Def().Schema, &schema))
+	require.Contains(t, schema.Required, "nothingToDo")
+}
+
 func TestTransientModelFailuresAreRetriedWithinTheTurn(t *testing.T) {
 	finish := fake.ScriptedResponse{ToolCalls: []fake.ScriptedToolCall{{Name: "finish", Args: map[string]any{"status": "success", "summary": "done"}}}}
 	cfg := func(p *fake.Provider) Config {

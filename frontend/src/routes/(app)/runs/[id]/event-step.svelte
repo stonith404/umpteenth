@@ -277,7 +277,11 @@
 	<StepShell
 		glyph="flag"
 		tone={success ? 'success' : 'danger'}
-		title={success ? 'Finished' : 'Finished with a failure'}
+		title={success
+			? finish.nothingToDo
+				? 'Finished with nothing to do'
+				: 'Finished'
+			: 'Finished with a failure'}
 		ts={event.ts}
 		{startTs}
 	>

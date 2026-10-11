@@ -1,5 +1,5 @@
 -- name: GetRun :one
-SELECT id, workspace_id, job_id, number, status, mode, input, playbook_version,
+SELECT id, workspace_id, job_id, number, status, mode, input, instructions, playbook_version,
   summary, outputs, error, turns, cost, ms_total, reflection, finished_at, reflection_requested_at
 FROM runs WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);
 
@@ -29,8 +29,8 @@ UPDATE runs SET reflection_cost = reflection_cost + sqlc.arg(cost), reflection_t
 WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);
 
 -- name: RecentRuns :many
--- The runs before this one show whether the job got faster and cheaper, and whether installs keep repeating
-SELECT id, number, status, mode, turns, cost, ms_total FROM runs
+-- The job's finished runs before a given number, newest first, show whether it got faster and cheaper and which runs count toward graduation
+SELECT id, number, status, mode, instructions, turns, cost, ms_total FROM runs
 WHERE workspace_id = sqlc.arg(workspace_id) AND job_id = sqlc.arg(job_id) AND number < sqlc.arg(number)
   AND status IN ('succeeded', 'failed', 'timed_out')
 ORDER BY number DESC LIMIT sqlc.arg(max_runs);

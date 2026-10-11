@@ -111,7 +111,7 @@ func (q *Queries) FinishReflection(ctx context.Context, arg FinishReflectionPara
 }
 
 const getRun = `-- name: GetRun :one
-SELECT id, workspace_id, job_id, number, status, mode, input, playbook_version,
+SELECT id, workspace_id, job_id, number, status, mode, input, instructions, playbook_version,
   summary, outputs, error, turns, cost, ms_total, reflection, finished_at, reflection_requested_at
 FROM runs WHERE workspace_id = $1 AND id = $2
 `
@@ -129,6 +129,7 @@ type GetRunRow struct {
 	Status                string
 	Mode                  string
 	Input                 *string
+	Instructions          *string
 	PlaybookVersion       int64
 	Summary               *string
 	Outputs               *string
@@ -152,6 +153,7 @@ func (q *Queries) GetRun(ctx context.Context, arg GetRunParams) (GetRunRow, erro
 		&i.Status,
 		&i.Mode,
 		&i.Input,
+		&i.Instructions,
 		&i.PlaybookVersion,
 		&i.Summary,
 		&i.Outputs,
@@ -188,7 +190,7 @@ func (q *Queries) MarkPending(ctx context.Context, arg MarkPendingParams) (int64
 }
 
 const recentRuns = `-- name: RecentRuns :many
-SELECT id, number, status, mode, turns, cost, ms_total FROM runs
+SELECT id, number, status, mode, instructions, turns, cost, ms_total FROM runs
 WHERE workspace_id = $1 AND job_id = $2 AND number < $3
   AND status IN ('succeeded', 'failed', 'timed_out')
 ORDER BY number DESC LIMIT $4
@@ -202,16 +204,17 @@ type RecentRunsParams struct {
 }
 
 type RecentRunsRow struct {
-	ID      string
-	Number  int64
-	Status  string
-	Mode    string
-	Turns   int64
-	Cost    int64
-	MsTotal *int64
+	ID           string
+	Number       int64
+	Status       string
+	Mode         string
+	Instructions *string
+	Turns        int64
+	Cost         int64
+	MsTotal      *int64
 }
 
-// The runs before this one show whether the job got faster and cheaper, and whether installs keep repeating
+// The job's finished runs before a given number, newest first, show whether it got faster and cheaper and which runs count toward graduation
 func (q *Queries) RecentRuns(ctx context.Context, arg RecentRunsParams) ([]RecentRunsRow, error) {
 	rows, err := q.db.QueryContext(ctx, recentRuns,
 		arg.WorkspaceID,
@@ -231,6 +234,7 @@ func (q *Queries) RecentRuns(ctx context.Context, arg RecentRunsParams) ([]Recen
 			&i.Number,
 			&i.Status,
 			&i.Mode,
+			&i.Instructions,
 			&i.Turns,
 			&i.Cost,
 			&i.MsTotal,

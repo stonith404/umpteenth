@@ -91,7 +91,8 @@ func (m *Module) reflect(ctx context.Context, run reflectiondb.GetRunRow) (resul
 				return res, err
 			}
 		}
-		grad, err = m.checkGraduation(ctx, run, runEvents, current, demoted)
+		// Graduation facts are redacted like the transcript, since they quote what the runs reported
+		grad, err = m.checkGraduation(ctx, run, runEvents, current, demoted, newRedactor(job.Env))
 		if err != nil {
 			return res, err
 		}
@@ -319,6 +320,7 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 		SuccessCriteria: job.SuccessCriteria,
 		Inputs:          job.Inputs,
 		Outputs:         job.Outputs,
+		SideEffects:     job.SideEffects,
 		BaseImage:       job.BaseImage,
 		ImageBuilds:     m.deps.Images != nil,
 		Skills:          skillNames(job.Skills),
@@ -326,8 +328,8 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 		Transcript:      tr,
 		Run: runFacts{
 			Number: run.Number, Status: run.Status, Mode: run.Mode, Turns: run.Turns, CostMicro: run.Cost,
-			DurationMs: deref(run.MsTotal), Input: truncated(redact(derefString(run.Input)), 3000), Error: redact(derefString(run.Error)),
-			Summary: redact(derefString(run.Summary)), Outputs: truncated(redact(derefString(run.Outputs)), 3000),
+			DurationMs: deref(run.MsTotal), Input: truncated(redact(derefString(run.Input)), 3000), Instructions: truncated(redact(derefString(run.Instructions)), 3000), Error: redact(derefString(run.Error)),
+			Summary: redact(derefString(run.Summary)), Outputs: truncated(redact(derefString(run.Outputs)), 3000), NothingToDo: tr.NothingToDo,
 		},
 	}
 	in.Candidates = m.candidates(ctx, run.ID, redact)

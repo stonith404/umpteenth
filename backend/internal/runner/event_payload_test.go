@@ -56,9 +56,10 @@ func TestLargeFinishEventKeepsItsStatus(t *testing.T) {
 		items = append(items, map[string]any{"title": fmt.Sprintf("Listing %d", i), "url": fmt.Sprintf("https://shop.example/items/%d", i)})
 	}
 	h.provider.Enqueue(fake.ScriptedResponse{ToolCalls: []fake.ScriptedToolCall{{Name: "finish", Args: map[string]any{
-		"status":  "success",
-		"summary": "Collected 400 listings",
-		"outputs": map[string]any{"items": items},
+		"status":      "success",
+		"summary":     "Collected 400 listings",
+		"nothingToDo": true,
+		"outputs":     map[string]any{"items": items},
 	}}}})
 	id := h.seedRun(t, runner.StatusQueued)
 
@@ -71,6 +72,7 @@ func TestLargeFinishEventKeepsItsStatus(t *testing.T) {
 	finish := finishes[0]
 	assert.Equal(t, "success", finish["status"], "the run page shows a successful run as 'Finished with a failure' when the finish event lost its status")
 	assert.Equal(t, "Collected 400 listings", finish["summary"])
+	assert.Equal(t, true, finish["nothingToDo"], "graduation counts a run whose finish event lost the flag as one that did the work")
 }
 
 // A failed command whose output grows past the inline limit once JSON-escaped keeps its error flag, call ID and exit code

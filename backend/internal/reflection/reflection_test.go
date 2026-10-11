@@ -133,6 +133,10 @@ func TestRepairAndGraduationAskForRunTimeData(t *testing.T) {
 	// The agent's own notes are know-how, never requirements
 	notes := input{Transcript: transcript{Notes: []string{"Run the type check before committing"}}}.userMessage()
 	assert.Contains(t, notes, "never turn one into a requirement of the job")
+
+	// Additional instructions explain what one run did differently, and are marked as applying to it alone
+	instructed := input{Run: runFacts{Instructions: "Only handle Renovate PRs this time"}}.userMessage()
+	assert.Contains(t, instructed, "Additional instructions for this run only: Only handle Renovate PRs this time")
 }
 
 type fakeJobs struct{ cfg runner.JobConfig }
@@ -380,27 +384,84 @@ func TestGraduationCriteria(t *testing.T) {
 	assisted := func(number int64, names ...string) runPattern {
 		return patternOf(number, runner.StatusSucceeded, runner.ModeAssisted, calls(names...))
 	}
+	// quiet ends the calls with a finish that says the run found nothing to do
+	quiet := func(names ...string) []reflectiondb.RunEventsRow {
+		return append(calls(names...), event("finish", 0, map[string]any{"status": "success", "summary": "Nothing new", "nothingToDo": true}))
+	}
+	idle := func(number int64, names ...string) runPattern {
+		return patternOf(number, runner.StatusSucceeded, runner.ModeAssisted, quiet(names...))
+	}
+	// instructed is a run that had additional instructions for it alone
+	instructed := func(number int64, names ...string) runPattern {
+		p := assisted(number, names...)
+		p.Instructed = true
+		return p
+	}
 
 	// Three Assisted runs with the same toolkit and MCP steps qualify, reading files doesn't count against them
-	ok, reason := qualifies([]runPattern{
+	ok, reason, done := qualifies([]runPattern{
 		assisted(5, "bash:cat /ump/input.json | jq .", "toolkit__fetch", "slack__post", "finish"),
 		assisted(4, "toolkit__fetch", "bash:ls /ump/outputs", "slack__post", "finish"),
 		assisted(3, "toolkit__fetch", "slack__post", "remember", "finish"),
 	})
 	assert.True(t, ok, reason)
+	assert.True(t, done)
 
-	cases := map[string][]runPattern{
-		"needs 3":            {assisted(2, "toolkit__fetch"), assisted(1, "toolkit__fetch")},
-		"not Assisted":       {assisted(5, "toolkit__fetch"), assisted(4, "toolkit__fetch"), patternOf(3, runner.StatusSucceeded, runner.ModeExplore, calls("toolkit__fetch"))},
-		"failed":             {assisted(5, "toolkit__fetch"), patternOf(4, runner.StatusFailed, runner.ModeAssisted, calls("toolkit__fetch")), assisted(3, "toolkit__fetch")},
-		"too much ad-hoc":    {assisted(5, "toolkit__fetch", "bash:pip install x", "bash:python3 a.py", "bash:echo hi > f"), assisted(4, "toolkit__fetch"), assisted(3, "toolkit__fetch")},
-		"different sequence": {assisted(5, "toolkit__fetch"), assisted(4, "toolkit__fetch", "toolkit__format"), assisted(3, "toolkit__fetch")},
+	// Runs that found nothing to do between the working runs neither count toward the three nor break the streak
+	ok, reason, done = qualifies([]runPattern{
+		assisted(7, "toolkit__fetch", "toolkit__send"),
+		idle(6, "toolkit__fetch"),
+		assisted(5, "toolkit__fetch", "toolkit__send"),
+		idle(4),
+		assisted(3, "toolkit__fetch", "toolkit__send"),
+	})
+	assert.True(t, ok, reason)
+	assert.True(t, done)
+
+	// A run with additional instructions did something else than the job as it is, so it is passed over like an idle run
+	ok, reason, done = qualifies([]runPattern{
+		assisted(6, "toolkit__fetch", "toolkit__send"),
+		instructed(5, "toolkit__fetch"),
+		assisted(4, "toolkit__fetch", "toolkit__send"),
+		assisted(3, "toolkit__fetch", "toolkit__send"),
+	})
+	assert.True(t, ok, reason)
+	assert.True(t, done)
+
+	cases := map[string]struct {
+		patterns []runPattern
+		// done tells whether older runs could still change the outcome
+		done bool
+		// reason is a part the reason must contain
+		reason string
+	}{
+		"needs 3":            {patterns: []runPattern{assisted(2, "toolkit__fetch"), assisted(1, "toolkit__fetch")}},
+		"not Assisted":       {patterns: []runPattern{assisted(5, "toolkit__fetch"), assisted(4, "toolkit__fetch"), patternOf(3, runner.StatusSucceeded, runner.ModeExplore, calls("toolkit__fetch"))}, done: true},
+		"failed":             {patterns: []runPattern{assisted(5, "toolkit__fetch"), patternOf(4, runner.StatusFailed, runner.ModeAssisted, calls("toolkit__fetch")), assisted(3, "toolkit__fetch")}, done: true},
+		"too much ad-hoc":    {patterns: []runPattern{assisted(5, "toolkit__fetch", "bash:pip install x", "bash:python3 a.py", "bash:echo hi > f"), assisted(4, "toolkit__fetch"), assisted(3, "toolkit__fetch")}, done: true},
+		"different sequence": {patterns: []runPattern{assisted(5, "toolkit__fetch"), assisted(4, "toolkit__fetch", "toolkit__format"), assisted(3, "toolkit__fetch")}, done: true},
+		// Quiet days alone never graduate a job, since main would be written from a run that skipped the work
+		"only runs with nothing to do": {patterns: []runPattern{idle(7, "toolkit__fetch"), idle(6, "toolkit__fetch"), idle(5, "toolkit__fetch")}, done: true, reason: "#7 found nothing to do"},
+		"newest with nothing to do":    {patterns: []runPattern{idle(8), assisted(7, "toolkit__fetch"), assisted(6, "toolkit__fetch"), assisted(5, "toolkit__fetch")}, done: true, reason: "#8 found nothing to do"},
+		"too few working runs":         {patterns: []runPattern{assisted(5, "toolkit__fetch"), idle(4), assisted(3, "toolkit__fetch")}, reason: "1 of its latest runs found nothing to do"},
+		"newest with instructions":     {patterns: []runPattern{instructed(8, "toolkit__fetch"), assisted(7, "toolkit__fetch"), assisted(6, "toolkit__fetch"), assisted(5, "toolkit__fetch")}, done: true, reason: "#8 had additional instructions"},
+		"failed with nothing to do":    {patterns: []runPattern{assisted(5, "toolkit__fetch"), patternOf(4, runner.StatusFailed, runner.ModeAssisted, quiet()), assisted(3, "toolkit__fetch"), assisted(2, "toolkit__fetch")}, done: true, reason: "#4 was a failed"},
 	}
-	for name, patterns := range cases {
-		ok, reason := qualifies(patterns)
+	for name, c := range cases {
+		ok, reason, done := qualifies(c.patterns)
 		assert.False(t, ok, name)
 		assert.NotEmpty(t, reason, name)
+		assert.Equal(t, c.done, done, name)
+		assert.Contains(t, reason, c.reason, name)
 	}
+
+	// Only the finish flag marks a run that found nothing to do, and it leaves the steps the run took as they are
+	unflagged := patternOf(3, runner.StatusSucceeded, runner.ModeAssisted, append(calls("toolkit__fetch"), event("finish", 0, map[string]any{"status": "success", "summary": "Sent it"})))
+	assert.False(t, unflagged.Idle)
+	assert.False(t, assisted(3, "toolkit__fetch").Idle)
+	flagged := idle(3, "toolkit__fetch")
+	assert.True(t, flagged.Idle)
+	assert.Equal(t, unflagged.Sequence, flagged.Sequence)
 
 	assert.True(t, readOnlyCommand("cat a.txt | grep x && wc -l b"))
 	assert.False(t, readOnlyCommand("cat a > b"))
@@ -444,7 +505,7 @@ func TestGraduationIsJudgedOnTheLatestRuns(t *testing.T) {
 		require.NoError(t, err)
 		runEvents, err := m.queries.RunEvents(ctx, id)
 		require.NoError(t, err)
-		g, err := m.checkGraduation(ctx, run, runEvents, playbook.Content{}, false)
+		g, err := m.checkGraduation(ctx, run, runEvents, playbook.Content{}, false, newRedactor(nil))
 		require.NoError(t, err)
 		return g
 	}
@@ -455,6 +516,104 @@ func TestGraduationIsJudgedOnTheLatestRuns(t *testing.T) {
 	g := check(ids[2])
 	assert.False(t, g.Eligible)
 	assert.Contains(t, g.Reason, "#4")
+}
+
+func TestGraduationLooksPastRunsWithNothingToDo(t *testing.T) {
+	ctx := t.Context()
+	db := testutil.NewDatabaseForTest(t)
+	wid := testutil.SeedWorkspace(t, db)
+	jobID := testutil.SeedJob(t, db, wid, "skip")
+	m := &Module{queries: reflectiondb.New(db)}
+
+	// Every run fetches, and the ones that found nothing to do say so when they finish
+	seed := func(number int64, idle bool, summary, outputs string) string {
+		id := database.NewID()
+		testutil.Exec(t, db, `INSERT INTO runs (id, workspace_id, job_id, number, status, mode, trigger, playbook_version, queued_at, summary, outputs) VALUES ($1, $2, $3, $4, $5, $6, 'manual', 0, $7, $8, $9)`,
+			id, wid, jobID, number, runner.StatusSucceeded, runner.ModeAssisted, database.Now(), summary, outputs)
+		finish, err := json.Marshal(map[string]any{"status": "success", "summary": summary, "nothingToDo": idle})
+		require.NoError(t, err)
+		testutil.Exec(t, db, `INSERT INTO run_events (run_id, seq, ts, type, payload) VALUES ($1, 1, 1, 'tool.call', '{"callId":"a","name":"toolkit__fetch","args":{}}'), ($1, 2, 2, 'finish', $2)`, id, string(finish))
+		return id
+	}
+	check := func(id string) graduation {
+		run, err := m.queries.GetRun(ctx, reflectiondb.GetRunParams{WorkspaceID: wid, ID: id})
+		require.NoError(t, err)
+		runEvents, err := m.queries.RunEvents(ctx, id)
+		require.NoError(t, err)
+		g, err := m.checkGraduation(ctx, run, runEvents, playbook.Content{}, false, newRedactor(map[string]string{"TOKEN": "s3cr3t-value"}))
+		require.NoError(t, err)
+		return g
+	}
+	seed(1, false, "Sent the summary of 1 notification", "{}")
+	seed(2, true, "No new notifications", "{}")
+	seed(3, false, "Sent the summary of 2 notifications", `{"count":2}`)
+	seed(4, true, "No new notifications", "{}")
+	latest := seed(5, false, "Sent the summary of 3 notifications with s3cr3t-value", `{"count":3}`)
+
+	// The three runs that sent a summary qualify, and the quiet runs between them are named for main's quiet path
+	g := check(latest)
+	require.True(t, g.Eligible, g.Reason)
+	assert.Equal(t, []string{"toolkit__fetch"}, g.Sequence)
+	assert.Equal(t, []int64{4, 2}, g.Idle)
+	numbers := make([]int64, len(g.Runs))
+	for i, r := range g.Runs {
+		numbers[i] = r.Number
+	}
+	assert.Equal(t, []int64{5, 3, 1}, numbers)
+
+	// What the runs reported reaches the prompt, with the job's secrets redacted
+	assert.Contains(t, g.Runs[0].Summary, "[secret $TOKEN]")
+	assert.NotContains(t, g.Runs[0].Summary, "s3cr3t")
+	assert.Equal(t, `{"count":2}`, g.Runs[1].Outputs)
+
+	// A newer run that found nothing to do holds graduation back until a run does the work again
+	g = check(seed(6, true, "No new notifications", "{}"))
+	assert.False(t, g.Eligible)
+	assert.Contains(t, g.Reason, "#6")
+}
+
+func TestGraduationPromptAsksForEveryStep(t *testing.T) {
+	in := input{
+		Instruction: "Check notifications. If there were any notifications send a summary email",
+		SideEffects: []string{"Sends a summary email"},
+		Graduation: graduation{
+			Eligible: true,
+			Sequence: []string{"toolkit__fetch", "toolkit__send"},
+			Runs:     []runPattern{{Number: 7, Summary: "Sent the summary of 2 notifications"}, {Number: 5, Summary: "Sent the summary of 1 notification", Outputs: `{"count":1}`}},
+			Idle:     []int64{6},
+		},
+	}
+	msg := in.userMessage()
+	assert.Contains(t, msg, "- side effect: Sends a summary email")
+	assert.Contains(t, msg, "runs #7 and #5 succeeded")
+	assert.Contains(t, msg, "#7: Sent the summary")
+	assert.Contains(t, msg, `outputs: {"count":1}`)
+	assert.Contains(t, msg, "toolkit__fetch → toolkit__send")
+	assert.Contains(t, msg, "Runs #6 in between found nothing to do")
+	assert.Contains(t, msg, "only under a condition")
+	assert.Contains(t, msg, "Not graduating:")
+
+	// Without quiet runs in the streak, the prompt doesn't mention them
+	in.Graduation.Idle = nil
+	assert.NotContains(t, in.userMessage(), "in between found nothing to do")
+
+	assert.Equal(t, "#7, #5 and #3", numberList([]int64{7, 5, 3}))
+	assert.Equal(t, "#7", numberList([]int64{7}))
+}
+
+func TestReflectionKnowsARunFoundNothingToDo(t *testing.T) {
+	rows := []reflectiondb.RunEventsRow{
+		event("tool.call", 0, map[string]any{"callId": "c1", "name": "toolkit__fetch", "args": map[string]any{}}),
+		event("finish", 0, map[string]any{"status": "success", "summary": "No new notifications", "nothingToDo": true}),
+	}
+	tr := buildTranscript(rows, newRedactor(nil))
+	assert.True(t, tr.NothingToDo)
+	assert.Contains(t, input{Run: runFacts{NothingToDo: tr.NothingToDo}}.userMessage(), "found nothing to do in this run")
+
+	// A finish without the flag is a run that did the work
+	tr = buildTranscript([]reflectiondb.RunEventsRow{rows[0], event("finish", 0, map[string]any{"status": "success", "summary": "Sent the summary"})}, newRedactor(nil))
+	assert.False(t, tr.NothingToDo)
+	assert.NotContains(t, input{}.userMessage(), "found nothing to do in this run")
 }
 
 func TestAStaleReflectionOnlyAddsItsCostAndTokens(t *testing.T) {
