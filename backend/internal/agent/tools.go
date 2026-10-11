@@ -443,7 +443,7 @@ func (finishTool) Def() llm.ToolDef {
 		Description: "End the run. Call this exactly once when the job is done or cannot be done. Give a short markdown summary of what happened and any structured outputs the job defines.",
 		Schema: json.RawMessage(`{"type":"object","properties":{` +
 			`"status":{"type":"string","enum":["success","failure"]},` +
-			`"summary":{"type":"string","description":"Markdown summary of what was done"},` +
+			`"summary":{"type":"string","description":"Markdown summary of what was done, ending with a ` + OwnerNotesHeading + ` section when the owner needs to decide or fix something"},` +
 			`"outputs":{"type":"object","description":"Structured outputs, keyed by output name"}` +
 			`},"required":["status","summary"],"additionalProperties":false}`),
 	}

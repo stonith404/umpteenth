@@ -69,6 +69,17 @@ func TestSystemBlocksStateTheLimitsInTheJobBlock(t *testing.T) {
 	require.NotContains(t, blocks[1].Text, "not root")
 }
 
+func TestBaseInstructionsEndWithOwnerNotes(t *testing.T) {
+	// Reflection finds what the owner has to act on by this heading, so the agent must be told to use it
+	require.Contains(t, baseInstructions, OwnerNotesHeading)
+	require.Contains(t, limitsSection(PromptLimits{}, false), OwnerNotesHeading)
+}
+
+func TestSuccessCriteriaDescribeTheEndState(t *testing.T) {
+	blocks := SystemBlocks(PromptInput{Instruction: "Do it", SuccessCriteria: []string{"The digest was posted"}})
+	require.Contains(t, blocks[1].Text, "\n## Success criteria\nThey describe the end state a successful run leaves behind, and add no steps to the job.\n- The digest was posted\n")
+}
+
 func TestFormatDuration(t *testing.T) {
 	cases := map[time.Duration]string{
 		45 * time.Second:          "45 seconds",

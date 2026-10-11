@@ -44,6 +44,7 @@ Write a dense, factual handover in Markdown with these sections:
 3. Facts: exact values the rest of the job needs, such as IDs, URLs, file paths, commands that worked, numbers and names. Copy them verbatim.
 4. Dead ends: what failed and why, so it isn't repeated.
 5. Next steps: what remains, starting with the step that was in progress.
+6. For the owner: conflicts between the job's instructions and its own material, suggested checks, and limits or permissions that blocked the job, noted so far for the final summary's "` + OwnerNotesHeading + `" section. Leave it out when there are none.
 
 Do not invent anything and do not call tools.`
 
