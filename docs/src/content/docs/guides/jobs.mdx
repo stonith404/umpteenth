@@ -89,7 +89,7 @@ Turning the switch back on makes the next run Scripted again if the playbook has
 ## Job state
 
 Job state is a set of key-value strings a job keeps between runs, such as the last item it reported.
-The agent reads and writes it with its own tools, and scripts use [`ump state`](../../reference/ump-cli/#ump-state).
+Runs fill it without you asking: the agent saves what the next run needs to skip finished work or spot a change, like the newest item handled or the IDs already reported.
 
 The **State** tab lists every entry.
 Add one with **Add entry**, and edit or delete one from its row's **⋯** menu.

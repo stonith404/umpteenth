@@ -249,6 +249,7 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 		Images:              imageVerifier(svc.images),
 		Demotion:            svc.jobs,
 		JobEditor:           svc.jobs,
+		State:               stateStores{svc.jobs},
 		MaintenanceDisabled: cfg.App.Env.IsTest(),
 	})
 	if err != nil {

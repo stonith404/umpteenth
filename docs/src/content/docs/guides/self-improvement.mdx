@@ -60,6 +60,7 @@ Main must pass the same checks as a scripted run, and if the source run succeede
 If main fails, Umpteenth rejects it together with the changes it depends on, and the change offers **Show the shadow run's output**.
 
 Umpteenth skips the shadow run for a job whose spec or scripts declare side effects, since it can't hold back the requests main sends on its own.
+It also skips it after a run that changed the [job state](../jobs/#job-state), since main would start from a different state than that run did.
 The change applies untried, and the **Learned** tab says why.
 
 ### Held for review

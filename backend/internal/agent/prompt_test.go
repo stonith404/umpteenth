@@ -3,6 +3,8 @@
 package agent
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -107,4 +109,30 @@ func TestUserMessageStatesTheTimeLeft(t *testing.T) {
 	// A run without a deadline says nothing about time left
 	msg = RunContext{Trigger: "manual", Time: t0}.UserMessage().Text()
 	require.NotContains(t, msg, "Time left")
+}
+
+func TestUserMessageShowsTheJobState(t *testing.T) {
+	t0 := time.Date(2026, 10, 11, 9, 0, 0, 0, time.UTC)
+
+	// An empty state is named, so the agent knows it is the first run to save anything
+	msg := RunContext{Trigger: "schedule", Time: t0, State: map[string]string{}}.UserMessage().Text()
+	require.Contains(t, msg, "\nJob state: empty.\n")
+
+	// A state that couldn't be read says nothing, rather than claiming the state is empty
+	msg = RunContext{Trigger: "schedule", Time: t0}.UserMessage().Text()
+	require.NotContains(t, msg, "Job state")
+
+	// Keys come sorted, and a long multi-line value is folded onto one line and cut short with its size
+	template := "<html>\n" + strings.Repeat("x", 300) + "\n</html>"
+	msg = RunContext{Trigger: "schedule", Time: t0, State: map[string]string{"last_seen_id": "42", "email_template": template}}.UserMessage().Text()
+	require.Contains(t, msg, "\nJob state (state_get reads a full value):\n- email_template: <html> xxx")
+	require.Contains(t, msg, fmt.Sprintf("… (%d bytes)\n- last_seen_id: 42\n", len(template)))
+
+	// Beyond the shown keys, the message points to ump state list for the rest
+	many := map[string]string{}
+	for i := range maxStateKeysShown + 3 {
+		many[fmt.Sprintf("key_%03d", i)] = "v"
+	}
+	msg = RunContext{Trigger: "schedule", Time: t0, State: many}.UserMessage().Text()
+	require.Contains(t, msg, "- … and 3 more keys, listed by `ump state list`\n")
 }

@@ -365,6 +365,14 @@ type session struct {
 
 // runAgent drives the agent loop, starting from a resume brief when it takes over from a failed main script
 func (r *Runner) runAgent(ctx context.Context, s *session, resume string) Final {
+	// The agent sees the job's state up front, so it finds what earlier runs saved without guessing keys, and a run without it still works
+	state, err := r.d.State.ForJob(s.run.JobID).List(ctx)
+	if err != nil {
+		state = nil
+	} else if state == nil {
+		state = map[string]string{}
+	}
+
 	outcome := agent.Run(ctx, agent.Config{
 		Provider: s.provider,
 		Model:    s.model.Name,
@@ -394,6 +402,7 @@ func (r *Runner) runAgent(ctx context.Context, s *session, resume string) Final 
 		Instructions: s.run.Instructions,
 		Resume:       resume,
 		Deadline:     s.deadline,
+		State:        state,
 	}.UserMessage()})
 
 	final := Final{

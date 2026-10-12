@@ -897,3 +897,39 @@ func TestShadowRunsOnlyWhenTheyCantRepeatAnything(t *testing.T) {
 		})
 	}
 }
+
+// fakeStates serves one fixed state for every job
+type fakeStates map[string]string
+
+func (f fakeStates) ForJob(string) runner.JobState { return fakeState(f) }
+
+type fakeState map[string]string
+
+func (f fakeState) Get(_ context.Context, key string) (string, bool, error) {
+	v, ok := f[key]
+	return v, ok, nil
+}
+func (f fakeState) Set(context.Context, string, string) error { return nil }
+func (f fakeState) List(context.Context) (map[string]string, error) {
+	return f, nil
+}
+
+func TestReflectionSeesTheJobState(t *testing.T) {
+	// Values are redacted before they are cut short, and the keys reach the prompt sorted
+	m := &Module{deps: Dependencies{State: fakeStates{
+		"seen_ids":  `["a", "b"]`,
+		"api_reply": "token=s3cret " + strings.Repeat("x", 300),
+	}}}
+	state := m.statePreview(context.Background(), "job", newRedactor(map[string]string{"TOKEN": "s3cret"}))
+	assert.Equal(t, `["a", "b"]`, state["seen_ids"])
+	assert.NotContains(t, state["api_reply"], "s3cret")
+	assert.Contains(t, state["api_reply"], "… (")
+
+	msg := input{State: state}.userMessage()
+	assert.Contains(t, msg, "\n## Job state\n- api_reply: ")
+	assert.Contains(t, msg, "\n- seen_ids: [\"a\", \"b\"]\n")
+
+	// A job without state, or a reflection without a state reader, leaves the section out
+	assert.NotContains(t, input{}.userMessage(), "## Job state")
+	assert.Nil(t, (&Module{}).statePreview(context.Background(), "job", newRedactor(nil)))
+}

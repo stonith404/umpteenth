@@ -80,6 +80,8 @@ type Dependencies struct {
 	// Images is nil when the sandbox adapter cannot build images, and reflection then never changes the Dockerfile
 	Images   ImageVerifier
 	Demotion DemotionChecker
+	// State reads the job's state, which reflection shows so scripts keep the keys runs use, and is nil in tests that don't need it
+	State runner.StateStores
 	// JobEditor serves the suggestion routes, which tests that only reflect leave out
 	JobEditor JobEditor
 	// MaintenanceDisabled skips the reconciler, like Pocket ID does in test mode

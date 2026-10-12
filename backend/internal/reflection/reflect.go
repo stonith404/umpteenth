@@ -343,6 +343,7 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 		},
 	}
 	in.Candidates = m.candidates(ctx, run.ID, redact)
+	in.State = m.statePreview(ctx, run.JobID, redact)
 
 	// Earlier runs show the trend
 	previous, err := m.queries.RecentRuns(ctx, reflectiondb.RecentRunsParams{WorkspaceID: run.WorkspaceID, JobID: run.JobID, Number: run.Number, MaxRuns: maxPreviousRuns})
@@ -430,4 +431,35 @@ func skillNames(skills []runner.Skill) []string {
 		names[i] = s.Name
 	}
 	return names
+}
+
+// Bounds of the state reflection sees, which only needs the keys and the shape of their values
+const (
+	maxStateKeysShown  = 40
+	maxStatePreviewLen = 200
+)
+
+// statePreview reads the job's state for reflection, redacted and cut short, or nothing when it can't be read
+func (m *Module) statePreview(ctx context.Context, jobID string, redact func(string) string) map[string]string {
+	if m.deps.State == nil {
+		return nil
+	}
+	state, err := m.deps.State.ForJob(jobID).List(ctx)
+	if err != nil {
+		return nil
+	}
+	out := map[string]string{}
+	for _, k := range slices.Sorted(maps.Keys(state)) {
+		if len(out) == maxStateKeysShown {
+			break
+		}
+
+		// Values are folded onto one line and redacted before the cut, so a secret in a value is never left half visible
+		value := strings.Join(strings.Fields(redact(state[k])), " ")
+		if r := []rune(value); len(r) > maxStatePreviewLen {
+			value = fmt.Sprintf("%s… (%d bytes)", string(r[:maxStatePreviewLen]), len(state[k]))
+		}
+		out[k] = value
+	}
+	return out
 }

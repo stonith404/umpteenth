@@ -59,8 +59,8 @@ A job without a schedule has no time zone of its own, so write the zone into the
 - Name the variable that holds a credential, as in "authenticate with `$GITHUB_TOKEN`".
   The agent's brief doesn't name the secrets you mapped in the job's **Secrets** card ([Sandboxes](../sandboxes/#secrets)).
 - Ask for the outputs you want to track, with a type: "output `top_score` (integer)".
-- For a run that builds on the last one, ask for memory in words: "remember the last status in state".
-  Every job has its own state, with no storage to set up.
+- Leave memory to the job.
+  Runs keep what the next run needs, such as the last status, in the [job state](../jobs/#job-state) without you asking for it.
 
 ## Before and after
 
@@ -72,7 +72,6 @@ From that line, the compile step has to guess the URL, the schedule, what counts
 
 ```txt
 Every 15 minutes, check that https://acme.example.com responds with HTTP 200 within 2 seconds.
-Remember the last status in state.
 When the status changes, post one message to #ops in Slack with the old and the new status, otherwise post nothing.
 Output up (boolean) and response_ms (integer).
 ```

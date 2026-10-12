@@ -72,7 +72,7 @@ Rules:
 - skills lists the configured skills that fit the job, by their exact name.
 - secrets lists the credentials the job's own commands read from environment variables, named as the tool expects them, with the configured secret that holds each one, or empty when none does. MCP servers keep their own credentials.
 - network is "none" only when the job clearly needs no internet access.
-- Jobs have built-in key-value state between runs, so remembering a value needs no external storage.
+- Jobs have built-in key-value state between runs, which runs keep on their own, such as the last item handled, so no field or question asks how to remember something.
 - The default sandbox image has bash, coreutils, curl, git, jq, ripgrep, python3 with pip and requests, uv, node and npm. Propose a dockerfile only when the job needs more, starting with FROM %s.
 - sideEffects lists each change the job makes outside the sandbox with its condition, such as "Posts one message to #eng when there are stale pull requests". Effects only, no advice.
 - questions are rare. Ask only when the job can't run correctly without the answer and no sensible default exists, such as which repository or channel it works on, or when a wrong guess could cause a harmful side effect. Never ask what the agent can find out while running. Ask at most three.

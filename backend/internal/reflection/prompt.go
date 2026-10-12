@@ -3,6 +3,8 @@ package reflection
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -25,9 +27,10 @@ const systemPrompt = `You are the reflection step of Umpteenth. After a run of a
     # ump:side-effects none   (or external, when it changes anything outside the sandbox)
 - dockerfile: the job's environment, built once and cached.
 - setup: a cheap shell step before every run, such as creating a directory.
-- main: once a job graduates, this script does the whole job without the agent, as /ump/main in /workspace. It reads the job's inputs from /ump/input.json, can call toolkit scripts, MCP tools with "ump mcp call <server> <tool> '<json>'" and the utility model with "ump llm" for judgment steps such as writing or classifying, and reports with "ump output set <name> '<json value>'", "ump summary" and "ump step <name>". It does every step the instruction describes, including conditional ones no run has reached yet, and exits non-zero only on a real error.
+- main: once a job graduates, this script does the whole job without the agent, as /ump/main in /workspace. It reads the job's inputs from /ump/input.json, can call toolkit scripts, MCP tools with "ump mcp call <server> <tool> '<json>'" and the utility model with "ump llm" for judgment steps such as writing or classifying, keeps data for later runs with "ump state get <key>" (exit code 1 when the key is missing, as on a first run) and "ump state set <key> <value>", and reports with "ump output set <name> '<json value>'", "ump summary" and "ump step <name>". It does every step the instruction describes, including conditional ones no run has reached yet, and exits non-zero only on a real error.
 - verify: {"checks": [...], "llm": false, "varies": []}. Every scripted run must exit 0 and report the job's outputs, and checks add conditions in this syntax: ` + playbook.CheckSyntax + `. "stdout contains" only sees what main prints. Set llm to true only when success can't be checked mechanically, since every judged run costs a model call.
 - Shadow run: for a job without side effects, a new or changed main runs once with this run's input before it applies, and its outputs must equal this run's, except those verify lists under varies because they legitimately change between runs, such as a timestamp.
+- Job state: key-value data runs keep for later runs, such as the newest item handled, which the agent writes with state_set. It isn't part of the playbook, and you can't change it.
 
 ## How to decide
 - Promote a script that does as much of the run's deterministic work as possible in one call, ideally a candidate the run tested, otherwise written from the transcript's commands. Always give the complete script with its header.
@@ -35,6 +38,8 @@ const systemPrompt = `You are the reflection step of Umpteenth. After a run of a
 - Keep main short by calling tested toolkit scripts, since a main with side effects isn't tried before its next run. When you repair main, change only what failed, following what the agent that took over did.
 - Only the instruction and success criteria say what the job must do. Learnings and scripts never add a requirement, gate or policy, and never narrow, widen or override the instruction.
 - Scripts must work for every future run: never write data this run handled into them, such as keys, IDs or the texts the agent wrote, but read it at run time and hand judgment steps to "ump llm". Values the instruction names are fine.
+- Data a later run needs, such as the newest item handled or the IDs already reported, belongs in job state, never in a learning or script. When runs keep a key in state, main and toolkit scripts read and update the same key in the same format, after the work it covers is done, and a learning says what the key holds.
+- When this run redid work or repeated a report an earlier run already made, and nothing outside the job records what was done, add a learning that names the state key that would have prevented it.
 - Scripts never contain secrets; they read them from the job's environment variables.
 - Learnings hold no run-specific values and no secrets. Prefer update_learning over add_learning, retire learnings that are wrong or obsolete, and don't repeat what a toolkit script handles.
 - Software belongs in the Dockerfile, never in toolkit scripts, setup or main, which Umpteenth rejects when they install software or fetch packages on the fly. Move what the run or playbook installs into the Dockerfile with set_dockerfile, FROM the job's base image and keeping its existing steps, and add a learning about what the environment now provides. The default image is Debian with python3, pip, requests, uv, node and npm: use "RUN uv pip install --system <packages>", "RUN npm install -g <cli>" for CLIs, "RUN npm install --prefix / --no-save <library>" for libraries scripts import, and apt-get for system packages. A Dockerfile that doesn't build is rejected. A project's own dependencies, such as npm ci in a cloned repository, stay in the run.
@@ -123,7 +128,9 @@ type input struct {
 	// InstructionChanged is set when the owner changed the instruction since a reflection last saw it, and the playbook has a main script
 	InstructionChanged bool
 	// Skills are the names of the job's agent skills, whose folders are in every sandbox
-	Skills     []string
+	Skills []string
+	// State is the job's state after the run, with long values cut short
+	State      map[string]string
 	Playbook   playbook.Content
 	Run        runFacts
 	Transcript transcript
@@ -188,6 +195,14 @@ func (in input) userMessage() string {
 	if len(in.Skills) > 0 {
 		// Skills are in every sandbox, so scripts can call them where they are instead of copying them into the playbook
 		fmt.Fprintf(&b, "Skills in /ump/skills, which main and toolkit scripts may call by path but should never copy: %s\n", strings.Join(in.Skills, ", "))
+	}
+
+	// The state's keys and the shape of their values let scripts and learnings use what runs already keep
+	if len(in.State) > 0 {
+		section("Job state")
+		for _, k := range slices.Sorted(maps.Keys(in.State)) {
+			fmt.Fprintf(&b, "- %s: %s\n", k, in.State[k])
+		}
 	}
 
 	section("The current playbook")
