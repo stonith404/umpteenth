@@ -128,7 +128,7 @@ func TestScriptedRunFallsBackToTheAgentInTheSameSandbox(t *testing.T) {
 	assert.Contains(t, brief, "Do not repeat them")
 	assert.Contains(t, brief, "slack.post_message")
 	assert.Contains(t, brief, "Time left: 14 minutes")
-	assert.Contains(t, brief, "The job's instruction decides what is left to do")
+	assert.Contains(t, brief, "as the job's instruction says")
 }
 
 func TestScriptedRunIsJudgedWhenVerifyAsksForIt(t *testing.T) {

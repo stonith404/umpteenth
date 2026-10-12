@@ -50,12 +50,12 @@ func TestSystemBlocksStateTheLimitsInTheJobBlock(t *testing.T) {
 	// The limits never reach the static block, so editing them leaves the shared prefix cached
 	require.Equal(t, baseInstructions, blocks[0].Text)
 	require.True(t, blocks[1].CacheBreakpoint)
-	require.Contains(t, blocks[1].Text, "\n## Limits\n- Time: 1 hour 30 minutes for the whole run.")
-	require.Contains(t, blocks[1].Text, "- Turns: 60 model calls, the one that calls finish included.")
+	require.Contains(t, blocks[1].Text, "\n## Limits\n- Time: 1 hour 30 minutes for the whole run,")
+	require.Contains(t, blocks[1].Text, "- Turns: 60 model calls.")
 	require.Contains(t, blocks[1].Text, "- Model cost: $2.00")
-	require.Contains(t, blocks[1].Text, "- CPUs: 0.5,")
-	require.Contains(t, blocks[1].Text, "- Memory: 1024 MB for all processes")
-	require.Contains(t, blocks[1].Text, "- User: not root, so you can't install system packages.")
+	require.Contains(t, blocks[1].Text, "- CPUs: 0.5.")
+	require.Contains(t, blocks[1].Text, "- Memory: 1024 MB for the whole sandbox")
+	require.Contains(t, blocks[1].Text, "- You don't run as root, so you can't install system packages.")
 
 	// A cost limit of zero is off, so the prompt doesn't mention it
 	limits.MaxCost = 0
@@ -65,8 +65,8 @@ func TestSystemBlocksStateTheLimitsInTheJobBlock(t *testing.T) {
 	// A job that runs as root learns that it may install system packages, while the static block stays the same
 	blocks = SystemBlocks(PromptInput{Instruction: "Do it", Limits: limits, RunAsRoot: true})
 	require.Equal(t, baseInstructions, blocks[0].Text)
-	require.Contains(t, blocks[1].Text, "- User: root, so you can install system packages.")
-	require.NotContains(t, blocks[1].Text, "not root")
+	require.Contains(t, blocks[1].Text, "- You run as root, so you can install system packages.")
+	require.NotContains(t, blocks[1].Text, "don't run as root")
 }
 
 func TestBaseInstructionsEndWithOwnerNotes(t *testing.T) {
@@ -77,7 +77,7 @@ func TestBaseInstructionsEndWithOwnerNotes(t *testing.T) {
 
 func TestSuccessCriteriaDescribeTheEndState(t *testing.T) {
 	blocks := SystemBlocks(PromptInput{Instruction: "Do it", SuccessCriteria: []string{"The digest was posted"}})
-	require.Contains(t, blocks[1].Text, "\n## Success criteria\nThey describe the end state a successful run leaves behind, and add no steps to the job.\n- The digest was posted\n")
+	require.Contains(t, blocks[1].Text, "\n## Success criteria\nWhat a successful run leaves behind. They add no steps.\n- The digest was posted\n")
 }
 
 func TestFormatDuration(t *testing.T) {

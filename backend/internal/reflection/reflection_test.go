@@ -99,7 +99,7 @@ func TestTranscriptCountsRuntimeDownloadsAsInstalls(t *testing.T) {
 }
 
 func TestEnvironmentSectionMovesInstallsRightAway(t *testing.T) {
-	const moveNow = "Move the software this run installed into the Dockerfile with set_dockerfile now"
+	const moveNow = "Move the software this run installed into the Dockerfile with set_dockerfile"
 
 	// One run that installed something by hand is enough, since the next run would repeat it
 	timings := Timings{InstallMs: 2_000, Installs: []string{"pip install --user requests"}}
@@ -124,7 +124,7 @@ func TestEnvironmentSectionMovesInstallsRightAway(t *testing.T) {
 
 func TestRepairAndGraduationAskForRunTimeData(t *testing.T) {
 	assert.Contains(t, input{Graduation: graduation{FellBack: "a check failed"}}.userMessage(), "instead of adding this run's data to a script")
-	assert.Contains(t, input{Graduation: graduation{Eligible: true}}.userMessage(), "works on whatever data a run finds")
+	assert.Contains(t, input{Graduation: graduation{Eligible: true}}.userMessage(), "Main must work on whatever items a run finds")
 
 	// A candidate that installs software is flagged before reflection promotes it as it is
 	msg := input{ImageBuilds: true, Candidates: []candidate{{Name: "fetch.py", Content: "import subprocess\nsubprocess.run('pip install requests', shell=True)"}}}.userMessage()
@@ -132,7 +132,7 @@ func TestRepairAndGraduationAskForRunTimeData(t *testing.T) {
 
 	// The agent's own notes are know-how, never requirements
 	notes := input{Transcript: transcript{Notes: []string{"Run the type check before committing"}}}.userMessage()
-	assert.Contains(t, notes, "never turn one into a requirement of the job")
+	assert.Contains(t, notes, "keep only what is know-how")
 
 	// Additional instructions explain what one run did differently, and are marked as applying to it alone
 	instructed := input{Run: runFacts{Instructions: "Only handle Renovate PRs this time"}}.userMessage()
@@ -590,7 +590,7 @@ func TestGraduationPromptAsksForEveryStep(t *testing.T) {
 	assert.Contains(t, msg, `outputs: {"count":1}`)
 	assert.Contains(t, msg, "toolkit__fetch → toolkit__send")
 	assert.Contains(t, msg, "Runs #6 in between found nothing to do")
-	assert.Contains(t, msg, "only under a condition")
+	assert.Contains(t, msg, "including conditional ones none of these runs reached")
 	assert.Contains(t, msg, "Not graduating:")
 
 	// Without quiet runs in the streak, the prompt doesn't mention them

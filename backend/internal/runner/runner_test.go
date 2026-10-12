@@ -223,10 +223,10 @@ func TestTheAgentIsToldItsLimits(t *testing.T) {
 	for _, b := range h.provider.Requests()[0].System {
 		system.WriteString(b.Text)
 	}
-	require.Contains(t, system.String(), "- Time: 15 minutes for the whole run.")
+	require.Contains(t, system.String(), "- Time: 15 minutes for the whole run,")
 	require.Contains(t, system.String(), "- Turns: 60 model calls")
 	require.Contains(t, system.String(), "- Memory: 2048 MB")
-	require.Contains(t, system.String(), "- User: not root")
+	require.Contains(t, system.String(), "- You don't run as root")
 	require.NotContains(t, system.String(), "Model cost")
 
 	// The first message says how much of the run's time is left

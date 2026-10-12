@@ -275,8 +275,8 @@ func fallbackBrief(s *session, reason string, exitCode int, outputs map[string]j
 	} else {
 		b.WriteString("\nNo MCP calls with side effects went through ump.\n")
 	}
-	b.WriteString("The script may also have changed things directly, through toolkit scripts or its own network requests, so check whether a step it reached already took effect before doing it again.\n")
-	b.WriteString("\nFinish the job from where the script stopped and call finish. The job's instruction decides what is left to do, not the script: if the script stopped on a check or condition the job doesn't ask for, carry on without it and report it to the owner. Don't change the script, it is repaired after the run.")
+	b.WriteString("The script may also have changed things through toolkit scripts or its own requests, so check whether a step already took effect before doing it again.\n")
+	b.WriteString("\nFinish the job from where the script stopped, as the job's instruction says, and call finish. Don't change the script, it is repaired after the run.")
 	return b.String()
 }
 
