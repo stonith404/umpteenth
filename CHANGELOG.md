@@ -1,3 +1,40 @@
+## v0.3.0
+
+### Features
+
+- ship python requests in the sandbox image ([a271511](https://github.com/stonith404/umpteenth/commit/a271511a52b02109c7ee96d5302f3d4dd1cbc4b1) by @stonith404)
+- tell the agent its run limits ([872c839](https://github.com/stonith404/umpteenth/commit/872c839517274b8e57d5ec2e7b293e8ed1e6a9d7) by @stonith404)
+- let reflection suggest job changes to the owner ([41b5cbb](https://github.com/stonith404/umpteenth/commit/41b5cbbf2e5b9d7e38261f1b4df5220aad9b8f79) by @stonith404)
+
+### Bug Fixes
+
+- add network instructions to system prompt ([bb007d4](https://github.com/stonith404/umpteenth/commit/bb007d48ad201bde4a7291f273a274b74d73d219) by @stonith404)
+- detect Podman containers when resolving the sandbox broker ([#12](https://github.com/stonith404/umpteenth/pull/12) by @odiroot)
+- compile success criteria as the end state the run leaves ([c60a037](https://github.com/stonith404/umpteenth/commit/c60a03733d16173a38079bf73061797a06b86058) by @stonith404)
+- derive the schedule text from cron and timezone ([73ab059](https://github.com/stonith404/umpteenth/commit/73ab0590555b30cef11e044d9d83330c7c43b082) by @stonith404)
+- keep the agent to what the job asks and report conflicts to the owner ([a888cdb](https://github.com/stonith404/umpteenth/commit/a888cdb71e01d572e65634434848aa7ae2fe7272) by @stonith404)
+- keep requirements and run data out of reflection's learnings and scripts ([7118402](https://github.com/stonith404/umpteenth/commit/7118402e7989f8d9e4b2289025d324b577a2105e) by @stonith404)
+- move software installs into the job's dockerfile ([0cb36b7](https://github.com/stonith404/umpteenth/commit/0cb36b7d872323d368de683a704e42ca0c8b16ba) by @stonith404)
+- graduate jobs only on runs that did the job's work ([0b2f15d](https://github.com/stonith404/umpteenth/commit/0b2f15d9fe504edd668ca216ba63309757420e1e) by @stonith404)
+
+### Performance Improvements
+
+- connect the MCP servers of scripted runs on first use ([066362e](https://github.com/stonith404/umpteenth/commit/066362ee3cd9dc5189c271cb00023dbf5d4b1a11) by @stonith404)
+
+### Documentation
+
+- document owner suggestions, graduation on working runs and the other job quality changes ([31435fb](https://github.com/stonith404/umpteenth/commit/31435fbd4f5fd80d9c5d0d437a99b4a9e7b1cffc) by @stonith404)
+
+### Other
+
+- hold openai-go at v3.66.0 in dependabot ([1f0e9d9](https://github.com/stonith404/umpteenth/commit/1f0e9d956a2f4a677c02a46340a4b823a655803c) by @stonith404)
+- shorten the llm prompts ([4697819](https://github.com/stonith404/umpteenth/commit/4697819de31933d8567d6c7c18bbbcaaeace9671) by @stonith404)
+
+### Dependencies
+
+- **deps:** bump taiki-e/install-action ([#14](https://github.com/stonith404/umpteenth/pull/14) by @dependabot[bot])
+
+**Full Changelog**: https://github.com/stonith404/umpteenth/compare/v0.2.0...v0.3.0
 ## v0.2.0
 
 ### Features
