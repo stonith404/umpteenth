@@ -157,6 +157,73 @@ func TestConfiguredScopesAreNotRetried(t *testing.T) {
 	require.Contains(t, done.Location, "invalid_scope")
 }
 
+func TestRejectedResourceIsNotRetried(t *testing.T) {
+	as := mcptest.NewAuthServer(t)
+	as.Resource = "api://other"
+	srv := mcptest.NewProtectedServer(t, as)
+	m, ctx, _ := newTestModule(t)
+	server := addServer(t, m, ctx, serverBody{Name: "protected", Transport: "http", URL: srv.URL + "/mcp"})
+
+	// A server must not be able to make the login drop the resource, so the error ends the login and points at the setting
+	started, err := m.login(ctx, &idInput{ID: server.ID})
+	require.NoError(t, err)
+	done, err := m.callback(ctx, callbackFrom(server.ID, mcptest.FollowAuthorization(t, started.Body.AuthorizationURL)))
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(done.Location, "/mcp?"), done.Location)
+	message := mustParse(t, done.Location).Query().Get("oauthError")
+	require.Contains(t, message, "invalid_target")
+	require.Contains(t, message, "turn off sending the resource parameter")
+}
+
+func TestOmittedResourceStaysOutOfTheWholeLogin(t *testing.T) {
+	as := mcptest.NewAuthServer(t)
+	as.Resource = "api://other"
+	as.AccessTTL = 1
+	srv := mcptest.NewProtectedServer(t, as)
+	m, ctx, _ := newTestModule(t)
+	server := addServer(t, m, ctx, serverBody{Name: "protected", Transport: "http", URL: srv.URL + "/mcp", OAuth: &oauthConfig{OmitResource: true}})
+
+	// The authorization leaves the resource out and the login goes through
+	started, err := m.login(ctx, &idInput{ID: server.ID})
+	require.NoError(t, err)
+	require.False(t, mustParse(t, started.Body.AuthorizationURL).Query().Has("resource"))
+	done, err := m.callback(ctx, callbackFrom(server.ID, mcptest.FollowAuthorization(t, started.Body.AuthorizationURL)))
+	require.NoError(t, err)
+	require.Equal(t, "/mcp?oauth=success&server="+server.ID, done.Location)
+
+	// The access token is already due, so connecting refreshes it, and neither the code exchange nor a refresh sends the resource
+	tested, err := m.test(ctx, &idInput{ID: server.ID})
+	require.NoError(t, err)
+	require.True(t, tested.Body.OK, tested.Body.Error)
+	require.NotZero(t, as.Refreshes())
+	for _, sent := range as.TokenResources() {
+		require.Empty(t, sent)
+	}
+}
+
+func TestChangingTheResourceSettingDropsTheLogin(t *testing.T) {
+	as := mcptest.NewAuthServer(t)
+	srv := mcptest.NewProtectedServer(t, as)
+	m, ctx, _ := newTestModule(t)
+	server := addServer(t, m, ctx, serverBody{Name: "protected", Transport: "http", URL: srv.URL + "/mcp"})
+	started, err := m.login(ctx, &idInput{ID: server.ID})
+	require.NoError(t, err)
+	_, err = m.callback(ctx, callbackFrom(server.ID, mcptest.FollowAuthorization(t, started.Body.AuthorizationURL)))
+	require.NoError(t, err)
+
+	// The login was made with the discovered resource, so leaving it out needs a new one
+	updated, err := m.update(ctx, &updateInput{ID: server.ID, Body: serverBody{Name: "protected", Transport: "http", URL: srv.URL + "/mcp", OAuth: &oauthConfig{OmitResource: true}}})
+	require.NoError(t, err)
+	require.Equal(t, authNotLoggedIn, updated.Body.Auth.Status)
+}
+
+func mustParse(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	u, err := url.Parse(raw)
+	require.NoError(t, err)
+	return u
+}
+
 func TestChangingTheURLDropsTheLogin(t *testing.T) {
 	as := mcptest.NewAuthServer(t)
 	srv := mcptest.NewProtectedServer(t, as)

@@ -48,6 +48,8 @@ type oauthConfig struct {
 	ClientID     string   `json:"clientId,omitempty" maxLength:"500" doc:"A client registered with the authorization server beforehand, for servers without dynamic client registration"`
 	ClientSecret string   `json:"clientSecret,omitempty" maxLength:"2000" doc:"The client's secret, may reference a secret as {{secret:NAME}}"`
 	Scopes       []string `json:"scopes,omitempty" maxItems:"50" doc:"Scopes to request instead of the ones the server advertises"`
+	// OmitResource turns off a check that stops a malicious server from obtaining tokens for other APIs, so it's never changed automatically
+	OmitResource bool `json:"omitResource,omitempty" doc:"Leave the RFC 8707 resource parameter out of the login, for authorization servers like Entra ID that reject the one the server advertises"`
 }
 
 // authDto is a server's authentication status
@@ -140,6 +142,7 @@ func (m *Module) beginLogin(ctx context.Context, workspaceID, userID string, s m
 	authURL, login, err := m.manager.BeginOAuthLogin(ctx, mcp.OAuthLoginRequest{
 		ServerURL: deref(s.Url), Headers: headers, RedirectURL: m.callbackURL(s.ID),
 		Client: mcp.OAuthClient{ID: oc.ClientID, Secret: secret}, Scopes: oc.Scopes, WithoutScopes: withoutScopes,
+		WithoutResource: oc.OmitResource,
 	})
 	if errors.Is(err, mcp.ErrOAuthUnsupported) {
 		_ = m.queries.SetOAuthSupported(ctx, mcpserversdb.SetOAuthSupportedParams{WorkspaceID: workspaceID, ID: s.ID, OauthSupported: new(false)})
@@ -240,14 +243,18 @@ func (m *Module) callback(ctx context.Context, in *callbackInput) (*redirectOutp
 		if in.ErrorDescription != "" {
 			message += ": " + in.ErrorDescription
 		}
-		return back("The authorization server refused the login (" + message + ")")
+		return back("The authorization server refused the login (" + message + ")" + resourceHint(in.Error))
 	}
 
 	// Exchange the code, then store the login encrypted, as long as the server kept the URL and client it was started for
 	creds, err := m.manager.FinishOAuthLogin(ctx, pending.OAuthLogin, in.State, in.Code, in.Iss)
 	if err != nil {
 		slog.InfoContext(ctx, "MCP OAuth login failed", slog.String("server", in.ID), slog.Any("error", err))
-		return back("Failed to finish the login: " + err.Error())
+		hint := ""
+		if tokenErr, ok := errors.AsType[*mcp.TokenError](err); ok {
+			hint = resourceHint(tokenErr.Code)
+		}
+		return back("Failed to finish the login: " + err.Error() + hint)
 	}
 	saved, err := m.saveLogin(ctx, p.WorkspaceID, in.ID, pending, creds)
 	if err != nil {
@@ -257,6 +264,15 @@ func (m *Module) callback(ctx context.Context, in *callbackInput) (*redirectOutp
 		return back("The server's URL or OAuth client changed during the login, start it again")
 	}
 	return back("")
+}
+
+// resourceHint points at the resource setting when the authorization server rejected the resource parameter
+// The login is never retried without it, since a server could otherwise trigger that itself to obtain tokens for another API
+func resourceHint(oauthErr string) string {
+	if oauthErr != "invalid_target" {
+		return ""
+	}
+	return ". If you trust this server, turn off sending the resource parameter in its OAuth settings."
 }
 
 // saveLogin stores a new login, replacing the previous one, and reports false when the server no longer has the settings the login was started for

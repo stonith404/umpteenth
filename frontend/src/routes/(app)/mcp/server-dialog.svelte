@@ -10,8 +10,10 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Alert from '#lib/components/ui/alert/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 	import * as Tabs from '#lib/components/ui/tabs/index.js';
 	import McpService from '#lib/services/mcp-service.js';
 	import SecretService from '#lib/services/secret-service.js';
@@ -20,6 +22,7 @@
 	import { cn } from '#lib/utils/style.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import { untrack } from 'svelte';
 
 	let {
@@ -50,6 +53,7 @@
 	let oauthClientId = $state('');
 	let oauthClientSecret = $state('');
 	let oauthScopes = $state<string[]>([]);
+	let oauthSendResource = $state(true);
 	let oauthOpen = $state(false);
 	// The table's switch turns servers on and off, so the dialog only carries the state through a save
 	let enabled = $state(true);
@@ -72,7 +76,8 @@
 			oauthClientId = server?.oauth.clientId ?? '';
 			oauthClientSecret = server?.oauth.clientSecret ?? '';
 			oauthScopes = [...(server?.oauth.scopes ?? [])];
-			oauthOpen = !!oauthClientId || oauthScopes.length > 0;
+			oauthSendResource = !server?.oauth.omitResource;
+			oauthOpen = !!oauthClientId || oauthScopes.length > 0 || !oauthSendResource;
 			enabled = server?.enabled ?? true;
 			errors = {};
 			void loadSecrets();
@@ -128,7 +133,8 @@
 			oauth: {
 				clientId: oauthClientId.trim() || undefined,
 				clientSecret: oauthClientSecret.trim() || undefined,
-				scopes: oauthScopes.map((s) => s.trim()).filter(Boolean)
+				scopes: oauthScopes.map((s) => s.trim()).filter(Boolean),
+				omitResource: !oauthSendResource || undefined
 			}
 		};
 	}
@@ -370,6 +376,27 @@
 										<Field.Error>{errors['oauth.scopes']}</Field.Error>
 									{/if}
 								</Field.Set>
+								<Field.Field orientation="horizontal">
+									<Switch id="mcp-oauth-send-resource" bind:checked={oauthSendResource} />
+									<Field.Content>
+										<Field.Label for="mcp-oauth-send-resource" variant="choice">
+											Send the resource parameter
+										</Field.Label>
+										<Field.Description>
+											Turn this off only if the login fails with invalid_target, as Entra ID's does
+											for a resource that differs from the scopes.
+										</Field.Description>
+									</Field.Content>
+								</Field.Field>
+								{#if !oauthSendResource}
+									<Alert.Root variant="warning">
+										<TriangleAlertIcon />
+										<Alert.Description>
+											Only turn this off for a server you trust. The provider checks the resource to
+											stop a malicious server from obtaining tokens for other APIs.
+										</Alert.Description>
+									</Alert.Root>
+								{/if}
 							</Field.Group>
 						</Collapsible.Content>
 					</Collapsible.Root>

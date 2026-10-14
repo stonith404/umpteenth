@@ -119,6 +119,20 @@ For those, register an OAuth app with the provider yourself:
 
 Fill in **Scopes** there to request other scopes than the ones the server asks for.
 
+### Resource parameter
+
+Entra ID refuses the login to some MCP servers with `invalid_target: AADSTS9010010`, because the resource the server advertises differs from the resource its scopes belong to.
+The Azure DevOps MCP server at `https://mcp.dev.azure.com/<organization>` is one of them, and it needs [your own OAuth client](#your-own-oauth-client) as well, since Entra ID doesn't register clients on request.
+
+For such a server, expand **OAuth client** and turn off **Send the resource parameter**.
+Saving the change ends the server's login, so click **Log in** afterwards.
+
+:::caution
+Turn off the resource parameter only for a server you trust.
+The provider checks it to stop a malicious MCP server from requesting tokens for another API, such as Microsoft Graph, and receiving them once you log in.
+Umpteenth never leaves it out on its own.
+:::
+
 ## Attach servers to a job
 
 On the **New job** review screen, the **MCP servers** card lists the services the compile step found that match one of your servers.

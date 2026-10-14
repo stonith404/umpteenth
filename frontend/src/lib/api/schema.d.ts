@@ -2344,6 +2344,8 @@ export interface components {
 			clientId?: string;
 			/** @description The client's secret, may reference a secret as {{secret:NAME}} */
 			clientSecret?: string;
+			/** @description Leave the RFC 8707 resource parameter out of the login, for authorization servers like Entra ID that reject the one the server advertises */
+			omitResource?: boolean;
 			/** @description Scopes to request instead of the ones the server advertises */
 			scopes?: string[] | null;
 		};

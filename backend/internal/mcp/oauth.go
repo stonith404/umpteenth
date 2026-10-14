@@ -87,6 +87,9 @@ type OAuthLoginRequest struct {
 	Scopes []string
 	// WithoutScopes requests no scopes, which is the second attempt after a provider rejected the discovered ones
 	WithoutScopes bool
+	// WithoutResource leaves the RFC 8707 resource parameter out, for authorization servers like Entra ID that reject one that differs from the scopes' resource
+	// It turns off the check that stops a server from asking for tokens of another API, so only the admin may choose it for a server they trust
+	WithoutResource bool
 }
 
 // OAuthLogin is a started login, kept until the browser comes back to the redirect URL
@@ -385,6 +388,12 @@ func (m *Manager) BeginOAuthLogin(ctx context.Context, req OAuthLoginRequest) (s
 		scopes = append(slices.Clone(scopes), "offline_access")
 	}
 
+	// The login keeps the resource it sends, so the code exchange and every refresh send the same
+	resource := meta.Resource
+	if req.WithoutResource {
+		resource = ""
+	}
+
 	// A configured client is used as is, otherwise one is registered dynamically (RFC 7591)
 	client, err := m.resolveClient(ctx, meta, req)
 	if err != nil {
@@ -395,12 +404,12 @@ func (m *Manager) BeginOAuthLogin(ctx context.Context, req OAuthLoginRequest) (s
 	login := OAuthLogin{
 		State: rand.Text(), Verifier: oauth2.GenerateVerifier(), RedirectURL: req.RedirectURL, Client: client,
 		TokenEndpoint: meta.TokenEndpoint, Issuer: meta.Issuer, IssRequired: meta.IssParameterSupported,
-		Resource: meta.Resource, ScopesDiscovered: discovered,
+		Resource: resource, ScopesDiscovered: discovered,
 	}
 	cfg := oauth2.Config{ClientID: client.ID, RedirectURL: req.RedirectURL, Scopes: scopes, Endpoint: oauth2.Endpoint{AuthURL: meta.AuthorizationEndpoint}}
 	opts := []oauth2.AuthCodeOption{oauth2.S256ChallengeOption(login.Verifier)}
-	if meta.Resource != "" {
-		opts = append(opts, oauth2.SetAuthURLParam("resource", meta.Resource))
+	if resource != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("resource", resource))
 	}
 	return cfg.AuthCodeURL(login.State, opts...), login, nil
 }

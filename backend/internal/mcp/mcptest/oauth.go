@@ -34,14 +34,17 @@ type AuthServer struct {
 	WithoutRegistration bool
 	// RejectScopes answers authorization requests that ask for scopes with invalid_scope
 	RejectScopes bool
-	clients      map[string]string
-	codes        map[string]url.Values
-	access       map[string]bool
-	refresh      map[string]bool
-	refreshes    int
-	issued       int
-	authorize    url.Values
-	apiKeys      []string
+	// Resource makes the server check the resource parameter like Entra ID, answering invalid_target to any other one and accepting none
+	Resource       string
+	tokenResources []string
+	clients        map[string]string
+	codes          map[string]url.Values
+	access         map[string]bool
+	refresh        map[string]bool
+	refreshes      int
+	issued         int
+	authorize      url.Values
+	apiKeys        []string
 }
 
 func NewAuthServer(t *testing.T) *AuthServer {
@@ -100,8 +103,15 @@ func (a *AuthServer) authorizeRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	back, _ := url.Parse(q.Get("redirect_uri"))
-	if a.RejectScopes && q.Get("scope") != "" {
-		back.RawQuery = url.Values{"error": {"invalid_scope"}, "state": {q.Get("state")}, "iss": {a.URL}}.Encode()
+	rejected := ""
+	switch {
+	case a.RejectScopes && q.Get("scope") != "":
+		rejected = "invalid_scope"
+	case !a.resourceAccepted(q):
+		rejected = "invalid_target"
+	}
+	if rejected != "" {
+		back.RawQuery = url.Values{"error": {rejected}, "state": {q.Get("state")}, "iss": {a.URL}}.Encode()
 		http.Redirect(w, r, back.String(), http.StatusFound) // #nosec G710 -- like a real authorization server, the fake redirects to the client's registered redirect URI
 		return
 	}
@@ -118,6 +128,11 @@ func (a *AuthServer) token(w http.ResponseWriter, r *http.Request) {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.tokenResources = append(a.tokenResources, r.Form.Get("resource"))
+	if !a.resourceAccepted(r.Form) {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_target", "error_description": "the resource doesn't match the scopes"})
+		return
+	}
 	switch r.Form.Get("grant_type") {
 	case "authorization_code":
 		// The code must come with the PKCE verifier, redirect URI, resource and client it was issued for
@@ -150,6 +165,18 @@ func (a *AuthServer) token(w http.ResponseWriter, r *http.Request) {
 		body["expires_in"] = a.AccessTTL
 	}
 	WriteJSON(w, http.StatusOK, body)
+}
+
+// resourceAccepted reports whether a request's resource parameter passes the Resource check
+func (a *AuthServer) resourceAccepted(form url.Values) bool {
+	return a.Resource == "" || !form.Has("resource") || form.Get("resource") == a.Resource
+}
+
+// TokenResources returns the resource parameter of every token request, empty where it was left out
+func (a *AuthServer) TokenResources() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.tokenResources
 }
 
 // Revoke makes every access token invalid, as a server that rotated its keys would

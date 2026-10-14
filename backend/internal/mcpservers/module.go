@@ -345,12 +345,14 @@ func (m *Module) update(ctx context.Context, in *updateInput) (*idOutput, error)
 	headers, _ := json.Marshal(orEmpty(b.Headers))
 	oauth, _ := json.Marshal(orEmptyOAuth(b.OAuth)) // #nosec G117 -- the client secret is kept like header values, which should reference secrets as {{secret:NAME}}
 
-	// A login belongs to one server URL and client, so changing either needs a new login, like Codex keys its logins by URL
+	// A login belongs to one server URL, client and resource, so changing any of them needs a new login, like Codex keys its logins by URL
 	// The login is dropped in the same transaction as the change, so no connection ever sends its token to the new URL
 	var beforeOAuth oauthConfig
 	_ = json.Unmarshal([]byte(before.OauthConfig), &beforeOAuth)
 	urlChanged := before.Transport != b.Transport || deref(before.Url) != strings.TrimSpace(b.URL)
-	loginChanged := urlChanged || beforeOAuth.ClientID != orEmptyOAuth(b.OAuth).ClientID
+	afterOAuth := orEmptyOAuth(b.OAuth)
+	loginChanged := urlChanged || beforeOAuth.ClientID != afterOAuth.ClientID ||
+		beforeOAuth.OmitResource != afterOAuth.OmitResource
 	err = m.db.InTx(ctx, func(tx *database.Tx) error {
 		q := mcpserversdb.New(tx)
 		n, err := q.UpdateServer(ctx, mcpserversdb.UpdateServerParams{

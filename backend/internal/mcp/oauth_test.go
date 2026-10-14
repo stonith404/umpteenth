@@ -313,6 +313,20 @@ func TestLoginWithoutScopesRequestsNone(t *testing.T) {
 	require.False(t, pending.ScopesDiscovered)
 }
 
+func TestLoginWithoutResourceLeavesItOut(t *testing.T) {
+	as := mcptest.NewAuthServer(t)
+	as.Resource = "api://other"
+	srv := mcptest.NewProtectedServer(t, as)
+	m := NewManager(egress.New(true))
+
+	// Neither the authorization nor the code exchange carries the resource, and the login keeps it out of refreshes
+	creds := login(t, m, srv.URL+"/mcp", OAuthLoginRequest{WithoutResource: true})
+	require.False(t, as.LastAuthorize().Has("resource"))
+	require.Equal(t, "read offline_access", as.LastAuthorize().Get("scope"))
+	require.Equal(t, []string{""}, as.TokenResources())
+	require.Empty(t, creds.Resource)
+}
+
 func TestFinishRejectsAMismatchedResponse(t *testing.T) {
 	m := NewManager(egress.New(true))
 	pending := OAuthLogin{State: "state", Issuer: "https://as.example.com", IssRequired: true}
