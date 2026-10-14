@@ -31,6 +31,9 @@ spec:
       annotations:
         # Pods restart when the config changes
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.caCertificates.pem }}
+        checksum/ca-certificates: {{ . | sha256sum }}
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -168,6 +171,13 @@ spec:
             {{- end }}
             {{- end }}
             {{- end }}
+            {{- if include "umpteenth.caConfigMap" . }}
+            # Umpteenth reads the extra CA certificates next to its image's bundle, and hands them to sandboxes and build pods
+            - name: SSL_CERT_DIR
+              value: /etc/ssl/certs:/etc/umpteenth/ca
+            - name: SANDBOX_CA_CERTIFICATES
+              value: /etc/umpteenth/ca/ca.crt
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -209,6 +219,14 @@ spec:
               mountPath: /app/data
             - name: tmp
               mountPath: /tmp
+            {{- if include "umpteenth.caConfigMap" . }}
+            - name: ca-certificates
+              mountPath: /etc/umpteenth/ca
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: config
           configMap:
@@ -222,6 +240,17 @@ spec:
           {{- end }}
         - name: tmp
           emptyDir: {}
+        {{- with (include "umpteenth.caConfigMap" .) }}
+        - name: ca-certificates
+          configMap:
+            name: {{ . }}
+            items:
+              - key: {{ $.Values.caCertificates.key | quote }}
+                path: ca.crt
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

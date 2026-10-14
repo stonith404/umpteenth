@@ -83,7 +83,7 @@ func (r *Runner) Shadow(ctx context.Context, run Run, job JobConfig) (ShadowResu
 	if job.RunAsRoot {
 		agentUser = sandbox.UserRoot
 	}
-	sb, err := r.d.Adapter.Create(ctx, sandbox.Spec{
+	sb, err := r.createSandbox(ctx, sandbox.Spec{
 		RunID:       shadowRun.ID,
 		JobID:       run.JobID,
 		WorkspaceID: run.WorkspaceID,

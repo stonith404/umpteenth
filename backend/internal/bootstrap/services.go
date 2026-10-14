@@ -156,8 +156,12 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 		})
 	}
 
-	// The sandbox adapter is chosen once per instance
-	svc.adapter, err = initSandboxAdapter(ctx, cfg, instanceID, hostID, guard)
+	// The sandbox adapter is chosen once per instance, and every sandbox and build it starts trusts the same extra CA certificates
+	caCertificates, err := sandbox.LoadCACertificates(cfg.Sandbox.CACertificates)
+	if err != nil {
+		return nil, err
+	}
+	svc.adapter, err = initSandboxAdapter(ctx, cfg, instanceID, hostID, guard, caCertificates)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +282,8 @@ func initServices(ctx context.Context, cfg *config.Config, db *database.DB, acto
 			Tools:    []runner.ToolProvider{svc.mcpServers},
 			Skills:   svc.skills,
 			Notifier: notifiers{svc.jobs, svc.reflection, svc.notifications}, Cancel: svc.runs, Live: registry, Bus: bus, Storage: fileStorage,
-			HostID: hostID,
+			HostID:         hostID,
+			CACertificates: caCertificates,
 			UtilityModel: func(ctx context.Context, wid string) (string, error) {
 				ws, err := svc.settings.Get(ctx, wid)
 				if err != nil || ws.UtilityModelID == nil {

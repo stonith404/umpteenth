@@ -94,6 +94,8 @@ type Spec struct {
 	Broker    BrokerAccess
 	// TTL is a hard upper bound, enforced by the backend where possible
 	TTL time.Duration
+	// CACertificates sets the variables of CAEnv, since the core installs extra CA certificates with TrustCACertificates before anything runs
+	CACertificates bool
 }
 
 // ExecRequest runs one command inside a sandbox

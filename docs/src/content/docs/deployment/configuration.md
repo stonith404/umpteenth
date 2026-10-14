@@ -169,6 +169,7 @@ An option marked for one type stops Umpteenth at start on a provider of the othe
 |---|---|---|
 | `sandbox.adapter`<br />`SANDBOX_ADAPTER` | `docker` | `docker`, `kubernetes` for sandboxes as pods (see [Install on Kubernetes](../../getting-started/kubernetes/)), or `none` for a replica that executes no runs. |
 | `sandbox.image`<br />`SANDBOX_IMAGE` | `ghcr.io/stonith404/umpteenth-sandbox:latest` | The workspace default of **Default image**. Umpteenth pulls it at start if the engine lacks it. |
+| `sandbox.ca_certificates`<br />`SANDBOX_CA_CERTIFICATES` | empty | A PEM file of CA certificates that sandboxes trust, see [CA certificates](#ca-certificates). |
 | `sandbox.allow_unrestricted_network`<br />`SANDBOX_ALLOW_UNRESTRICTED_NETWORK` | `true` | Offers jobs the **Unrestricted network**, which bypasses the egress proxy and reaches everything the host can, see [Security](../security/#the-unrestricted-network). |
 | `sandbox.docker.runtime`<br />`SANDBOX_DOCKER_RUNTIME` | `runc` | The runtime of sandbox containers, `runsc` for [gVisor](../gvisor/). |
 | `sandbox.docker.dns`<br />`SANDBOX_DOCKER_DNS` | empty, `8.8.8.8` and `8.8.4.4` under gVisor | The resolvers of **Unrestricted network** sandboxes in place of Docker's embedded DNS, which gVisor can't reach. Set it only together with `runsc`. |
@@ -212,3 +213,21 @@ Give them the same `config.yml`, including `app.encryption_key`, and open the UD
 | `ha.actors.host`<br />`HA_ACTORS_HOST` | `127.0.0.1` | The address other replicas reach this replica at. With the default, a second replica refuses to start. |
 | `ha.actors.port`<br />`HA_ACTORS_PORT` | `7571` | The UDP port of the connections between replicas. |
 | `ha.actors.bind_address`<br />`HA_ACTORS_BIND_ADDRESS` | every interface on Postgres, unless `ha.actors.host` is a loopback address, and `ha.actors.host` otherwise | The interface the connections between replicas listen on. |
+
+## CA certificates
+
+Behind a TLS-intercepting proxy, such as Zscaler, mount the proxy's CA certificate into the container and point two variables at it:
+
+```yaml title="docker-compose.yml"
+services:
+  umpteenth:
+    environment:
+      SSL_CERT_DIR: /etc/ssl/certs:/etc/umpteenth/ca
+      SANDBOX_CA_CERTIFICATES: /etc/umpteenth/ca/ca.crt
+    volumes:
+      - ./ca.crt:/etc/umpteenth/ca/ca.crt:ro
+```
+
+Umpteenth then trusts it for its own calls and adds it to the trust store of every sandbox, with `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE` and `NODE_EXTRA_CA_CERTS` set for tools that bring their own.
+With the Helm chart, put the certificate in `caCertificates.pem` instead, and the chart sets both variables and has image builds trust it too.
+The steps of a job's Dockerfile run without it.

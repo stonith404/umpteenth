@@ -27,6 +27,8 @@ const (
 	buildContainer = "build"
 	// buildHome is the home of the rootless BuildKit image's user
 	buildHome = "/home/user"
+	// buildCADir holds the extra CA certificates, which BuildKit reads through SSL_CERT_DIR next to the image's own bundle
+	buildCADir = "/etc/umpteenth/ca"
 	// buildSubIDs replaces the rootless BuildKit image's subordinate ID ranges, which lie outside the 65536 IDs a pod with its own user namespace has
 	// Together with the user's own ID 1000 they cover IDs 0 to 65535, so build steps keep 65535 IDs including nobody
 	buildSubIDs = "user:1:999\nuser:1001:64535\n"
@@ -101,6 +103,9 @@ func (b *Builder) BuildImage(ctx context.Context, spec sandbox.BuildSpec) (sandb
 	buildContext := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: podName, Namespace: b.ns, Labels: labels},
 		Data:       map[string]string{"Dockerfile": spec.Dockerfile, "subids": buildSubIDs},
+	}
+	if b.cfg.CACertificates != "" {
+		buildContext.Data["ca.crt"] = b.cfg.CACertificates
 	}
 	if b.cfg.InsecureRegistry {
 		buildContext.Data["buildkitd.toml"] = fmt.Sprintf("[registry.%q]\n  http = true\n  insecure = true\n", b.registryHost())
@@ -223,6 +228,16 @@ func (b *Builder) buildPod(podName string, ref name.Reference, spec sandbox.Buil
 		container.Command = []string{"buildctl-daemonless.sh"}
 		container.Args = args
 		container.Env = []corev1.EnvVar{{Name: "BUILDKITD_FLAGS", Value: daemonFlags}}
+
+		// The pod's own BuildKit pulls and pushes, so it trusts the extra CA certificates, while a shared daemon gets them from the Helm chart
+		if b.cfg.CACertificates != "" {
+			container.Env = append(container.Env, corev1.EnvVar{Name: "SSL_CERT_DIR", Value: "/etc/ssl/certs:" + buildCADir})
+			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: "ca", MountPath: buildCADir, ReadOnly: true})
+			volumes = append(volumes, corev1.Volume{Name: "ca", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: podName},
+				Items:                []corev1.KeyToPath{{Key: "ca.crt", Path: "ca.crt"}},
+			}}})
+		}
 		container.SecurityContext = &corev1.SecurityContext{
 			ProcMount:       new(corev1.UnmaskedProcMount),
 			RunAsUser:       new(int64(1000)),

@@ -40,6 +40,16 @@ func BrokerEnv(spec Spec, broker string, dns []string) []string {
 		}
 		env = append(env, key+"="+spec.Env[key])
 	}
+
+	// Tools find the extra CA certificates through these, unless the job points them somewhere else
+	if spec.CACertificates {
+		for _, key := range slices.Sorted(maps.Keys(CAEnv)) {
+			if _, ok := spec.Env[key]; !ok {
+				env = append(env, key+"="+CAEnv[key])
+			}
+		}
+	}
+
 	env = append(env,
 		"UMP_BROKER_URL=http://"+broker,
 		"UMP_TOKEN="+spec.Broker.Token,

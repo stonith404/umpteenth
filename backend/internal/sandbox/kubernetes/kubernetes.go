@@ -128,6 +128,8 @@ type Config struct {
 	AllowUnrestricted bool
 	// RequireNetworkPolicy refuses sandboxes when the test sandbox finds the NetworkPolicies unenforced
 	RequireNetworkPolicy bool
+	// CACertificates are PEM certificates build pods trust next to their image's own when they pull and push, empty for none
+	CACertificates string
 	// Logger defaults to slog.Default()
 	Logger *slog.Logger
 }

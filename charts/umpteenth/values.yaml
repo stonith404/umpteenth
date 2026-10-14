@@ -63,6 +63,19 @@ config: {}
 extraEnv: []
 envFrom: []
 
+# CA certificates in PEM that Umpteenth, sandboxes and image builds trust next to the system ones, e.g. of a TLS-intercepting proxy such as Zscaler
+# Steps of a job's Dockerfile don't get them, so a Dockerfile that downloads through such a proxy adds them itself
+caCertificates:
+  # The certificates themselves, which the chart stores in a ConfigMap
+  pem: ""
+  # Or a ConfigMap of your own, e.g. from trust-manager; the BuildKit daemon reads it from the sandbox namespace
+  existingConfigMap: ""
+  key: ca.crt
+
+# More volumes of the Umpteenth pods, and where the umpteenth container mounts them
+extraVolumes: []
+extraVolumeMounts: []
+
 server:
   # Read client addresses from X-Forwarded-For, which the ingress sets
   trustProxy: true

@@ -84,6 +84,10 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: buildkit
         umpteenth.dev/role: buildkit
+      {{- with .Values.caCertificates.pem }}
+      annotations:
+        checksum/ca-certificates: {{ . | sha256sum }}
+      {{- end }}
     spec:
       hostUsers: false
       automountServiceAccountToken: false
@@ -109,6 +113,12 @@ spec:
             - --config
             - /etc/buildkit/buildkitd.toml
             {{- end }}
+          {{- if include "umpteenth.caConfigMap" . }}
+          # The daemon pulls and pushes itself, so it trusts the extra CA certificates next to its image's bundle
+          env:
+            - name: SSL_CERT_DIR
+              value: /etc/ssl/certs:/etc/umpteenth/ca
+          {{- end }}
           ports:
             - name: buildkit
               containerPort: 1234
@@ -143,6 +153,11 @@ spec:
               mountPath: /etc/buildkit
               readOnly: true
             {{- end }}
+            {{- if include "umpteenth.caConfigMap" . }}
+            - name: ca-certificates
+              mountPath: /etc/umpteenth/ca
+              readOnly: true
+            {{- end }}
       volumes:
         - name: cache
           {{- if .Values.sandbox.buildkit.persistence.enabled }}
@@ -155,4 +170,12 @@ spec:
         - name: config
           configMap:
             name: {{ $name }}
+        {{- with (include "umpteenth.caConfigMap" .) }}
+        - name: ca-certificates
+          configMap:
+            name: {{ . }}
+            items:
+              - key: {{ $.Values.caCertificates.key | quote }}
+                path: ca.crt
+        {{- end }}
 {{- end }}

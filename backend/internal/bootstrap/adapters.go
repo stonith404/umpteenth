@@ -68,7 +68,8 @@ func replicaID(configured string) string {
 }
 
 // initSandboxAdapter builds the adapter selected by sandbox.adapter, or returns nil for none
-func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hostID string, guard *egress.Guard) (sandbox.Adapter, error) {
+// caCertificates are the PEM certificates of sandbox.ca_certificates, which Kubernetes build pods trust; the runner installs them into sandboxes itself
+func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hostID string, guard *egress.Guard, caCertificates []byte) (sandbox.Adapter, error) {
 	switch cfg.Sandbox.Adapter {
 	case config.SandboxAdapterNone:
 		return nil, nil
@@ -119,6 +120,7 @@ func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hos
 			BrokerPort:           cfg.Server.BrokerPort,
 			AllowUnrestricted:    cfg.Sandbox.AllowUnrestrictedNetwork,
 			RequireNetworkPolicy: k.RequireNetworkPolicy,
+			CACertificates:       string(caCertificates),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create the Kubernetes sandbox adapter: %w", err)

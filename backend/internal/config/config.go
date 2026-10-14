@@ -178,10 +178,12 @@ type Sandbox struct {
 	// BrokerHost overrides the address sandboxes use to reach this replica's broker
 	BrokerHost string `yaml:"broker_host"`
 	// AllowUnrestrictedNetwork offers jobs the unrestricted network, which bypasses the egress proxy and reaches everything the host can
-	AllowUnrestrictedNetwork bool       `yaml:"allow_unrestricted_network" default:"true"`
-	Registry                 Registry   `yaml:"registry"`
-	Docker                   Docker     `yaml:"docker"`
-	Kubernetes               Kubernetes `yaml:"kubernetes"`
+	AllowUnrestrictedNetwork bool `yaml:"allow_unrestricted_network" default:"true"`
+	// CACertificates is a PEM file of CA certificates that sandboxes and image builds trust next to their own, e.g. of a TLS-intercepting proxy
+	CACertificates string     `yaml:"ca_certificates"`
+	Registry       Registry   `yaml:"registry"`
+	Docker         Docker     `yaml:"docker"`
+	Kubernetes     Kubernetes `yaml:"kubernetes"`
 }
 
 // Registry stores job images so replicas share builds

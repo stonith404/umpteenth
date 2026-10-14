@@ -1,0 +1,21 @@
+{{- if and .Values.caCertificates.pem (not .Values.caCertificates.existingConfigMap) }}
+{{- $namespaces := list .Release.Namespace }}
+{{- $sandboxNamespace := include "umpteenth.sandboxNamespace" . }}
+{{- if and (include "umpteenth.buildkit" .) (ne $sandboxNamespace .Release.Namespace) }}
+{{- $namespaces = append $namespaces $sandboxNamespace }}
+{{- end }}
+{{- range $namespaces }}
+---
+# The extra CA certificates, which the BuildKit daemon also needs in its own namespace
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "umpteenth.caConfigMap" $ }}
+  namespace: {{ . }}
+  labels:
+    {{- include "umpteenth.metaLabels" $ | nindent 4 }}
+data:
+  {{ $.Values.caCertificates.key | quote }}: |
+    {{- $.Values.caCertificates.pem | trim | nindent 4 }}
+{{- end }}
+{{- end }}

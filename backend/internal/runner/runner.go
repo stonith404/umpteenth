@@ -52,6 +52,8 @@ type Deps struct {
 	Bus      events.Bus
 	Storage  storage.FileStorage
 	HostID   string
+	// CACertificates are PEM certificates every sandbox trusts next to its image's own, empty for none
+	CACertificates []byte
 	// UtilityModel resolves the workspace utility model for ump llm, returning an empty ID when none is set
 	UtilityModel func(ctx context.Context, workspaceID string) (string, error)
 }
@@ -215,7 +217,7 @@ func (r *Runner) execute(ctx context.Context, run Run, rec *events.Recorder) Fin
 		agentUser = sandbox.UserRoot
 	}
 	createSpan := events.StartSpan()
-	sb, err := r.d.Adapter.Create(ctx, sandbox.Spec{
+	sb, err := r.createSandbox(ctx, sandbox.Spec{
 		RunID:       run.ID,
 		JobID:       run.JobID,
 		WorkspaceID: run.WorkspaceID,
@@ -440,6 +442,26 @@ func (r *Runner) runAgent(ctx context.Context, s *session, resume string) Final 
 		s.rec.Emit(ctx, events.Event{Type: events.TypeError, Payload: map[string]any{"message": final.Error}})
 	}
 	return final
+}
+
+// createSandbox creates a run's sandbox and has it trust the extra CA certificates before any of the job's commands run
+func (r *Runner) createSandbox(ctx context.Context, spec sandbox.Spec) (sandbox.Sandbox, error) {
+	spec.CACertificates = len(r.d.CACertificates) > 0
+	sb, err := r.d.Adapter.Create(ctx, spec)
+	if err != nil || !spec.CACertificates {
+		return sb, err
+	}
+
+	// The caller only destroys a sandbox it got, so one that can't trust the certificates goes here
+	if err := sandbox.TrustCACertificates(ctx, sb, r.d.CACertificates); err != nil {
+		destroyCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 60*time.Second)
+		defer cancel()
+		if destroyErr := r.d.Adapter.Destroy(destroyCtx, sb.ID()); destroyErr != nil {
+			slog.WarnContext(destroyCtx, "Failed to destroy a sandbox that could not trust the CA certificates", slog.String("sandbox", sb.ID()), slog.Any("error", destroyErr))
+		}
+		return nil, err
+	}
+	return sb, nil
 }
 
 // injectFiles writes the run input, the playbook and the toolkit into the sandbox

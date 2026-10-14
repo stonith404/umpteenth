@@ -266,3 +266,20 @@ func TestCallerSelectedImagesCannotBorrowRegistryCredentials(t *testing.T) {
 		require.ErrorContains(t, err, "another job")
 	}
 }
+
+func TestBuildPodsTrustTheExtraCACertificates(t *testing.T) {
+	a := testAdapter(t, Config{Registry: "ghcr.io/acme/jobs", CACertificates: "-----BEGIN CERTIFICATE-----\n"})
+	b := &Builder{Adapter: a}
+	ref, err := name.ParseReference("ghcr.io/acme/jobs/job-1:abc")
+	require.NoError(t, err)
+
+	// The pod's own BuildKit reads them next to the image's bundle
+	c := b.buildPod("build", ref, sandbox.BuildSpec{WorkspaceID: "workspace-one"}).Spec.Containers[0]
+	require.Contains(t, c.Env, corev1.EnvVar{Name: "SSL_CERT_DIR", Value: "/etc/ssl/certs:" + buildCADir})
+	require.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "ca", MountPath: buildCADir, ReadOnly: true})
+
+	// A client of the shared daemon pulls nothing itself
+	a.cfg.BuildkitAddress = "tcp://buildkit:1234"
+	c = b.buildPod("build", ref, sandbox.BuildSpec{WorkspaceID: "workspace-one"}).Spec.Containers[0]
+	require.Empty(t, c.Env)
+}

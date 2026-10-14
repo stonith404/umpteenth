@@ -51,6 +51,15 @@ true
 {{- end -}}
 {{- end -}}
 
+{{/* The ConfigMap with the extra CA certificates, or nothing without them */}}
+{{- define "umpteenth.caConfigMap" -}}
+{{- if .Values.caCertificates.existingConfigMap -}}
+{{ .Values.caCertificates.existingConfigMap }}
+{{- else if .Values.caCertificates.pem -}}
+{{ include "umpteenth.fullname" . }}-ca-certificates
+{{- end -}}
+{{- end -}}
+
 {{/* The Secret and key the database URL comes from, or nothing for SQLite */}}
 {{- define "umpteenth.databaseSecret" -}}
 {{- if .Values.database.existingSecret -}}
