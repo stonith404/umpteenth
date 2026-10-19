@@ -13,7 +13,7 @@
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { isOfficialApi, openAiPresets, providerKindLabel, usesCatalog } from './provider-meta';
+	import { isOfficialApi, providerKindLabel } from './provider-meta';
 
 	let {
 		open = $bindable(false),
@@ -61,11 +61,6 @@
 			name = kind === 'anthropic' ? 'Anthropic' : 'OpenAI';
 		}
 		baseUrl = '';
-	}
-
-	function applyPreset(preset: (typeof openAiPresets)[number]) {
-		baseUrl = preset.baseUrl;
-		if (!provider) name = preset.name;
 	}
 
 	function validate() {
@@ -176,19 +171,6 @@
 							: 'https://api.openai.com/v1'}
 						aria-invalid={!!errors.baseUrl}
 					/>
-					{#if kind === 'openai' || provider?.kind === 'openai'}
-						<div class="flex flex-wrap gap-1.5">
-							{#each openAiPresets as preset (preset.name)}
-								<Button
-									variant={baseUrl === preset.baseUrl ? 'secondary' : 'outline'}
-									size="xs"
-									onclick={() => applyPreset(preset)}
-								>
-									{preset.name}
-								</Button>
-							{/each}
-						</div>
-					{/if}
 					{#if errors.baseUrl}
 						<Field.Error>{errors.baseUrl}</Field.Error>
 					{:else}
@@ -243,14 +225,6 @@
 						</Field.Label>
 					</Field.Field>
 				{/if}
-				<p class="text-muted-foreground text-sm leading-snug">
-					{#if usesCatalog(provider?.kind ?? kind, baseUrl)}
-						Models, prices and capabilities come from the models.dev catalog and stay up to date.
-					{:else}
-						Models are read from the server's model list and kept in sync. Their capabilities are
-						filled in from models.dev where the server doesn't report them.
-					{/if}
-				</p>
 			</Field.Group>
 		</form>
 		<Dialog.Footer>

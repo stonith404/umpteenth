@@ -4,9 +4,9 @@ seoTitle: "Models and costs: Anthropic, OpenAI and Ollama"
 description: Connect Anthropic, an OpenAI-compatible API or a Claude Code or Codex subscription, choose the models your jobs run on, and cap what they spend.
 ---
 
-import { Steps } from "@astrojs/starlight/components";
-import LocalhostGotcha from "../../../components/diagrams/LocalhostGotcha.astro";
-import Screenshot from "../../../components/Screenshot.astro";
+import { Steps } from '@astrojs/starlight/components';
+import LocalhostGotcha from '../../../components/diagrams/LocalhostGotcha.astro';
+import Screenshot from '../../../components/Screenshot.astro';
 
 Connect the LLM APIs your jobs run on under **Settings → Providers & models**, and keep what they spend under limits you set.
 A new workspace has no providers, so you add one and pick an Agent model before its first job runs, as [Connect a model](../../getting-started/installation/#connect-a-model) walks through.
@@ -18,10 +18,14 @@ An **Anthropic** provider calls Anthropic's Messages API.
 An **OpenAI-compatible** provider calls OpenAI itself, OpenRouter, or a local server such as Ollama, vLLM, LM Studio or llama.cpp.
 
 Leave **Base URL** empty for the provider's official API.
-For any other OpenAI-compatible server, the **Base URL** must end where the server serves `/models`, which is `/v1` for most of them, and the presets **OpenAI**, **OpenRouter**, **Ollama** and **LM Studio** fill it in.
+For any other OpenAI-compatible server, the **Base URL** must end where the server serves `/models`, which is `/v1` for most of them, as in `https://openrouter.ai/api/v1`.
 The OpenAI API needs an **API key**, while Ollama and LM Studio need none.
 Umpteenth stores the key encrypted and never shows it again.
 Changing **Base URL** clears the stored key unless you supply a replacement in the same save, so enter the key for the new endpoint before saving.
+
+An OpenAI-compatible provider also picks its **API**, which starts on **Responses**.
+OpenAI's newer reasoning models, such as GPT-5.4 mini, call tools with reasoning only through that API.
+Switch to **Chat Completions** for a server that doesn't serve the Responses API.
 
 Umpteenth reads the provider's model list as soon as you save it, and if it can't reach the server, it keeps the provider and shows the reason in a warning.
 
@@ -30,7 +34,7 @@ A reply confirms the key, the base URL and the model name, and the test accepts 
 
 ### A model server on your Docker host
 
-The Ollama and LM Studio presets point at `localhost`, and inside the Umpteenth container `localhost` is the container itself.
+Ollama and LM Studio serve on `localhost` by default, and inside the Umpteenth container `localhost` is the container itself.
 
 <LocalhostGotcha />
 
@@ -109,9 +113,9 @@ Anthropic and OpenAI can limit or suspend an account that uses a subscription ou
 
 5. Under **Settings → Providers & models**, click **Add provider** and fill it in with the key from step 1:
 
-   | Plan            | Kind                  | Base URL                       |
-   | --------------- | --------------------- | ------------------------------ |
-   | Claude          | **Anthropic**         | `http://cli-proxy-api:8317`    |
+   | Plan | Kind | Base URL |
+   |---|---|---|
+   | Claude | **Anthropic** | `http://cli-proxy-api:8317` |
    | ChatGPT (Codex) | **OpenAI-compatible** | `http://cli-proxy-api:8317/v1` |
 
 6. Click **Test** on the new provider's row to send a prompt through your plan.
@@ -126,15 +130,15 @@ The Codex provider reads CLIProxyAPI's model list, and its models cost $0 unless
 
 Under **Settings → General → Default models**, you give each of three roles a model:
 
-| Role           | Purpose                                                                                                     | Left empty                                                                                |
-| -------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Agent**      | Runs the agent in every job that doesn't pick a model of its own                                            | **Not set**, and runs of jobs without a model fail                                        |
-| **Utility**    | Compiles new jobs, judges the results of scripted runs, and answers `ump llm` calls from scripts by default | **Same as the agent model**: compiling uses the Agent model, and runs use their own model |
-| **Reflection** | Turns finished runs into playbook updates                                                                   | **Same as the agent model**, so reflection uses the model the job runs with               |
+| Role | Purpose | Left empty |
+|---|---|---|
+| **Agent** | Runs the agent in every job that doesn't pick a model of its own | **Not set**, and runs of jobs without a model fail |
+| **Utility** | Compiles new jobs, judges the results of scripted runs, and answers `ump llm` calls from scripts by default | **Same as the agent model**: compiling uses the Agent model, and runs use their own model |
+| **Reflection** | Turns finished runs into playbook updates | **Same as the agent model**, so reflection uses the model the job runs with |
 
 <Screenshot
-  name="settings-general"
-  alt="Settings, General tab: the Default models, Spend and retention and Usage cards, each with its own Save button"
+	name="settings-general"
+	alt="Settings, General tab: the Default models, Spend and retention and Usage cards, each with its own Save button"
 />
 
 A job can override the Agent model in the **Model** field of its **Settings** tab, as [Managing jobs](../jobs/#the-model) explains.

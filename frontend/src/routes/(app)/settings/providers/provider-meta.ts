@@ -11,27 +11,6 @@ export function providerKindLabel(kind: string) {
 	return providerKindLabels[kind] ?? kind;
 }
 
-// Base URLs of common OpenAI-compatible APIs, offered as one-click presets
-export const openAiPresets = [
-	{ name: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
-	{ name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
-	{ name: 'Ollama', baseUrl: 'http://localhost:11434/v1' },
-	{ name: 'LM Studio', baseUrl: 'http://localhost:1234/v1' }
-];
-
-// Whether a provider's models come from the catalog, mirroring the backend's rule so the form can say so before saving
-export function usesCatalog(kind: string, baseUrl: string) {
-	if (kind === 'anthropic') return true;
-	if (kind !== 'openai') return false;
-	const trimmed = baseUrl.trim();
-	if (!trimmed) return true;
-	try {
-		return new URL(trimmed).hostname.toLowerCase() === 'api.openai.com';
-	} catch {
-		return false;
-	}
-}
-
 // Whether a provider talks to its kind's official API, which rejects every request without an API key
 export function isOfficialApi(kind: string, baseUrl: string) {
 	const trimmed = baseUrl.trim();

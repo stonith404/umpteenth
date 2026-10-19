@@ -52,7 +52,7 @@ const downX = app.x + 56;
 			<text class={dg.sub} x={app.x + 14} y={app.y + 38}>calls the provider’s Base URL</text>
 		</g>
 
-		{/* The preset's localhost URL loops back into the container, where nothing listens on the port */}
+		{/* A localhost URL loops back into the container, where nothing listens on the port */}
 		<line class={dg.edgeDanger} x1={downX} y1={app.y + box.h} x2={downX} y2={loopback.y - 2} marker-end="url(#lh-arrow-danger)" />
 		<text class={`${dg.edgeLabelDanger} font-mono`} x={downX + 8} y={loopback.y - 16}>localhost:11434</text>
 		<g>
