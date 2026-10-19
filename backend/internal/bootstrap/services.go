@@ -372,6 +372,7 @@ func authConfig(cfg *config.Config) auth.Config {
 			ClientID:             p.ClientID,
 			ClientSecret:         p.ClientSecret,
 			Issuer:               p.Issuer,
+			GroupsClaim:          p.GroupsClaim,
 			AllowedGroups:        p.AllowedGroups,
 			AdminGroups:          p.AdminGroups,
 			AllowedUsers:         p.AllowedUsers,

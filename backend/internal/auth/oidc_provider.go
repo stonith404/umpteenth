@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -93,16 +94,19 @@ func (p *oidcProvider) identify(ctx context.Context, redirectURL, code string, s
 		Name              string   `json:"name"`
 		PreferredUsername string   `json:"preferred_username"`
 		Picture           string   `json:"picture"`
-		Groups            []string `json:"groups"`
 	}
 	err = idToken.Claims(&claims)
 	if err != nil {
 		return identity{}, apperror.LoginFailed(fmt.Errorf("invalid claims: %w", err))
 	}
+	groups, err := p.groups(idToken)
+	if err != nil {
+		return identity{}, apperror.LoginFailed(err)
+	}
 
 	// The identity provider decides who may use the client, allowed_groups optionally narrows it further, and admins always get in
-	inGroups := func(groups []string) bool {
-		return slices.ContainsFunc(claims.Groups, func(g string) bool { return slices.Contains(groups, g) })
+	inGroups := func(names []string) bool {
+		return slices.ContainsFunc(groups, func(g string) bool { return slices.Contains(names, g) })
 	}
 	admin := inGroups(p.cfg.AdminGroups)
 	if len(p.cfg.AllowedGroups) > 0 && !admin && !inGroups(p.cfg.AllowedGroups) {
@@ -143,4 +147,24 @@ func (b *flexBool) UnmarshalJSON(data []byte) error {
 		*b = false
 	}
 	return nil
+}
+
+// groups reads the provider's groups claim from a token, and is nil when the token has none
+func (p *oidcProvider) groups(token *oidc.IDToken) ([]string, error) {
+	var claims map[string]json.RawMessage
+	err := token.Claims(&claims)
+	if err != nil {
+		return nil, fmt.Errorf("invalid claims: %w", err)
+	}
+	name := cmp.Or(p.cfg.GroupsClaim, "groups")
+	raw, ok := claims[name]
+	if !ok {
+		return nil, nil
+	}
+	var groups []string
+	err = json.Unmarshal(raw, &groups)
+	if err != nil {
+		return nil, fmt.Errorf("the %s claim is not a list of strings: %w", name, err)
+	}
+	return groups, nil
 }

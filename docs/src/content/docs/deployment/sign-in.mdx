@@ -99,6 +99,7 @@ Umpteenth fetches the issuer's configuration from inside its container, so the i
 
 Everyone your identity provider admits to the client can sign in.
 To narrow that down, list groups in the provider's `allowed_groups`, such as `allowed_groups: [umpteenth-users]`, and have your identity provider put the `groups` claim into the ID token.
+If it lists groups in another claim, name that claim in `groups_claim`, such as `groups_claim: roles`.
 Umpteenth then admits members of at least one listed group, and everyone else lands back on the login page with "Your account is not allowed to use Umpteenth".
 
 ## GitHub

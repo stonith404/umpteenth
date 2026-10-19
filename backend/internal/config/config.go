@@ -144,6 +144,8 @@ type AuthProvider struct {
 	ClientSecret string `yaml:"client_secret"`
 	// Issuer is the URL of an oidc provider
 	Issuer string `yaml:"issuer"`
+	// GroupsClaim names the top-level claim of an oidc provider's tokens that lists the user's groups, and defaults to groups
+	GroupsClaim string `yaml:"groups_claim"`
 	// AllowedGroups narrows who may sign in through an oidc provider to members of these groups, checked against the groups claim
 	AllowedGroups []string `yaml:"allowed_groups"`
 	// AdminGroups makes the members of these groups instance admins when they sign in through an oidc provider

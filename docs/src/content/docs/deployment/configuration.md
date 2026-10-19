@@ -109,7 +109,8 @@ An option marked for one type stops Umpteenth at start on a provider of the othe
 | `auth.providers.<id>.client_id`<br />`AUTH_PROVIDERS_<ID>_CLIENT_ID` | none, required | The client ID of the OpenID Connect client or the GitHub OAuth app. |
 | `auth.providers.<id>.client_secret`<br />`AUTH_PROVIDERS_<ID>_CLIENT_SECRET` | empty, required for `github` | The client secret. A public OpenID Connect client works without one. |
 | `auth.providers.<id>.issuer`<br />`AUTH_PROVIDERS_<ID>_ISSUER` | none, required for `oidc` | `oidc` only. The issuer URL of the identity provider, which has to work from inside the container. |
-| `auth.providers.<id>.allowed_groups`<br />`AUTH_PROVIDERS_<ID>_ALLOWED_GROUPS` | empty | `oidc` only. Groups whose members may sign in, spelled as in the `groups` claim, case included. Empty admits everyone the identity provider lets through. |
+| `auth.providers.<id>.groups_claim`<br />`AUTH_PROVIDERS_<ID>_GROUPS_CLAIM` | `groups` | `oidc` only. The top-level claim of the ID token that lists the user's groups as strings, such as `roles`. |
+| `auth.providers.<id>.allowed_groups`<br />`AUTH_PROVIDERS_<ID>_ALLOWED_GROUPS` | empty | `oidc` only. Groups whose members may sign in, spelled as in the groups claim, case included. Empty admits everyone the identity provider lets through. |
 | `auth.providers.<id>.admin_groups`<br />`AUTH_PROVIDERS_<ID>_ADMIN_GROUPS` | empty | `oidc` only. Groups whose members are [instance admins](../sign-in/#instance-admins). |
 | `auth.providers.<id>.allowed_users`<br />`AUTH_PROVIDERS_<ID>_ALLOWED_USERS` | empty | `github` only. GitHub usernames that may sign in. A `github` provider needs this list, `allowed_organizations` or an admin list. |
 | `auth.providers.<id>.allowed_organizations`<br />`AUTH_PROVIDERS_<ID>_ALLOWED_ORGANIZATIONS` | empty | `github` only. GitHub organizations whose active members may sign in. |

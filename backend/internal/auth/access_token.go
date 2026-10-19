@@ -62,16 +62,13 @@ func (s *Service) VerifyAccessToken(ctx context.Context, raw, workspaceID string
 	}
 
 	// The allowed groups were checked at sign-in, and a token that lists the user's groups is checked again in case they left
-	var claims struct {
-		Groups *[]string `json:"groups"`
-	}
-	err = token.Claims(&claims)
+	groups, err := oidcP.groups(token)
 	if err != nil {
 		return principal.Principal{}, time.Time{}, apperror.InvalidToken()
 	}
-	if claims.Groups != nil && len(p.AllowedGroups) > 0 {
-		inGroups := func(groups []string) bool {
-			return slices.ContainsFunc(*claims.Groups, func(g string) bool { return slices.Contains(groups, g) })
+	if groups != nil && len(p.AllowedGroups) > 0 {
+		inGroups := func(names []string) bool {
+			return slices.ContainsFunc(groups, func(g string) bool { return slices.Contains(names, g) })
 		}
 		if !inGroups(p.AllowedGroups) && !inGroups(p.AdminGroups) {
 			return principal.Principal{}, time.Time{}, apperror.New(apperror.CodeInvalidToken, http.StatusUnauthorized, "Your account is not in an allowed group")

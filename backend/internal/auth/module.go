@@ -53,8 +53,9 @@ type ProviderConfig struct {
 	Primary      bool
 	ClientID     string
 	ClientSecret string
-	// Issuer, AllowedGroups and AdminGroups configure an OpenID Connect provider
+	// Issuer, GroupsClaim, AllowedGroups and AdminGroups configure an OpenID Connect provider
 	Issuer        string
+	GroupsClaim   string
 	AllowedGroups []string
 	AdminGroups   []string
 	// AllowedUsers and AllowedOrganizations name the GitHub accounts that may sign in through a GitHub provider, and AdminUsers and AdminOrganizations those that are instance admins

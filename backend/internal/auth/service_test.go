@@ -3,6 +3,7 @@
 package auth
 
 import (
+	"cmp"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
@@ -33,6 +34,8 @@ type fakeIssuer struct {
 	// Subject and Groups are the user the next authorization signs in
 	Subject string
 	Groups  []string
+	// GroupsClaim is the claim the groups go into, groups when empty
+	GroupsClaim string
 	// EmailVerified is the email_verified claim, left out when nil
 	EmailVerified any
 	// codes maps an issued authorization code to the nonce of its request
@@ -92,16 +95,16 @@ func (f *fakeIssuer) idToken(t *testing.T, clientID, nonce string) string {
 	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: jose.JSONWebKey{Key: f.key, KeyID: "key"}}, (&jose.SignerOptions{}).WithType("JWT"))
 	require.NoError(t, err)
 	claims := map[string]any{
-		"iss":    f.URL,
-		"sub":    f.Subject,
-		"aud":    clientID,
-		"exp":    time.Now().Add(time.Hour).Unix(),
-		"iat":    time.Now().Unix(),
-		"nonce":  nonce,
-		"email":  "user@example.com",
-		"name":   "User",
-		"groups": f.Groups,
+		"iss":   f.URL,
+		"sub":   f.Subject,
+		"aud":   clientID,
+		"exp":   time.Now().Add(time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+		"nonce": nonce,
+		"email": "user@example.com",
+		"name":  "User",
 	}
+	claims[cmp.Or(f.GroupsClaim, "groups")] = f.Groups
 	if f.EmailVerified != nil {
 		claims["email_verified"] = f.EmailVerified
 	}
@@ -266,6 +269,18 @@ func TestAdminGroupsMakeInstanceAdminsAtEverySignIn(t *testing.T) {
 	user, err = svc.GetUser(t.Context(), userID)
 	require.NoError(t, err)
 	require.False(t, user.IsAdmin)
+}
+
+func TestGroupsComeFromTheConfiguredClaim(t *testing.T) {
+	a := newFakeIssuer(t)
+	a.Groups, a.GroupsClaim = []string{"ops"}, "roles"
+	svc := newTestService(t, ProviderConfig{Type: TypeOIDC, ID: "a", Name: "A", Issuer: a.URL, ClientID: "client-a", GroupsClaim: "roles", AdminGroups: []string{"ops"}})
+
+	userID, err := signIn(t, svc, "a", a)
+	require.NoError(t, err)
+	user, err := svc.GetUser(t.Context(), userID)
+	require.NoError(t, err)
+	require.True(t, user.IsAdmin)
 }
 
 func TestEmailAddressesAreOnlyVerifiedWhenTheProviderSaysSo(t *testing.T) {

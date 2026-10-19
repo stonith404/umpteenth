@@ -126,7 +126,7 @@ func (c *Config) Validate() error {
 
 // authTypeOptions are the options that only apply to one provider type, so setting one for another type fails instead of being ignored
 var authTypeOptions = map[string][]string{
-	AuthProviderOIDC:   {"issuer", "allowed_groups", "admin_groups"},
+	AuthProviderOIDC:   {"issuer", "groups_claim", "allowed_groups", "admin_groups"},
 	AuthProviderGitHub: {"allowed_users", "allowed_organizations", "admin_users", "admin_organizations"},
 }
 
@@ -165,6 +165,7 @@ func (a Auth) validate() error {
 
 		set := map[string]bool{
 			"issuer":                p.Issuer != "",
+			"groups_claim":          p.GroupsClaim != "",
 			"allowed_groups":        len(p.AllowedGroups) > 0,
 			"admin_groups":          len(p.AdminGroups) > 0,
 			"allowed_users":         len(p.AllowedUsers) > 0,
