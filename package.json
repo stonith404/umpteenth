@@ -13,7 +13,8 @@
 		"test": "pnpm --filter umpteenth-tests test",
 		"docs": "pnpm --filter umpteenth-docs dev",
 		"docs:build": "pnpm --filter umpteenth-docs build",
-		"docs:deploy": "pnpm --filter umpteenth-docs run deploy"
+		"docs:deploy": "pnpm --filter umpteenth-docs run deploy",
+		"images:development": "./docker/push-development.sh"
 	},
 	"packageManager": "pnpm@10.27.0"
 }
