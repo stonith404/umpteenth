@@ -2,12 +2,12 @@
 SELECT * FROM providers WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);
 
 -- name: CreateProvider :exec
-INSERT INTO providers (id, workspace_id, name, kind, base_url, api_key_enc, key_id, created_at)
-VALUES (sqlc.arg(id), sqlc.arg(workspace_id), sqlc.arg(name), sqlc.arg(kind), sqlc.narg(base_url), sqlc.narg(api_key_enc), sqlc.narg(key_id), sqlc.arg(created_at));
+INSERT INTO providers (id, workspace_id, name, kind, base_url, api, api_key_enc, key_id, created_at)
+VALUES (sqlc.arg(id), sqlc.arg(workspace_id), sqlc.arg(name), sqlc.arg(kind), sqlc.narg(base_url), sqlc.narg(api), sqlc.narg(api_key_enc), sqlc.narg(key_id), sqlc.arg(created_at));
 
 -- name: UpdateProvider :execrows
 -- Credentials are replaced or cleared atomically with the destination, comparing against the row actually being updated
-UPDATE providers SET name = sqlc.arg(name), base_url = sqlc.narg(base_url),
+UPDATE providers SET name = sqlc.arg(name), base_url = sqlc.narg(base_url), api = sqlc.narg(api),
  api_key_enc = CASE WHEN CAST(sqlc.arg(replace_key) AS BOOLEAN) THEN sqlc.narg(api_key_enc) WHEN COALESCE(base_url, '') = COALESCE(sqlc.narg(base_url), '') THEN api_key_enc ELSE NULL END,
  key_id = CASE WHEN CAST(sqlc.arg(replace_key) AS BOOLEAN) THEN sqlc.narg(key_id) WHEN COALESCE(base_url, '') = COALESCE(sqlc.narg(base_url), '') THEN key_id ELSE NULL END
 WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id);
@@ -22,7 +22,7 @@ DELETE FROM providers WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.
 -- name: GetModel :one
 SELECT m.id, m.provider_id, m.model, m.label, m.price_in, m.price_out, m.price_cache_read, m.price_cache_write, m.caps,
        m.enabled, m.synced, m.unlisted_at,
-       p.name AS provider_name, p.kind AS provider_kind, p.base_url AS provider_base_url, p.api_key_enc AS provider_api_key_enc
+       p.name AS provider_name, p.kind AS provider_kind, p.base_url AS provider_base_url, p.api AS provider_api, p.api_key_enc AS provider_api_key_enc
 FROM models m JOIN providers p ON p.id = m.provider_id
 WHERE m.workspace_id = sqlc.arg(workspace_id) AND m.id = sqlc.arg(id);
 

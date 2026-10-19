@@ -683,6 +683,11 @@
 			"CreateProviderInputBody": {
 				"additionalProperties": false,
 				"properties": {
+					"api": {
+						"description": "The API an OpenAI-compatible provider calls, responses by default",
+						"enum": ["responses", "chat_completions"],
+						"type": "string"
+					},
 					"apiKey": {
 						"maxLength": 1000,
 						"type": "string"
@@ -2697,6 +2702,11 @@
 			"ProviderDto": {
 				"additionalProperties": false,
 				"properties": {
+					"api": {
+						"description": "The API an OpenAI-compatible provider calls, null for other kinds",
+						"enum": ["responses", "chat_completions"],
+						"type": ["string", "null"]
+					},
 					"baseUrl": {
 						"type": ["string", "null"]
 					},
@@ -2743,6 +2753,7 @@
 					"name",
 					"kind",
 					"baseUrl",
+					"api",
 					"hasApiKey",
 					"modelCount",
 					"enabledModelCount",
@@ -4216,6 +4227,11 @@
 			"UpdateProviderInputBody": {
 				"additionalProperties": false,
 				"properties": {
+					"api": {
+						"description": "The API an OpenAI-compatible provider calls",
+						"enum": ["responses", "chat_completions"],
+						"type": "string"
+					},
 					"apiKey": {
 						"maxLength": 1000,
 						"type": "string"

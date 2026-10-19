@@ -1,4 +1,4 @@
-// Package openai is the adapter for OpenAI and OpenAI-compatible servers such as Ollama, OpenRouter, vLLM, LM Studio and Groq, built on Chat Completions
+// Package openai is the adapter for OpenAI and OpenAI-compatible servers such as Ollama, OpenRouter, vLLM, LM Studio and Groq, built on Chat Completions, or on the Responses API for providers that choose it
 package openai
 
 import (
@@ -15,6 +15,7 @@ import (
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/packages/respjson"
 	"github.com/openai/openai-go/v3/packages/ssestream"
+	"github.com/openai/openai-go/v3/responses"
 
 	"github.com/stonith404/umpteenth/backend/internal/llm"
 )
@@ -31,11 +32,12 @@ const (
 // reasoningFields are the delta fields in which compatible servers stream reasoning: vLLM and DeepSeek use reasoning_content, Ollama and OpenRouter use reasoning
 var reasoningFields = []string{"reasoning_content", "reasoning"}
 
-// Provider calls a Chat Completions endpoint
+// Provider calls a Chat Completions endpoint, or OpenAI's Responses API
 type Provider struct {
 	client openai.Client
 	// openAIAPI reports whether the endpoint is OpenAI's own API, which takes the OpenAI-only fields for every model it serves
 	openAIAPI bool
+	responses bool
 }
 
 var _ llm.Provider = (*Provider)(nil)
@@ -56,8 +58,8 @@ func New(cfg llm.Config) (*Provider, error) {
 		option.WithHTTPClient(llm.LimitedHTTPClient(cfg.HTTPClient)),
 	}
 	// Construct only the services we use from explicit options, since NewClient imports host credentials and custom headers
-	client := openai.Client{Options: opts, Chat: openai.NewChatService(opts...)}
-	return &Provider{client: client, openAIAPI: isOpenAIAPI(baseURL)}, nil
+	client := openai.Client{Options: opts, Chat: openai.NewChatService(opts...), Responses: responses.NewResponseService(opts...)}
+	return &Provider{client: client, openAIAPI: isOpenAIAPI(baseURL), responses: cfg.Responses}, nil
 }
 
 // isOpenAIAPI recognizes OpenAI's API by its host, the same rule providers.modelSourceFor uses to sync models from the catalog
@@ -80,6 +82,22 @@ func (p *Provider) Stream(ctx context.Context, req llm.Request, onDelta func(llm
 		onDelta = func(llm.Delta) {}
 	}
 
+	stream := p.streamChat
+	if p.responses {
+		stream = p.streamResponses
+	}
+	resp, err := stream(ctx, req, onDelta)
+	if err != nil {
+		return nil, err
+	}
+	resp.Latency = time.Since(start)
+	if resp.Model == "" {
+		resp.Model = req.Model
+	}
+	return resp, nil
+}
+
+func (p *Provider) streamChat(ctx context.Context, req llm.Request, onDelta func(llm.Delta)) (*llm.Response, error) {
 	// OpenAI's API rejects max_tokens for reasoning models, so it gets max_completion_tokens even for a model the catalog doesn't list, such as one added by hand or dropped once models.dev marks it deprecated
 	_, known := llm.LookupModel(llm.KindOpenAI, req.Model)
 	params, err := buildParams(req, p.Caps(req.Model), known || p.openAIAPI)
@@ -108,13 +126,7 @@ func (p *Provider) Stream(ctx context.Context, req llm.Request, onDelta func(llm
 	if acc.finish == "" {
 		return nil, fmt.Errorf("openai: %w", llm.ErrIncompleteStream)
 	}
-
-	resp := acc.response()
-	resp.Latency = time.Since(start)
-	if resp.Model == "" {
-		resp.Model = req.Model
-	}
-	return resp, nil
+	return acc.response(), nil
 }
 
 // toolCallState collects one streamed tool call, whose arguments arrive in fragments

@@ -230,6 +230,8 @@ type ModelLister interface {
 type Config struct {
 	BaseURL string
 	APIKey  string
+	// Responses makes an OpenAI-compatible provider call the Responses API instead of Chat Completions
+	Responses bool
 	// HTTPClient makes the provider's requests, so the egress guard can check every address it connects to; nil uses the SDK default
 	HTTPClient *http.Client
 }
@@ -374,7 +376,7 @@ func (e *APIError) Retryable() bool {
 	case e.StatusCode == 408, e.StatusCode == 409, e.StatusCode == 429, e.StatusCode >= 500:
 		return true
 	// Errors sent inside an event stream carry no status, so Anthropic's and OpenAI's error types decide
-	case e.Type == "overloaded_error", e.Type == "rate_limit_error", e.Type == "api_error", e.Type == "server_error":
+	case e.Type == "overloaded_error", e.Type == "rate_limit_error", e.Type == "api_error", e.Type == "server_error", e.Type == "rate_limit_exceeded":
 		return true
 	}
 	return false

@@ -63,7 +63,7 @@ func TestServerSyncOfAHugeModelListDoesNotLockOutOtherWorkspaces(t *testing.T) {
 	body := modelListBody("m", hugeModelList)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(body) }))
 	t.Cleanup(srv.Close)
-	pid, err := s.CreateProvider(ctx, wid, "Huge", llm.KindOpenAI, srv.URL+"/v1", "", nil)
+	pid, err := s.CreateProvider(ctx, wid, "Huge", llm.KindOpenAI, srv.URL+"/v1", "", "", nil)
 	require.NoError(t, err)
 
 	// A second handle that never waits tells when someone holds the write lock
@@ -157,7 +157,7 @@ func TestServerSyncWithRotatingModelIDsStopsAtTheBound(t *testing.T) {
 		_, _ = w.Write(modelListBody(fmt.Sprintf("r%d-", round.Load()), perSync))
 	}))
 	t.Cleanup(srv.Close)
-	pid, err := s.CreateProvider(ctx, wid, "Rotating", llm.KindOpenAI, srv.URL+"/v1", "", nil)
+	pid, err := s.CreateProvider(ctx, wid, "Rotating", llm.KindOpenAI, srv.URL+"/v1", "", "", nil)
 	require.NoError(t, err)
 
 	// The first list is added in full
@@ -199,7 +199,7 @@ func TestServerSyncBoundsTheSizeOfEachModel(t *testing.T) {
 	body := fmt.Sprintf(`{"data":[{"id":%q},{"id":"real-model","name":%q}]}`, hugeID, hugeName)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(body)) }))
 	t.Cleanup(srv.Close)
-	pid, err := s.CreateProvider(ctx, wid, "Big entries", llm.KindOpenAI, srv.URL+"/v1", "", nil)
+	pid, err := s.CreateProvider(ctx, wid, "Big entries", llm.KindOpenAI, srv.URL+"/v1", "", "", nil)
 	require.NoError(t, err)
 
 	result, err := s.SyncProvider(ctx, wid, pid)

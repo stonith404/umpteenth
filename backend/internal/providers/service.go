@@ -16,6 +16,12 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/utils/crypto"
 )
 
+// APIs an OpenAI-compatible provider can call
+const (
+	APIResponses       = "responses"
+	APIChatCompletions = "chat_completions"
+)
+
 // Factory builds an LLM adapter for one provider kind
 type Factory func(cfg llm.Config) (llm.Provider, error)
 
@@ -88,7 +94,7 @@ func (s *Service) resolve(ctx context.Context, workspaceID, modelID string, allo
 	if err != nil {
 		return nil, Model{}, err
 	}
-	provider, err := s.provider(row.ProviderKind, deref(row.ProviderBaseUrl), apiKey)
+	provider, err := s.provider(row.ProviderKind, deref(row.ProviderBaseUrl), deref(row.ProviderApi), apiKey)
 	if err != nil {
 		return nil, Model{}, err
 	}
@@ -117,13 +123,13 @@ func displayName(label *string, model string) string {
 	return model
 }
 
-func (s *Service) provider(kind, baseURL, apiKey string) (llm.Provider, error) {
+func (s *Service) provider(kind, baseURL, api, apiKey string) (llm.Provider, error) {
 	factory, ok := s.factories[kind]
 	if !ok {
 		return nil, apperror.Unsupported("Provider kind " + kind + " is not available in this build")
 	}
 
-	sum := sha256.Sum256([]byte(kind + "\x00" + baseURL + "\x00" + apiKey))
+	sum := sha256.Sum256([]byte(kind + "\x00" + baseURL + "\x00" + api + "\x00" + apiKey))
 	cacheKey := hex.EncodeToString(sum[:])
 
 	s.mu.Lock()
@@ -131,7 +137,7 @@ func (s *Service) provider(kind, baseURL, apiKey string) (llm.Provider, error) {
 	if p, ok := s.cache[cacheKey]; ok {
 		return p, nil
 	}
-	p, err := factory(llm.Config{BaseURL: baseURL, APIKey: apiKey})
+	p, err := factory(llm.Config{BaseURL: baseURL, APIKey: apiKey, Responses: api == APIResponses})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create %s provider: %w", kind, err)
 	}
@@ -191,10 +197,13 @@ func (s *Service) FindModel(ctx context.Context, workspaceID, kind, model string
 }
 
 // CreateProvider stores a provider and, optionally, models of its own; the models of its source come from SyncProvider
-func (s *Service) CreateProvider(ctx context.Context, workspaceID, name, kind, baseURL, apiKey string, models []ModelSeed) (string, error) {
+func (s *Service) CreateProvider(ctx context.Context, workspaceID, name, kind, baseURL, api, apiKey string, models []ModelSeed) (string, error) {
 	enc, keyID, err := s.encryptKey(apiKey)
 	if err != nil {
 		return "", err
+	}
+	if kind == llm.KindOpenAI && api == "" {
+		api = APIResponses
 	}
 
 	id := database.NewID()
@@ -205,6 +214,7 @@ func (s *Service) CreateProvider(ctx context.Context, workspaceID, name, kind, b
 		Name:        strings.TrimSpace(name),
 		Kind:        kind,
 		BaseUrl:     nonEmpty(baseURL),
+		Api:         nonEmpty(api),
 		ApiKeyEnc:   enc,
 		KeyID:       keyID,
 		CreatedAt:   now,

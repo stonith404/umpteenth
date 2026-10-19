@@ -171,7 +171,7 @@ func (s *Service) serverModels(ctx context.Context, p providersdb.Provider) ([]s
 	if err != nil {
 		return nil, err
 	}
-	provider, err := s.provider(p.Kind, deref(p.BaseUrl), apiKey)
+	provider, err := s.provider(p.Kind, deref(p.BaseUrl), deref(p.Api), apiKey)
 	if err != nil {
 		return nil, err
 	}

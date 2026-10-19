@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/shared"
 
 	"github.com/stonith404/umpteenth/backend/internal/llm"
@@ -52,16 +53,11 @@ func buildParams(req llm.Request, caps llm.Caps, openAIFields bool) (openai.Chat
 
 	// Request native structured output; Structured only sets OutputSchema for models whose caps claim support
 	if len(req.OutputSchema) > 0 {
-		var schema map[string]any
-		err := json.Unmarshal(req.OutputSchema, &schema)
+		schema, strict, err := outputSchema(req.OutputSchema)
 		if err != nil {
-			return params, fmt.Errorf("invalid output schema: %w", err)
+			return params, err
 		}
-		// Strict mode makes the model follow the schema exactly, but the API rejects schemas that leave properties optional or objects open
-		jsonSchema := shared.ResponseFormatJSONSchemaJSONSchemaParam{Name: schemaName(req.OutputName), Schema: schema}
-		if strictCompatible(schema) {
-			jsonSchema.Strict = openai.Bool(true)
-		}
+		jsonSchema := shared.ResponseFormatJSONSchemaJSONSchemaParam{Name: schemaName(req.OutputName), Schema: schema, Strict: strict}
 		params.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{OfJSONSchema: &shared.ResponseFormatJSONSchemaParam{JSONSchema: jsonSchema}}
 	}
 
@@ -142,19 +138,41 @@ func toolResultContent(r *llm.ToolResult) string {
 }
 
 func convertTool(d llm.ToolDef) (openai.ChatCompletionToolUnionParam, error) {
-	schema := map[string]any{"type": "object", "properties": map[string]any{}}
-	if len(d.Schema) > 0 {
-		schema = nil
-		err := json.Unmarshal(d.Schema, &schema)
-		if err != nil {
-			return openai.ChatCompletionToolUnionParam{}, fmt.Errorf("tool %s has an invalid JSON schema: %w", d.Name, err)
-		}
+	schema, err := toolSchema(d)
+	if err != nil {
+		return openai.ChatCompletionToolUnionParam{}, err
 	}
 	fn := shared.FunctionDefinitionParam{Name: d.Name, Parameters: shared.FunctionParameters(schema)}
 	if d.Description != "" {
 		fn.Description = openai.String(d.Description)
 	}
 	return openai.ChatCompletionFunctionTool(fn), nil
+}
+
+func toolSchema(d llm.ToolDef) (map[string]any, error) {
+	if len(d.Schema) == 0 {
+		return map[string]any{"type": "object", "properties": map[string]any{}}, nil
+	}
+	var schema map[string]any
+	err := json.Unmarshal(d.Schema, &schema)
+	if err != nil {
+		return nil, fmt.Errorf("tool %s has an invalid JSON schema: %w", d.Name, err)
+	}
+	return schema, nil
+}
+
+// outputSchema parses a structured output schema and reports whether it may use strict mode
+// Strict mode makes the model follow the schema exactly, but the API rejects schemas that leave properties optional or objects open
+func outputSchema(raw json.RawMessage) (map[string]any, param.Opt[bool], error) {
+	var schema map[string]any
+	err := json.Unmarshal(raw, &schema)
+	if err != nil {
+		return nil, param.Opt[bool]{}, fmt.Errorf("invalid output schema: %w", err)
+	}
+	if strictCompatible(schema) {
+		return schema, openai.Bool(true), nil
+	}
+	return schema, param.Opt[bool]{}, nil
 }
 
 // schemaName derives the response_format name, which only allows letters, digits, underscores and dashes

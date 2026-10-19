@@ -217,6 +217,7 @@ type Provider struct {
 	SyncedAt    *int64
 	SyncError   *string
 	CreatedAt   int64
+	Api         *string
 }
 
 type Run struct {

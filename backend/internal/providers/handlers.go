@@ -23,6 +23,7 @@ type providerDto struct {
 	Name       string  `json:"name"`
 	Kind       string  `json:"kind"`
 	BaseURL    *string `json:"baseUrl"`
+	API        *string `json:"api" enum:"responses,chat_completions" doc:"The API an OpenAI-compatible provider calls, null for other kinds"`
 	HasAPIKey  bool    `json:"hasApiKey"`
 	ModelCount int64   `json:"modelCount"`
 	// EnabledModelCount counts the models that can be picked: enabled and still listed by the source
@@ -38,7 +39,7 @@ type listProvidersInput struct {
 }
 
 var providersSpec = &listquery.Spec{
-	Select: "SELECT p.id, p.name, p.kind, p.base_url, p.api_key_enc IS NOT NULL, " +
+	Select: "SELECT p.id, p.name, p.kind, p.base_url, p.api, p.api_key_enc IS NOT NULL, " +
 		"(SELECT COUNT(*) FROM models m WHERE m.provider_id = p.id), " +
 		"(SELECT COUNT(*) FROM models m WHERE m.provider_id = p.id AND m.enabled AND m.unlisted_at IS NULL), " +
 		"p.synced_at, p.sync_error, p.created_at FROM providers p",
@@ -53,7 +54,7 @@ func (m *Module) listProviders(ctx context.Context, in *listProvidersInput) (*ht
 	q := listquery.New(providersSpec).WhereEq("p.workspace_id", principal.WorkspaceID(ctx))
 	items, total, err := listquery.Run(ctx, m.deps.DB, q, in.ToQuery(), func(rows *sql.Rows) (providerDto, error) {
 		var d providerDto
-		err := rows.Scan(&d.ID, &d.Name, &d.Kind, &d.BaseURL, &d.HasAPIKey, &d.ModelCount, &d.EnabledModelCount, &d.SyncedAt, &d.SyncError, &d.CreatedAt)
+		err := rows.Scan(&d.ID, &d.Name, &d.Kind, &d.BaseURL, &d.API, &d.HasAPIKey, &d.ModelCount, &d.EnabledModelCount, &d.SyncedAt, &d.SyncError, &d.CreatedAt)
 		d.ModelSource = modelSourceFor(d.Kind, d.BaseURL)
 		return d, err
 	})
@@ -82,6 +83,7 @@ type createProviderInput struct {
 		Name    string `json:"name" minLength:"1" maxLength:"100"`
 		Kind    string `json:"kind" enum:"anthropic,openai,fake"`
 		BaseURL string `json:"baseUrl,omitempty" maxLength:"500"`
+		API     string `json:"api,omitempty" enum:"responses,chat_completions" doc:"The API an OpenAI-compatible provider calls, responses by default"`
 		APIKey  string `json:"apiKey,omitempty" maxLength:"1000"`
 	}
 }
@@ -95,6 +97,9 @@ func (m *Module) createProvider(ctx context.Context, in *createProviderInput) (*
 	if !m.service.SupportsKind(b.Kind) {
 		return nil, apperror.InvalidField("kind", "unsupported", "is not available in this build")
 	}
+	if b.API != "" && b.Kind != llm.KindOpenAI {
+		return nil, errAPINotOpenAI
+	}
 	if b.BaseURL != "" {
 		if err := m.checkBaseURL(ctx, b.BaseURL); err != nil {
 			return nil, err
@@ -102,7 +107,7 @@ func (m *Module) createProvider(ctx context.Context, in *createProviderInput) (*
 	}
 
 	wid := principal.WorkspaceID(ctx)
-	id, err := m.service.CreateProvider(ctx, wid, b.Name, b.Kind, b.BaseURL, b.APIKey, nil)
+	id, err := m.service.CreateProvider(ctx, wid, b.Name, b.Kind, b.BaseURL, b.API, b.APIKey, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +119,8 @@ func (m *Module) createProvider(ctx context.Context, in *createProviderInput) (*
 	}
 	return out, nil
 }
+
+var errAPINotOpenAI = apperror.InvalidField("api", "unsupported", "only applies to OpenAI-compatible providers")
 
 // checkBaseURL rejects a base URL the host must not call, or one that carries credentials, since every workspace member can read it
 func (m *Module) checkBaseURL(ctx context.Context, baseURL string) error {
@@ -129,6 +136,7 @@ type updateProviderInput struct {
 	Body struct {
 		Name    *string `json:"name,omitempty" minLength:"1" maxLength:"100"`
 		BaseURL *string `json:"baseUrl,omitempty" maxLength:"500"`
+		API     *string `json:"api,omitempty" enum:"responses,chat_completions" doc:"The API an OpenAI-compatible provider calls"`
 		// APIKey replaces the stored key; an empty string removes it
 		APIKey *string `json:"apiKey,omitempty" maxLength:"1000"`
 	}
@@ -143,7 +151,7 @@ func (m *Module) updateProvider(ctx context.Context, in *updateProviderInput) (*
 		return nil, fmt.Errorf("failed to load provider: %w", err)
 	}
 
-	name, baseURL := current.Name, current.BaseUrl
+	name, baseURL, api := current.Name, current.BaseUrl, current.Api
 	if in.Body.Name != nil {
 		name = strings.TrimSpace(*in.Body.Name)
 		if name == "" {
@@ -158,6 +166,12 @@ func (m *Module) updateProvider(ctx context.Context, in *updateProviderInput) (*
 			}
 		}
 	}
+	if in.Body.API != nil {
+		if current.Kind != llm.KindOpenAI {
+			return nil, errAPINotOpenAI
+		}
+		api = in.Body.API
+	}
 	// Encrypt before changing the row, so a failed encryption cannot leave a new URL paired with the old key
 	var enc []byte
 	var keyID *string
@@ -167,7 +181,7 @@ func (m *Module) updateProvider(ctx context.Context, in *updateProviderInput) (*
 			return nil, err
 		}
 	}
-	_, err = m.service.queries.UpdateProvider(ctx, providersdb.UpdateProviderParams{Name: name, BaseUrl: baseURL, WorkspaceID: wid, ID: in.ID, ReplaceKey: in.Body.APIKey != nil, ApiKeyEnc: enc, KeyID: keyID})
+	_, err = m.service.queries.UpdateProvider(ctx, providersdb.UpdateProviderParams{Name: name, BaseUrl: baseURL, Api: api, WorkspaceID: wid, ID: in.ID, ReplaceKey: in.Body.APIKey != nil, ApiKeyEnc: enc, KeyID: keyID})
 	if database.IsUniqueViolation(err) {
 		return nil, apperror.AlreadyInUse("Provider name")
 	} else if err != nil {

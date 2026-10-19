@@ -61,8 +61,8 @@ func (q *Queries) CreateModel(ctx context.Context, arg CreateModelParams) error 
 }
 
 const createProvider = `-- name: CreateProvider :exec
-INSERT INTO providers (id, workspace_id, name, kind, base_url, api_key_enc, key_id, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO providers (id, workspace_id, name, kind, base_url, api, api_key_enc, key_id, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateProviderParams struct {
@@ -71,6 +71,7 @@ type CreateProviderParams struct {
 	Name        string
 	Kind        string
 	BaseUrl     *string
+	Api         *string
 	ApiKeyEnc   []byte
 	KeyID       *string
 	CreatedAt   int64
@@ -83,6 +84,7 @@ func (q *Queries) CreateProvider(ctx context.Context, arg CreateProviderParams) 
 		arg.Name,
 		arg.Kind,
 		arg.BaseUrl,
+		arg.Api,
 		arg.ApiKeyEnc,
 		arg.KeyID,
 		arg.CreatedAt,
@@ -191,7 +193,7 @@ func (q *Queries) FindModel(ctx context.Context, arg FindModelParams) (string, e
 const getModel = `-- name: GetModel :one
 SELECT m.id, m.provider_id, m.model, m.label, m.price_in, m.price_out, m.price_cache_read, m.price_cache_write, m.caps,
        m.enabled, m.synced, m.unlisted_at,
-       p.name AS provider_name, p.kind AS provider_kind, p.base_url AS provider_base_url, p.api_key_enc AS provider_api_key_enc
+       p.name AS provider_name, p.kind AS provider_kind, p.base_url AS provider_base_url, p.api AS provider_api, p.api_key_enc AS provider_api_key_enc
 FROM models m JOIN providers p ON p.id = m.provider_id
 WHERE m.workspace_id = $1 AND m.id = $2
 `
@@ -217,6 +219,7 @@ type GetModelRow struct {
 	ProviderName      string
 	ProviderKind      string
 	ProviderBaseUrl   *string
+	ProviderApi       *string
 	ProviderApiKeyEnc []byte
 }
 
@@ -239,6 +242,7 @@ func (q *Queries) GetModel(ctx context.Context, arg GetModelParams) (GetModelRow
 		&i.ProviderName,
 		&i.ProviderKind,
 		&i.ProviderBaseUrl,
+		&i.ProviderApi,
 		&i.ProviderApiKeyEnc,
 	)
 	return i, err
@@ -272,7 +276,7 @@ func (q *Queries) GetModelCatalogFetchedAt(ctx context.Context, source string) (
 }
 
 const getProvider = `-- name: GetProvider :one
-SELECT id, workspace_id, name, kind, base_url, api_key_enc, key_id, synced_at, sync_error, created_at FROM providers WHERE workspace_id = $1 AND id = $2
+SELECT id, workspace_id, name, kind, base_url, api_key_enc, key_id, synced_at, sync_error, created_at, api FROM providers WHERE workspace_id = $1 AND id = $2
 `
 
 type GetProviderParams struct {
@@ -294,6 +298,7 @@ func (q *Queries) GetProvider(ctx context.Context, arg GetProviderParams) (Provi
 		&i.SyncedAt,
 		&i.SyncError,
 		&i.CreatedAt,
+		&i.Api,
 	)
 	return i, err
 }
@@ -606,15 +611,16 @@ func (q *Queries) UpdateModelMetadata(ctx context.Context, arg UpdateModelMetada
 }
 
 const updateProvider = `-- name: UpdateProvider :execrows
-UPDATE providers SET name = $1, base_url = $2,
- api_key_enc = CASE WHEN CAST($3 AS BOOLEAN) THEN $4 WHEN COALESCE(base_url, '') = COALESCE($2, '') THEN api_key_enc ELSE NULL END,
- key_id = CASE WHEN CAST($3 AS BOOLEAN) THEN $5 WHEN COALESCE(base_url, '') = COALESCE($2, '') THEN key_id ELSE NULL END
-WHERE workspace_id = $6 AND id = $7
+UPDATE providers SET name = $1, base_url = $2, api = $3,
+ api_key_enc = CASE WHEN CAST($4 AS BOOLEAN) THEN $5 WHEN COALESCE(base_url, '') = COALESCE($2, '') THEN api_key_enc ELSE NULL END,
+ key_id = CASE WHEN CAST($4 AS BOOLEAN) THEN $6 WHEN COALESCE(base_url, '') = COALESCE($2, '') THEN key_id ELSE NULL END
+WHERE workspace_id = $7 AND id = $8
 `
 
 type UpdateProviderParams struct {
 	Name        string
 	BaseUrl     *string
+	Api         *string
 	ReplaceKey  bool
 	ApiKeyEnc   []byte
 	KeyID       *string
@@ -627,6 +633,7 @@ func (q *Queries) UpdateProvider(ctx context.Context, arg UpdateProviderParams) 
 	result, err := q.db.ExecContext(ctx, updateProvider,
 		arg.Name,
 		arg.BaseUrl,
+		arg.Api,
 		arg.ReplaceKey,
 		arg.ApiKeyEnc,
 		arg.KeyID,

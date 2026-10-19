@@ -75,12 +75,30 @@ func TestModelSourceFor(t *testing.T) {
 	assert.Equal(t, SourceManual, modelSourceFor(llm.KindFake, nil))
 }
 
+func TestCreateProviderPicksTheAPI(t *testing.T) {
+	s, _, wid := newTestService(t)
+	for _, tc := range []struct {
+		kind, api string
+		want      *string
+	}{
+		{kind: llm.KindOpenAI, want: new(APIResponses)},
+		{kind: llm.KindOpenAI, api: APIChatCompletions, want: new(APIChatCompletions)},
+		{kind: llm.KindAnthropic},
+	} {
+		id, err := s.CreateProvider(t.Context(), wid, database.NewID(), tc.kind, "http://localhost:11434/v1", tc.api, "", nil)
+		require.NoError(t, err)
+		row, err := s.queries.GetProvider(t.Context(), providersdb.GetProviderParams{WorkspaceID: wid, ID: id})
+		require.NoError(t, err)
+		assert.Equal(t, tc.want, row.Api, "%s %q", tc.kind, tc.api)
+	}
+}
+
 func TestCatalogSyncFollowsTheCatalog(t *testing.T) {
 	ctx := context.Background()
 	s, db, wid := newTestService(t)
 	useCatalog(t, 100, claude("claude-a", 1_000_000), claude("claude-b", 2_000_000))
 
-	pid, err := s.CreateProvider(ctx, wid, "Anthropic", llm.KindAnthropic, "", "", nil)
+	pid, err := s.CreateProvider(ctx, wid, "Anthropic", llm.KindAnthropic, "", "", "", nil)
 	require.NoError(t, err)
 	_, err = s.CreateModel(ctx, wid, pid, "claude-custom", "", llm.Price{In: 7}, llm.Caps{Tools: true, Context: 1000})
 	require.NoError(t, err)
@@ -129,7 +147,7 @@ func TestCatalogSyncAdoptsModelsAddedBefore(t *testing.T) {
 	s, _, wid := newTestService(t)
 	useCatalog(t, 100, claude("claude-a", 1_000_000), claude("claude-b", 2_000_000))
 
-	pid, err := s.CreateProvider(ctx, wid, "Anthropic", llm.KindAnthropic, "", "", nil)
+	pid, err := s.CreateProvider(ctx, wid, "Anthropic", llm.KindAnthropic, "", "", "", nil)
 	require.NoError(t, err)
 	_, err = s.CreateModel(ctx, wid, pid, "claude-a", "Old label", llm.Price{In: 5}, llm.Caps{Tools: true, Context: 1000})
 	require.NoError(t, err)
@@ -146,7 +164,7 @@ func TestCatalogSyncAdoptsModelsAddedBefore(t *testing.T) {
 func TestConcurrentSyncsAddAModelOnce(t *testing.T) {
 	ctx := t.Context()
 	s, _, wid := newTestService(t)
-	pid, err := s.CreateProvider(ctx, wid, "Anthropic", llm.KindAnthropic, "", "", nil)
+	pid, err := s.CreateProvider(ctx, wid, "Anthropic", llm.KindAnthropic, "", "", "", nil)
 	require.NoError(t, err)
 
 	// The sync that loses the race to add a model neither fails nor overwrites the row the other one wrote
@@ -181,7 +199,7 @@ func TestServerSyncListsTheServerModels(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	pid, err := s.CreateProvider(ctx, wid, "Ollama", llm.KindOpenAI, srv.URL+"/v1", "", nil)
+	pid, err := s.CreateProvider(ctx, wid, "Ollama", llm.KindOpenAI, srv.URL+"/v1", "", "", nil)
 	require.NoError(t, err)
 	result, err := s.SyncProvider(ctx, wid, pid)
 	require.NoError(t, err)
@@ -226,7 +244,7 @@ func TestDisabledAndUnlistedModelsCantBePicked(t *testing.T) {
 	ctx := context.Background()
 	s, db, wid := newTestService(t)
 	useCatalog(t, 100, claude("claude-a", 1_000_000))
-	pid, err := s.CreateProvider(ctx, wid, "Anthropic", llm.KindAnthropic, "", "", nil)
+	pid, err := s.CreateProvider(ctx, wid, "Anthropic", llm.KindAnthropic, "", "", "", nil)
 	require.NoError(t, err)
 	id, err := s.CreateModel(ctx, wid, pid, "claude-a", "", llm.Price{}, llm.Caps{Tools: true, JSONSchema: true, Context: 1000})
 	require.NoError(t, err)

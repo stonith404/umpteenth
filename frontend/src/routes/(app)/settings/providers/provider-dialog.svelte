@@ -27,12 +27,14 @@
 	} = $props();
 
 	type Kind = 'anthropic' | 'openai';
+	type Api = NonNullable<Provider['api']>;
 
 	const providerService = new ProviderService();
 
 	let kind = $state<Kind>('anthropic');
 	let name = $state('');
 	let baseUrl = $state('');
+	let api = $state<Api>('responses');
 	let apiKey = $state('');
 	let removeKey = $state(false);
 	let errors = $state<Record<string, string>>({});
@@ -45,6 +47,7 @@
 			kind = provider?.kind === 'openai' ? 'openai' : 'anthropic';
 			name = provider?.name ?? 'Anthropic';
 			baseUrl = provider?.baseUrl ?? '';
+			api = provider?.api ?? 'responses';
 			removeKey = false;
 			errors = {};
 		});
@@ -86,6 +89,7 @@
 		if (provider) {
 			// An empty key field keeps the stored key, the checkbox removes it
 			const body: ProviderUpdate = { name: name.trim(), baseUrl: baseUrl.trim() };
+			if (provider.kind === 'openai') body.api = api;
 			if (removeKey) body.apiKey = '';
 			else if (apiKey.trim()) body.apiKey = apiKey.trim();
 			request = providerService.update(provider.id, body);
@@ -94,6 +98,7 @@
 				kind,
 				name: name.trim(),
 				baseUrl: baseUrl.trim() || undefined,
+				api: kind === 'openai' ? api : undefined,
 				apiKey: apiKey.trim() || undefined
 			};
 			request = providerService.create(body).then((created) => {
@@ -190,6 +195,20 @@
 						<Field.Description>Leave empty for the provider's official API.</Field.Description>
 					{/if}
 				</Field.Field>
+				{#if kind === 'openai'}
+					<Field.Field>
+						<Field.Label>API</Field.Label>
+						<Tabs.Root value={api} onValueChange={(next) => (api = next as Api)}>
+							<Tabs.List aria-label="API">
+								<Tabs.Trigger value="responses">Responses</Tabs.Trigger>
+								<Tabs.Trigger value="chat_completions">Chat Completions</Tabs.Trigger>
+							</Tabs.List>
+						</Tabs.Root>
+						<Field.Description>
+							Switch to Chat Completions for a server that doesn't serve the Responses API.
+						</Field.Description>
+					</Field.Field>
+				{/if}
 				<Field.Field data-invalid={!!errors.apiKey}>
 					<!-- A key is needed for the official APIs, while local servers behind a base URL usually run without one -->
 					<Field.Label

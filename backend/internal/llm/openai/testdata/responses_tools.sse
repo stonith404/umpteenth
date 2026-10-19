@@ -1,0 +1,24 @@
+event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_0a1","object":"response","created_at":1790363300,"status":"in_progress","error":null,"incomplete_details":null,"model":"gpt-5.4-mini-2026-03-17","output":[],"usage":null}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":1,"output_index":0,"item":{"id":"rs_0a1","type":"reasoning","summary":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":2,"output_index":0,"item":{"id":"rs_0a1","type":"reasoning","summary":[],"encrypted_content":"gAAAAABo-encrypted"}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":3,"output_index":1,"item":{"id":"fc_0a1","type":"function_call","status":"in_progress","arguments":"","call_id":"call_DdmO9pD3xa9XTPNJ32zg2hcA","name":"get_weather"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":4,"item_id":"fc_0a1","output_index":1,"delta":"{\"city\":\"Paris\"}"}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":5,"output_index":2,"item":{"id":"fc_0a2","type":"function_call","status":"in_progress","arguments":"","call_id":"call_Kq8vN2wX5mT1rY7cB4zL9pHs","name":"get_weather"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":6,"item_id":"fc_0a2","output_index":2,"delta":"{\"city\":\"Berlin\"}"}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":7,"response":{"id":"resp_0a1","object":"response","created_at":1790363300,"status":"completed","error":null,"incomplete_details":null,"model":"gpt-5.4-mini-2026-03-17","output":[{"id":"rs_0a1","type":"reasoning","summary":[],"encrypted_content":"gAAAAABo-encrypted"},{"id":"fc_0a1","type":"function_call","status":"completed","arguments":"{\"city\":\"Paris\"}","call_id":"call_DdmO9pD3xa9XTPNJ32zg2hcA","name":"get_weather"},{"id":"fc_0a2","type":"function_call","status":"completed","arguments":"{\"city\":\"Berlin\"}","call_id":"call_Kq8vN2wX5mT1rY7cB4zL9pHs","name":"get_weather"}],"usage":{"input_tokens":2512,"input_tokens_details":{"cached_tokens":2048},"output_tokens":220,"output_tokens_details":{"reasoning_tokens":192},"total_tokens":2732}}}
+

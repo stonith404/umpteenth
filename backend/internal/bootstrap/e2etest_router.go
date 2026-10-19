@@ -103,7 +103,7 @@ func cancelLiveRuns(ctx context.Context, db *database.DB, svc *services) error {
 
 // seedFakeProvider makes the scripted fake model the workspace's default
 func seedFakeProvider(ctx context.Context, svc *services, wid string) error {
-	_, err := svc.providers.Service().CreateProvider(ctx, wid, "Fake", llm.KindFake, "", "", []providers.ModelSeed{{Model: "fake-model", Label: "Fake model", Caps: fake.DefaultCaps}})
+	_, err := svc.providers.Service().CreateProvider(ctx, wid, "Fake", llm.KindFake, "", "", "", []providers.ModelSeed{{Model: "fake-model", Label: "Fake model", Caps: fake.DefaultCaps}})
 	if err != nil {
 		return err
 	}

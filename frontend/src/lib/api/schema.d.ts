@@ -1816,6 +1816,11 @@ export interface components {
 			token: string;
 		};
 		CreateProviderInputBody: {
+			/**
+			 * @description The API an OpenAI-compatible provider calls, responses by default
+			 * @enum {string}
+			 */
+			api?: 'responses' | 'chat_completions';
 			apiKey?: string;
 			baseUrl?: string;
 			/** @enum {string} */
@@ -2552,6 +2557,11 @@ export interface components {
 			out: number;
 		};
 		ProviderDto: {
+			/**
+			 * @description The API an OpenAI-compatible provider calls, null for other kinds
+			 * @enum {string|null}
+			 */
+			api: 'responses' | 'chat_completions' | null;
 			baseUrl: string | null;
 			/** Format: int64 */
 			createdAt: number;
@@ -3130,6 +3140,11 @@ export interface components {
 			name: string;
 		};
 		UpdateProviderInputBody: {
+			/**
+			 * @description The API an OpenAI-compatible provider calls
+			 * @enum {string}
+			 */
+			api?: 'responses' | 'chat_completions';
 			apiKey?: string;
 			baseUrl?: string;
 			name?: string;
