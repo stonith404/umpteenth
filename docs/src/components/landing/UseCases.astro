@@ -43,8 +43,6 @@ type Result =
       groups: { heading: string; items: { source: string; text: string }[] }[];
     };
 type UseCase = {
-  trigger: string;
-  when: string;
   title: string;
   text: string;
   run: {
@@ -57,10 +55,8 @@ type UseCase = {
 
 const useCases: UseCase[] = [
   {
-    trigger: "Webhook",
-    when: "On alert",
     title: "Alert triage",
-    text: "An alert fires at 3 a.m. By the time whoever is on call opens their laptop, the agent has pulled the service's logs from Loki, matched them against the last deploy and attached its analysis to the alert.",
+    text: "An alert fires at 3 a.m. and the agent starts right away. It pulls the logs from Loki, checks them against the last deploy and adds what it found to the alert. So when you open your laptop, the annoying part is already done.",
     run: {
       job: "Checkout alert triage",
       input: {
@@ -116,10 +112,8 @@ const useCases: UseCase[] = [
     },
   },
   {
-    trigger: "Webhook",
-    when: "On release",
-    title: "Docs that keep up",
-    text: "Keeping docs up to date is hard (looking at you AWS). The agent goes through every commit since the last release, finds the doc pages that no longer match the code and opens a pull request that fixes them.",
+    title: "Keep the docs up to date",
+    text: "Keeping docs up to date is hard (looking at you AWS). After a release the agent goes through all the new commits, finds the pages that don't match the code anymore and opens a pull request to fix them.",
     run: {
       job: "Docs sync",
       input: { kind: "Webhook", value: '{"tag": "v2.4.0"}' },
@@ -172,10 +166,8 @@ const useCases: UseCase[] = [
     },
   },
   {
-    trigger: "Schedule",
-    when: "Every hour",
     title: "Fight AI slop in security reports",
-    text: "GitHub security advisories are probably the worst place on the internet in terms of AI slop. Let your agent try to reproduce and analyze the reports before you spend any time on them.",
+    text: "GitHub security advisories are probably the worst place on the internet in terms of AI slop. Let the agent try to reproduce and analyze the reports first, before you waste your time on them.",
     run: {
       job: "Security report check",
       input: { kind: "Schedule", value: "0 * * * *" },
@@ -230,10 +222,8 @@ const useCases: UseCase[] = [
     },
   },
   {
-    trigger: "Schedule",
-    when: "Every night",
-    title: "Major upgrades, green at last",
-    text: "The major-version bump from Dependabot has been open since March because it breaks the build. Tonight the agent reads the migration guide, changes your code until the tests pass and pushes the fixes to the PR.",
+    title: "Fix major dependency upgrades",
+    text: "This one Dependabot PR with the major version bump is open since March because it breaks the build. The agent reads the migration guide, changes your code until the tests pass and pushes the fix to the PR.",
     run: {
       job: "Major upgrades",
       input: { kind: "Schedule", value: "0 2 * * *" },
@@ -298,10 +288,8 @@ const useCases: UseCase[] = [
     },
   },
   {
-    trigger: "Schedule",
-    when: "Mondays at 8:00",
-    title: "The Monday catch-up",
-    text: "Before you open anything on Monday, the agent goes through last week's Teams chats, Outlook threads and GitHub notifications and gets back to you with a digest of what's actually important.",
+    title: "Monday catch-up",
+    text: "On Monday morning the agent goes through your Teams chats, Outlook mails and GitHub notifications from last week and sends you a short digest with the stuff that is actually important.",
     run: {
       job: "Monday catch-up",
       input: { kind: "Schedule", value: "0 8 * * 1" },
@@ -480,9 +468,6 @@ const hideWhileReplaying =
             aria-hidden="true"
             data-uc-rail
           />
-          <p class="m-0 mb-1 font-mono text-2xs text-gray-3">
-            {u.trigger} · {u.when}
-          </p>
           {/* The button drops every browser style, which Tailwind sorts after the other utilities, so it inherits its color and cursor from the heading */}
           <h3
             class:list={[

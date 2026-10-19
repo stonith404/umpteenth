@@ -49,39 +49,39 @@ const steps = [
 const features = [
   {
     title: "Plain-language jobs",
-    text: "No workflow builder. The instruction is the job, and the compile step derives everything else for you to confirm.",
+    text: "No workflow builder. You write what the job should do and Umpteenth figures out the rest. You check it before you save.",
   },
   {
-    title: "Any trigger",
-    text: "Cron schedules with time zones, authenticated webhooks, the API, or a manual run with input.",
+    title: "Triggers",
+    text: "Run a job on a cron schedule with time zones, from a webhook, through the API or by hand with some input.",
   },
   {
     title: "Isolated sandboxes",
-    text: "A fresh container per run, non-root with every capability dropped by default, and gVisor as a second kernel boundary if you want it.",
+    text: "Every run gets a fresh container. It runs as non-root with all capabilities dropped, and if you want you can put gVisor on top.",
   },
   {
     title: "Egress control",
-    text: "Internet sandboxes go out through an egress proxy that keeps them off private networks, the Docker host and cloud metadata. Limit a job to a list of domains, or give it no network at all.",
+    text: "Sandboxes with internet go through a proxy, so they can't reach your private network, the Docker host or cloud metadata. You can also limit a job to some domains or turn off the network.",
   },
   {
     title: "Per-job environments",
-    text: "A job can carry its own Dockerfile. The image is built once and cached, so tools are not installed on every run.",
+    text: "A job can have its own Dockerfile. The image gets built once and cached, so you don't install the same tools on every run.",
   },
   {
     title: "MCP servers",
-    text: "HTTP and stdio servers with a per-job tool allow-list. HTTP server credentials stay on the host, and stdio servers run as a separate user from the agent.",
+    text: "HTTP and stdio servers, and you pick which tools each job can use. Credentials of HTTP servers stay on the host, and stdio servers run as a different user than the agent.",
   },
   {
-    title: "Any model",
-    text: "The Anthropic API or any OpenAI-compatible endpoint: OpenAI, OpenRouter, Ollama, vLLM, LM Studio.",
+    title: "Bring your own model",
+    text: "Use the Anthropic API or anything that is OpenAI-compatible, like OpenAI, OpenRouter, Ollama, vLLM or LM Studio.",
   },
   {
     title: "Cost control",
-    text: "Per-run cost, turn and time limits, a daily spend cap for the workspace, and per-model pricing on every run.",
+    text: "Set limits for cost, turns and time per run, plus a daily budget for the whole workspace. Every run shows what it cost.",
   },
   {
     title: "Runs you can read",
-    text: "A live timeline of model calls, tool calls and outputs for every run. Playbook changes are versions you can diff and roll back.",
+    text: "Every run has a live timeline with all model calls, tool calls and outputs. Playbook changes are versioned, so you can diff and roll them back.",
   },
 ];
 
@@ -147,13 +147,10 @@ const panels =
 {/* Use cases */}
 <section class:list={[section, "border-t border-hairline"]}>
   <div class={wrap}>
-    <p class={eyebrow}>Use cases</p>
-    <h2 class:list={[h2, "max-w-[36rem]"]}>
-      The legwork, done before anyone looks.
-    </h2>
+    <h2 class:list={[h2, "max-w-[36rem]"]}>A few use cases</h2>
     <p class:list={[lede, "max-w-[38rem]"]}>
-      An alert, a release or the clock starts the job. The agent gathers the
-      context from your tools and puts its findings where you look first.
+      A job starts from an alert, a release or a schedule. The agent collects
+      what it needs from your tools and puts the result where you see it first.
     </p>
     <UseCases />
   </div>
@@ -199,7 +196,7 @@ const panels =
   <div class={wrap}>
     <p class={eyebrow}>What you get</p>
     <h2 class:list={[h2, "max-w-[36rem]"]}>
-      Everything a recurring job needs, none of the ceremony.
+      Everything a recurring job needs.
     </h2>
     <ul
       class:list={[
@@ -227,9 +224,7 @@ const panels =
 <section class:list={[section, "border-t border-hairline text-center"]}>
   <div class:list={[wrap, "grid justify-items-center"]}>
     <h2 class={h2}>Give it the job you are tired of.</h2>
-    <p class={lede}>
-      Describe it once. By the umpteenth time, it runs itself.
-    </p>
+    <p class={lede}>Describe it once. By the umpteenth time, it runs itself.</p>
     <div class="flex flex-wrap gap-3 mt-7">
       <a class={button.primary} href="/getting-started/installation/">
         Install
