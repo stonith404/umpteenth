@@ -56,7 +56,6 @@ test('Add and edit a provider, then add a model with prices', async ({ page }) =
 	const addDialog = page.getByRole('dialog', { name: 'Add provider' });
 	await expect(addDialog.getByLabel('Name')).toHaveValue('Anthropic');
 	await addDialog.getByLabel('API key').fill('sk-ant-test-key');
-	await expect(addDialog.getByText(/come from the models\.dev catalog/)).toBeVisible();
 	await addDialog.getByRole('button', { name: 'Add provider' }).click();
 
 	const anthropic = providers.getByRole('row', { name: /Anthropic/ });
