@@ -1,3 +1,31 @@
+## v0.4.0
+
+### Features
+
+- let jobs keep state without being asked ([31bb6b5](https://github.com/stonith404/umpteenth/commit/31bb6b55ba27883dd8bbdc1781c978f98f00d282) by @stonith404)
+- trust custom CA certificates in the server, sandboxes and image builds ([0258fd7](https://github.com/stonith404/umpteenth/commit/0258fd77471e02b610d954e4b134ec302f08203f) by @stonith404)
+- **auth:** make the oidc groups claim configurable ([6e28523](https://github.com/stonith404/umpteenth/commit/6e28523a527e0f405f2937faf3f7fffa291b6b5e) by @stonith404)
+
+### Bug Fixes
+
+- let MCP servers turn off the OAuth resource parameter for Entra ID logins ([31a5a8b](https://github.com/stonith404/umpteenth/commit/31a5a8bb525824c9e92a3a6c00496c5caeb6ccf7) by @stonith404)
+- let OpenAI-compatible providers call the Responses API ([1db84ce](https://github.com/stonith404/umpteenth/commit/1db84ceaa3cf0bbc83e504f4de6eb31682b548f4) by @stonith404)
+
+### Documentation
+
+- update landing page wording ([a9b9fa4](https://github.com/stonith404/umpteenth/commit/a9b9fa486f774486d2a317910741a526871a94aa) by @stonith404)
+
+### Other
+
+- add development image push script ([9ae4a51](https://github.com/stonith404/umpteenth/commit/9ae4a51446001e76fb79db43ac8559a6fab7246b) by @stonith404)
+- drop the base URL presets from the provider dialog ([1e72eeb](https://github.com/stonith404/umpteenth/commit/1e72eeb729034e6e8d74afb986f4eabfe3eea0ba) by @stonith404)
+- drop the assertion on the removed provider dialog hint ([d29ce3f](https://github.com/stonith404/umpteenth/commit/d29ce3f4b499443b461528441f356636ee1f0fb0) by @stonith404)
+
+### Dependencies
+
+- **deps:** bump the all-dependencies group in /backend with 4 updates ([#17](https://github.com/stonith404/umpteenth/pull/17) by @dependabot[bot])
+
+**Full Changelog**: https://github.com/stonith404/umpteenth/compare/v0.3.0...v0.4.0
 ## v0.3.0
 
 ### Features
