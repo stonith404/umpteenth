@@ -3,7 +3,7 @@ title: Managing jobs
 description: Edit a saved job, pick its model, set its run limits, stop its automatic runs, turn learning off, manage its state and delete it.
 ---
 
-import Screenshot from '../../../components/Screenshot.astro';
+import Screenshot from "../../../components/Screenshot.astro";
 
 Open a job from the **Jobs** page to change its settings, stop its automatic runs or delete it.
 Each row's **⋯** menu also offers **Run now** and **Settings**.
@@ -23,7 +23,11 @@ The job page has six tabs:
 The **Graduation** chart on **Overview** shows each run's cost or tokens as a bar colored by its mode, its duration as a line, and each new playbook version as a marker.
 Click a bar to open that run.
 
-<Screenshot name="job-overview" alt="A job's Overview tab with the performance numbers and the Graduation chart: one Explore bar, four cheaper Assisted bars, then Scripted runs that cost nothing and take about a second" caption="The Graduation chart of a job that went from Explore to Assisted to Scripted." />
+<Screenshot
+  name="job-overview"
+  alt="A job's Overview tab with the performance numbers and the Graduation chart: one Explore bar, four cheaper Assisted bars, then Scripted runs that cost nothing and take about a second"
+  caption="The Graduation chart of a job that went from Explore to Assisted to Scripted."
+/>
 
 ## Editing a job
 
@@ -56,22 +60,21 @@ Providers, prices and the other model roles have their own page, [Models and cos
 Every run has a time, a turn and a cost limit, and its sandbox gets a fixed share of CPU and memory.
 You set them per job in the **Sandbox** card, where an empty field follows the workspace default under **Settings → General → Sandbox defaults**.
 
-| Setting | Default | A run that reaches it |
-|---|---|---|
-| **Timeout** | 900 seconds | ends as **Timed out**. Waiting for the job's image build counts, waiting in the queue doesn't |
-| **Max turns** | 60 | ends as **Failed**. A turn is one model call |
-| **Max cost per run** | 2 USD | ends as **Failed**. `0` turns the limit off |
-| **CPUs** | 1 | runs slower, since Docker throttles the sandbox to that many CPUs |
-| **Memory** | 1024 MB | loses the command that ran out, which the kernel kills. The sandbox has no swap |
+| Setting              | Default     | A run that reaches it                                                                         |
+| -------------------- | ----------- | --------------------------------------------------------------------------------------------- |
+| **Timeout**          | 900 seconds | ends as **Timed out**. Waiting for the job's image build counts, waiting in the queue doesn't |
+| **Max turns**        | 60          | ends as **Failed**. A turn is one model call                                                  |
+| **Max cost per run** | 2 USD       | ends as **Failed**. `0` turns the limit off                                                   |
+| **CPUs**             | 1           | runs slower, since Docker throttles the sandbox to that many CPUs                             |
+| **Memory**           | 1024 MB     | loses the command that ran out, which the kernel kills. The sandbox has no swap               |
 
 After a run that ran out of memory, time or turns, reflection suggests higher limits, which you apply with one click ([How jobs learn](../self-improvement/#suggestions)).
 [Models and costs](../models/#cost-limit-per-run) explains what the cost limit counts and the workspace's daily spend limit.
 
 ## Stopping automatic runs
 
-To keep a job from running by itself without deleting it, switch off **Run on a schedule** in the **Schedule** card.
-If another system calls the job's webhook, **Rotate token** in the **Webhook** card cuts it off, since the webhook answers `401` to the old token from then on.
-**Run now**, the API and **Retry** keep working, so you can still test the job by hand.
+To keep a job from running by itself without deleting it, click **Pause** in the job header.
+The button shows on jobs with a schedule or a webhook token, the two things that start runs without you.
 
 ## Mode and learning
 

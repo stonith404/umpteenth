@@ -90,6 +90,7 @@ type JobDto struct {
 	Concurrency         string         `json:"concurrency"`
 	Cron                *string        `json:"cron"`
 	Timezone            *string        `json:"timezone"`
+	Paused              bool           `json:"paused" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
 	NextRunAt           *int64         `json:"nextRunAt"`
 	PlaybookVersion     int64          `json:"playbookVersion"`
 	HasWebhookToken     bool           `json:"hasWebhookToken"`
@@ -117,6 +118,7 @@ func toDto(j jobsdb.Job) (JobDto, error) {
 		Concurrency:         j.Concurrency,
 		Cron:                j.Cron,
 		Timezone:            j.Timezone,
+		Paused:              j.Paused,
 		NextRunAt:           j.NextRunAt,
 		GraduatedVersion:    j.GraduatedVersion,
 		PlaybookVersion:     j.PlaybookVersion,

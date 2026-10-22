@@ -74,7 +74,7 @@ Umpteenth writes a JSON body to `/ump/input.json` as it is and wraps anything el
 The webhook has no field for extra instructions, so anything a run needs goes into the body.
 
 A successful call answers `{"runId": "…", "status": "queued"}`, with `"skipped"` as the status when the overlap policy skipped the run.
-A wrong or rotated token gets `401`.
+A wrong or rotated token gets `401`, and a [paused](../jobs/#stopping-automatic-runs) job answers `409`.
 Umpteenth limits each job's webhook to a sustained 60 calls a minute and answers `429` beyond that, with the seconds to wait in the `Retry-After` header.
 
 **Rotate token** replaces the token, and the old one stops working at once, so update every caller right after you rotate.

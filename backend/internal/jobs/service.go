@@ -306,6 +306,7 @@ type jobFields struct {
 	Concurrency         string         `json:"concurrency,omitempty" enum:"skip,queue,parallel" doc:"What a trigger during an active run does, skip when omitted"`
 	Cron                *string        `json:"cron,omitempty" maxLength:"100" doc:"Five-field cron expression or a descriptor such as @daily, for a job that runs on a schedule"`
 	Timezone            *string        `json:"timezone,omitempty" maxLength:"100" doc:"IANA time zone of the schedule, UTC when omitted"`
+	Paused              bool           `json:"paused,omitempty" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
 }
 
 // jobPatch is a partial update: omitted fields keep their value, and an empty string clears an optional text field
@@ -326,6 +327,7 @@ type jobPatch struct {
 	Concurrency         *string         `json:"concurrency,omitempty" enum:"skip,queue,parallel"`
 	Cron                *string         `json:"cron,omitempty" maxLength:"100" doc:"Five-field cron expression or a descriptor such as @daily, where an empty string stops the schedule"`
 	Timezone            *string         `json:"timezone,omitempty" maxLength:"100"`
+	Paused              *bool           `json:"paused,omitempty" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
 }
 
 // fieldsOf returns a stored job's editable fields, the base that a patch is applied to
@@ -350,6 +352,7 @@ func fieldsOf(j jobsdb.Job) (jobFields, error) {
 		Concurrency:         d.Concurrency,
 		Cron:                d.Cron,
 		Timezone:            d.Timezone,
+		Paused:              d.Paused,
 	}, nil
 }
 
@@ -378,6 +381,9 @@ func (p jobPatch) apply(f *jobFields) {
 	}
 	if p.AllowPrivateNetwork != nil {
 		f.AllowPrivateNetwork = *p.AllowPrivateNetwork
+	}
+	if p.Paused != nil {
+		f.Paused = *p.Paused
 	}
 
 	// Optional fields are replaced as given, so an empty string reaches normalize and clears them
@@ -558,6 +564,7 @@ func (m *Module) createJob(ctx context.Context, workspaceID string, userID *stri
 		Concurrency:         f.Concurrency,
 		Cron:                f.Cron,
 		Timezone:            f.Timezone,
+		Paused:              f.Paused,
 		CreatedBy:           userID,
 		CreatedAt:           database.Now(),
 	})

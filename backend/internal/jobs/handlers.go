@@ -26,6 +26,7 @@ type JobListDto struct {
 	Name      string   `json:"name"`
 	Cron      *string  `json:"cron"`
 	Timezone  *string  `json:"timezone"`
+	Paused    bool     `json:"paused"`
 	NextRunAt *int64   `json:"nextRunAt"`
 	Graduate  bool     `json:"graduate"`
 	CreatedAt int64    `json:"createdAt"`
@@ -44,7 +45,7 @@ type JobListDto struct {
 
 var listSpec = &listquery.Spec{
 	// The current playbook is read with the job, since the next mode depends on it
-	Select: "SELECT j.id, j.name, j.cron, j.timezone, j.spec, j.next_run_at, j.graduate, j.created_at, j.updated_at, j.run_counter, j.graduated_version, " +
+	Select: "SELECT j.id, j.name, j.cron, j.timezone, j.paused, j.spec, j.next_run_at, j.graduate, j.created_at, j.updated_at, j.run_counter, j.graduated_version, " +
 		"(SELECT pv.content FROM playbook_versions pv WHERE pv.job_id = j.id AND pv.version = j.playbook_version) FROM jobs j",
 	From:          "FROM jobs j",
 	Sorts:         map[string]string{"name": "j.name", "createdAt": "j.created_at", "updatedAt": "j.updated_at", "nextRunAt": "j.next_run_at", "runCount": "j.run_counter"},
@@ -70,7 +71,7 @@ func (m *Module) list(ctx context.Context, in *listInput) (*httpserver.Paginated
 			spec string
 			mi   listModeInput
 		)
-		err := rows.Scan(&d.ID, &d.Name, &d.Cron, &d.Timezone, &spec, &d.NextRunAt, &d.Graduate, &d.CreatedAt, &d.UpdatedAt,
+		err := rows.Scan(&d.ID, &d.Name, &d.Cron, &d.Timezone, &d.Paused, &spec, &d.NextRunAt, &d.Graduate, &d.CreatedAt, &d.UpdatedAt,
 			&d.RunCount, &mi.graduatedVersion, &mi.content)
 		if err != nil {
 			return d, err
@@ -253,6 +254,7 @@ func (m *Module) applyPatch(ctx context.Context, wid, jobID string, edit func(*j
 		Concurrency:         f.Concurrency,
 		Cron:                f.Cron,
 		Timezone:            f.Timezone,
+		Paused:              f.Paused,
 		// The new timestamp always differs from the one compared against, even within the same millisecond or on a replica whose clock lags
 		UpdatedAt:     max(database.Now(), current.UpdatedAt+1),
 		ReadUpdatedAt: current.UpdatedAt,

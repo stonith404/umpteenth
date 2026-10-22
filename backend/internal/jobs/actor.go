@@ -202,6 +202,11 @@ func (a *jobActor) trigger(ctx context.Context, req runs.TriggerRequest) (runs.T
 		return runs.TriggerResult{}, err
 	}
 
+	// The actor refuses rather than the callers, since a schedule alarm can still come due between pausing and the reschedule that drops it
+	if job.Paused && (req.Trigger == runs.TriggerSchedule || req.Trigger == runs.TriggerWebhook) {
+		return runs.TriggerResult{}, apperror.Conflict("The job is paused")
+	}
+
 	// Repair a stuck slot first, so the decision below sees what is really running
 	err = a.resume(ctx, job, &state, waiting)
 	if err != nil {
@@ -263,7 +268,7 @@ func (a *jobActor) runFinished(ctx context.Context) error {
 	return a.save(ctx, state)
 }
 
-// reschedule sets the schedule alarm from the job's current cron, or removes it
+// reschedule sets the schedule alarm from the job's current cron, or removes it while the job has none or is paused
 func (a *jobActor) reschedule(ctx context.Context) error {
 	job, err := a.m.queries.GetJobUnscoped(ctx, a.id)
 	if database.IsNotFound(err) {
@@ -280,7 +285,7 @@ func (a *jobActor) reschedule(ctx context.Context) error {
 	previous := state.Alarm
 	state.Alarm = ""
 	var nextAt *int64
-	if job.ArchivedAt == nil && deref(job.Cron) != "" {
+	if job.ArchivedAt == nil && !job.Paused && deref(job.Cron) != "" {
 		next, err := nextRun(*job.Cron, deref(job.Timezone), time.Now())
 		if err != nil {
 			// The schedule was validated when it was saved, so a failure here is unexpected and leaves the job unscheduled until it is saved again
@@ -366,7 +371,7 @@ func (a *jobActor) fireSchedule(ctx context.Context, alarm string) error {
 
 		res, err := a.trigger(ctx, runs.TriggerRequest{Trigger: runs.TriggerSchedule})
 		switch {
-		case apperror.IsCode(err, apperror.CodeNotFound):
+		case apperror.IsCode(err, apperror.CodeNotFound), apperror.IsCode(err, apperror.CodeConflict):
 		case err != nil:
 			slog.ErrorContext(ctx, "Scheduled run failed to start", slog.String("job", a.id), slog.Any("error", err))
 		default:

@@ -181,7 +181,9 @@
 				</span>
 			{/if}
 			<span class="truncate">
-				{#if job.cron && job.nextRunAt}
+				{#if job.paused}
+					Paused
+				{:else if job.cron && job.nextRunAt}
 					Next <RelativeTime value={job.nextRunAt} interactive={false} />
 				{:else if job.cron}
 					No upcoming run
@@ -211,7 +213,9 @@
 {#snippet nextRunCell(job: JobListItem)}
 	<!-- Block-level like the strip beside it, so the times sit on the same line instead of an inline baseline a pixel lower -->
 	<div class="flex items-center">
-		{#if job.cron && job.nextRunAt}
+		{#if job.paused}
+			<span class="text-muted-foreground">Paused</span>
+		{:else if job.cron && job.nextRunAt}
 			<RelativeTime value={job.nextRunAt} interactive={false} />
 		{:else}
 			<!-- On-demand jobs say so on the job's second line, so this cell stays quiet -->

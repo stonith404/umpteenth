@@ -18,6 +18,7 @@ import (
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/require"
 
+	"github.com/stonith404/umpteenth/backend/internal/apperror"
 	"github.com/stonith404/umpteenth/backend/internal/database"
 	"github.com/stonith404/umpteenth/backend/internal/jobs/jobsdb"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
@@ -306,6 +307,36 @@ func TestScheduleArmsAlarmAndFiresRuns(t *testing.T) {
 	job, err = m.getJob(ctx, wid, jobID)
 	require.NoError(t, err)
 	require.Nil(t, job.NextRunAt)
+}
+
+func TestPausedJobStartsOnlyManualRuns(t *testing.T) {
+	m, queue, db := newTestModule(t)
+	ctx := context.Background()
+	wid := testutil.SeedWorkspace(t, db)
+	jobID := testutil.SeedJob(t, db, wid, ConcurrencyParallel)
+	testutil.Exec(t, db, "UPDATE jobs SET cron = '*/5 * * * *', paused = TRUE WHERE id = $1", jobID)
+
+	require.NoError(t, m.Reschedule(ctx, jobID))
+	job, err := m.getJob(ctx, wid, jobID)
+	require.NoError(t, err)
+	require.Nil(t, job.NextRunAt)
+
+	// An occurrence that comes due anyway and a webhook call start nothing
+	require.NoError(t, m.invoke(ctx, jobID, methodFireSchedule, nil, nil))
+	_, err = m.Trigger(ctx, wid, jobID, runs.TriggerRequest{Trigger: runs.TriggerWebhook})
+	require.True(t, apperror.IsCode(err, apperror.CodeConflict))
+	require.Empty(t, queue.Submitted())
+
+	_, err = m.Trigger(ctx, wid, jobID, runs.TriggerRequest{Trigger: runs.TriggerManual})
+	require.NoError(t, err)
+	require.Len(t, queue.Submitted(), 1)
+
+	// Resuming arms the schedule again
+	testutil.Exec(t, db, "UPDATE jobs SET paused = FALSE WHERE id = $1", jobID)
+	require.NoError(t, m.Reschedule(ctx, jobID))
+	job, err = m.getJob(ctx, wid, jobID)
+	require.NoError(t, err)
+	require.NotNil(t, job.NextRunAt)
 }
 
 func TestTriggerResubmitsEachWaitingRunOnce(t *testing.T) {

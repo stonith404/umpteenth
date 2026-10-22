@@ -52,6 +52,59 @@ test('A run the schedule fires says the schedule started it, and the job keeps i
 	expect((await runUtil.getJob(page.request, job.id)).nextRunAt).toBe(job.nextRunAt);
 });
 
+test('Pausing a job stops its schedule and webhook until it is resumed, while Run now still works', async ({
+	page,
+	playwright,
+	baseURL
+}) => {
+	const job = await runUtil.createJob(page.request, 'Nightly digest', {
+		cron: RARE_CRON,
+		timezone: 'UTC'
+	});
+	const rotated = await page.request.post(`/api/jobs/${job.id}/webhook-token`);
+	const { token } = (await rotated.json()) as { token: string };
+
+	// Pausing drops the next run from the header
+	await page.goto(`/jobs/${job.id}`);
+	const meta = pageHeaderMeta(page);
+	await expect(meta).toContainText('Next run');
+	await page.getByRole('button', { name: 'Pause' }).click();
+	await expect(page.getByText('Paused "Nightly digest"')).toBeVisible();
+	await expect(meta).toContainText('Paused');
+	await expect(meta).not.toContainText('Next run');
+	expect(await runUtil.getJob(page.request, job.id)).toMatchObject({
+		paused: true,
+		nextRunAt: null
+	});
+
+	// Neither an occurrence that comes due anyway nor a webhook call starts a run
+	await runUtil.fireSchedule(page.request, job.id);
+	const external = await playwright.request.newContext({ baseURL });
+	try {
+		const hook = await external.post(`/hooks/${job.id}`, {
+			headers: { Authorization: `Bearer ${token}` }
+		});
+		expect(hook.status()).toBe(409);
+		expect(await hook.json()).toMatchObject({ message: 'The job is paused' });
+	} finally {
+		await external.dispose();
+	}
+	expect((await listJobRuns(page.request, job.id)).total).toBe(0);
+
+	// A run started by hand still goes ahead
+	const { status } = await runUtil.runScripted(page.request, job.id, []);
+	expect(status).toBe('succeeded');
+
+	// Resuming brings the schedule back with its next run
+	await page.getByRole('button', { name: 'Resume' }).click();
+	await expect(page.getByText('Resumed "Nightly digest"')).toBeVisible();
+	await expect(meta).toContainText('Next run');
+	expect(await runUtil.getJob(page.request, job.id)).toMatchObject({
+		paused: false,
+		nextRunAt: job.nextRunAt
+	});
+});
+
 test("A scheduled trigger while a run is active is recorded as skipped, and the job's runs show it live", async ({
 	page
 }) => {

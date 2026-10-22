@@ -1319,6 +1319,10 @@
 						"format": "int64",
 						"type": ["integer", "null"]
 					},
+					"paused": {
+						"description": "Whether the schedule and the webhook are paused, which leaves manual and API runs alone",
+						"type": "boolean"
+					},
 					"playbookVersion": {
 						"format": "int64",
 						"type": "integer"
@@ -1357,6 +1361,7 @@
 					"concurrency",
 					"cron",
 					"timezone",
+					"paused",
 					"nextRunAt",
 					"playbookVersion",
 					"hasWebhookToken",
@@ -1423,6 +1428,10 @@
 						"enum": ["none", "internet", "allowlist", "unrestricted"],
 						"type": "string"
 					},
+					"paused": {
+						"description": "Whether the schedule and the webhook are paused, which leaves manual and API runs alone",
+						"type": "boolean"
+					},
 					"runAsRoot": {
 						"type": "boolean"
 					},
@@ -1486,6 +1495,9 @@
 						"format": "int64",
 						"type": ["integer", "null"]
 					},
+					"paused": {
+						"type": "boolean"
+					},
 					"recentRuns": {
 						"description": "The job's latest runs, at most 10, newest first",
 						"items": {
@@ -1511,6 +1523,7 @@
 					"name",
 					"cron",
 					"timezone",
+					"paused",
 					"nextRunAt",
 					"graduate",
 					"createdAt",
@@ -1573,6 +1586,10 @@
 					"network": {
 						"enum": ["none", "internet", "allowlist", "unrestricted"],
 						"type": "string"
+					},
+					"paused": {
+						"description": "Whether the schedule and the webhook are paused, which leaves manual and API runs alone",
+						"type": "boolean"
 					},
 					"rebuildSpec": {
 						"description": "Whether a changed instruction compiles the goal, success criteria, inputs, outputs, services and side effects again, true when omitted",

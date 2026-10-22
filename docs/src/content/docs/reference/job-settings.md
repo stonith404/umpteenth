@@ -34,7 +34,7 @@ A saved change applies from the next run on.
 
 | Field | Default | Effect |
 |---|---|---|
-| **Run on a schedule** | On when the job has a schedule | Off leaves the job to **Run now**, its webhook and the API |
+| **Run on a schedule** | On when the job has a schedule | Off leaves the job to **Run now**, its webhook and the API. To stop the schedule for a while and keep it, [pause the job](../../guides/jobs/#stopping-automatic-runs) instead |
 | **Cron expression** | From the compile step | Five fields (minute, hour, day of month, month, day of week) or a descriptor such as `@daily`, without a seconds field. **Presets** offers common schedules. |
 | **Timezone** | From the compile step, `UTC` when empty | The IANA time zone Umpteenth evaluates the expression in, such as `Europe/Berlin` |
 | **When runs overlap** | **Skip** | **Skip** records a trigger during an active run as a skipped run, **Queue** starts it once the active run finishes, and **Parallel** starts it right away |

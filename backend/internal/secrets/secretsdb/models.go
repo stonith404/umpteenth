@@ -67,6 +67,7 @@ type Job struct {
 	UpdatedAt            int64
 	ArchivedAt           *int64
 	InstructionChangedAt *int64
+	Paused               bool
 }
 
 type JobMcpServer struct {

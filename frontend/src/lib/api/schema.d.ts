@@ -2051,6 +2051,8 @@ export interface components {
 			nextMode?: 'explore' | 'assisted' | 'scripted';
 			/** Format: int64 */
 			nextRunAt: number | null;
+			/** @description Whether the schedule and the webhook are paused, which leaves manual and API runs alone */
+			paused: boolean;
 			/** Format: int64 */
 			playbookVersion: number;
 			runAsRoot: boolean;
@@ -2085,6 +2087,8 @@ export interface components {
 			 * @enum {string}
 			 */
 			network?: 'none' | 'internet' | 'allowlist' | 'unrestricted';
+			/** @description Whether the schedule and the webhook are paused, which leaves manual and API runs alone */
+			paused?: boolean;
 			runAsRoot?: boolean;
 			/** @description Whether reflection after runs improves the job's playbook, true when omitted */
 			selfImprove?: boolean;
@@ -2113,6 +2117,7 @@ export interface components {
 			nextMode: 'explore' | 'assisted' | 'scripted';
 			/** Format: int64 */
 			nextRunAt: number | null;
+			paused: boolean;
 			/** @description The job's latest runs, at most 10, newest first */
 			recentRuns: components['schemas']['LastRun'][] | null;
 			/** Format: int64 */
@@ -2137,6 +2142,8 @@ export interface components {
 			name?: string;
 			/** @enum {string} */
 			network?: 'none' | 'internet' | 'allowlist' | 'unrestricted';
+			/** @description Whether the schedule and the webhook are paused, which leaves manual and API runs alone */
+			paused?: boolean;
 			/** @description Whether a changed instruction compiles the goal, success criteria, inputs, outputs, services and side effects again, true when omitted */
 			rebuildSpec?: boolean;
 			runAsRoot?: boolean;

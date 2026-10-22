@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidate } from '$app/navigation';
 	import RunNowDialog from '#lib/components/jobs/run-now-dialog.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import PageTabs from '#lib/components/page-tabs.svelte';
@@ -17,9 +18,12 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import JobService from '#lib/services/job-service.js';
 	import { relativeTimeClock } from '#lib/utils/clock.svelte.js';
 	import { GRADUATION_OFF_NOTE, scheduleParts } from '#lib/utils/job-util.js';
+	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { cn } from '#lib/utils/style.js';
+	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import {
 		invalidateAfterNavigation,
 		subscribeWorkspaceEvents
@@ -27,12 +31,15 @@
 	import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
 	import CalendarOffIcon from '@lucide/svelte/icons/calendar-off';
 	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
+	import CirclePauseIcon from '@lucide/svelte/icons/circle-pause';
+	import CirclePlayIcon from '@lucide/svelte/icons/circle-play';
 	import ClockIcon from '@lucide/svelte/icons/clock';
 	import GraduationCapIcon from '@lucide/svelte/icons/graduation-cap';
 	import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import type { LayoutProps } from './$types';
 	import { jobPageTabs } from './job-tabs';
 
@@ -57,6 +64,26 @@
 	}
 
 	let runNowOpen = $state(false);
+
+	const jobService = new JobService();
+	let pausing = $state(false);
+
+	// Pausing stops what starts runs by itself, so the button only shows for a job with a schedule or a webhook, or one that is paused already
+	const canPause = $derived(job.paused || !!job.cron || job.hasWebhookToken);
+
+	async function togglePaused() {
+		const paused = !job.paused;
+		pausing = true;
+		const result = await tryCatch(jobService.update(job.id, { paused }));
+		if (result.error) {
+			pausing = false;
+			apiErrorToast(result.error, paused ? 'Failed to pause the job' : 'Failed to resume the job');
+			return;
+		}
+		await invalidate('app:job');
+		pausing = false;
+		toast.success(paused ? `Paused "${job.name}"` : `Resumed "${job.name}"`);
+	}
 
 	// The scheduler starts runs while the page is open, so the header reloads the job to keep its last run, next run and mode current
 	onMount(() =>
@@ -111,6 +138,22 @@
 			No upcoming run
 		{/if}
 	</span>
+{/snippet}
+
+{#snippet pausedFact()}
+	<Tooltip.Root>
+		<Tooltip.Trigger>
+			{#snippet child({ props })}
+				<span {...props} class={cn(factClass, 'cursor-default')}>
+					<CirclePauseIcon class={iconClass} aria-hidden="true" />
+					<span class={statusToneClasses.warning.label}>Paused</span>
+				</span>
+			{/snippet}
+		</Tooltip.Trigger>
+		<Tooltip.Content side="bottom" class="max-w-64">
+			The schedule and the webhook start no runs until the job is resumed. Run now still works.
+		</Tooltip.Content>
+	</Tooltip.Root>
 {/snippet}
 
 {#snippet lastRunFact()}
@@ -206,7 +249,9 @@
 	<PageHeader title={job.name}>
 		{#snippet meta()}
 			{@render scheduleFact()}
-			{#if job.cron}
+			{#if job.paused}
+				{@render pausedFact()}
+			{:else if job.cron}
 				{@render nextRunFact()}
 			{/if}
 			{@render lastRunFact()}
@@ -221,6 +266,17 @@
 			{/if}
 		{/snippet}
 		{#snippet actions()}
+			{#if canPause}
+				<Button variant="outline" disabled={pausing} onclick={togglePaused}>
+					{#if job.paused}
+						<CirclePlayIcon data-icon="inline-start" />
+						Resume
+					{:else}
+						<CirclePauseIcon data-icon="inline-start" />
+						Pause
+					{/if}
+				</Button>
+			{/if}
 			<Button onclick={() => (runNowOpen = true)}>
 				<PlayIcon data-icon="inline-start" />
 				Run now

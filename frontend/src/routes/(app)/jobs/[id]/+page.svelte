@@ -115,6 +115,9 @@
 					{#if job.cron && job.nextRunAt}
 						Its first scheduled run is {formatRelative(job.nextRunAt)}. Runs show up here with their
 						{usage.noun}, duration and mode.
+					{:else if job.paused}
+						This job is paused, so it only runs when you start it. Runs show up here with their {usage.noun},
+						duration and mode.
 					{:else}
 						This job runs on demand. Runs show up here with their {usage.noun}, duration and mode.
 					{/if}

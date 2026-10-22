@@ -1,6 +1,6 @@
 -- name: CreateJob :exec
-INSERT INTO jobs (id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, concurrency, cron, timezone, created_by, created_at, updated_at)
-VALUES (sqlc.arg(id), sqlc.arg(workspace_id), sqlc.arg(name), sqlc.arg(instruction), sqlc.arg(spec), sqlc.narg(model_id), sqlc.narg(image), sqlc.arg(network), sqlc.arg(allowed_domains), sqlc.arg(allow_private_network), sqlc.arg(run_as_root), sqlc.arg(limits), sqlc.arg(self_improve), sqlc.arg(graduate), sqlc.arg(concurrency), sqlc.narg(cron), sqlc.narg(timezone), sqlc.narg(created_by), sqlc.arg(created_at), sqlc.arg(created_at));
+INSERT INTO jobs (id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, concurrency, cron, timezone, paused, created_by, created_at, updated_at)
+VALUES (sqlc.arg(id), sqlc.arg(workspace_id), sqlc.arg(name), sqlc.arg(instruction), sqlc.arg(spec), sqlc.narg(model_id), sqlc.narg(image), sqlc.arg(network), sqlc.arg(allowed_domains), sqlc.arg(allow_private_network), sqlc.arg(run_as_root), sqlc.arg(limits), sqlc.arg(self_improve), sqlc.arg(graduate), sqlc.arg(concurrency), sqlc.narg(cron), sqlc.narg(timezone), sqlc.arg(paused), sqlc.narg(created_by), sqlc.arg(created_at), sqlc.arg(created_at));
 
 -- name: GetJob :one
 SELECT * FROM jobs WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id) AND archived_at IS NULL;
@@ -17,7 +17,7 @@ UPDATE jobs SET name = sqlc.arg(name), instruction = sqlc.arg(instruction), spec
   model_id = sqlc.narg(model_id), image = sqlc.narg(image), network = sqlc.arg(network),
   allowed_domains = sqlc.arg(allowed_domains), allow_private_network = sqlc.arg(allow_private_network), run_as_root = sqlc.arg(run_as_root),
   limits = sqlc.arg(limits), self_improve = sqlc.arg(self_improve), graduate = sqlc.arg(graduate), concurrency = sqlc.arg(concurrency),
-  cron = sqlc.narg(cron), timezone = sqlc.narg(timezone), updated_at = sqlc.arg(updated_at)
+  cron = sqlc.narg(cron), timezone = sqlc.narg(timezone), paused = sqlc.arg(paused), updated_at = sqlc.arg(updated_at)
 WHERE workspace_id = sqlc.arg(workspace_id) AND id = sqlc.arg(id) AND archived_at IS NULL AND updated_at = sqlc.arg(read_updated_at);
 
 -- name: ArchiveJob :execrows
