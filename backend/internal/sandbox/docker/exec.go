@@ -310,7 +310,7 @@ func (s *containerSandbox) awaitStop(ctx context.Context) (*container.State, err
 	waitCh, errCh := s.a.cli.ContainerWait(waitCtx, s.id, container.WaitConditionNotRunning)
 	select {
 	case <-waitCh:
-	case <-errCh:
+	case <-errCh: //nolint:errcheck // the state read afterwards tells what happened
 	}
 	return s.state(ctx)
 }

@@ -66,7 +66,7 @@ func (a *Adapter) pullGuarded(ctx context.Context, ref, platform string) error {
 	response, err := a.cli.ImageLoad(ctx, reader)
 	if err != nil {
 		_ = reader.CloseWithError(err)
-		<-done
+		<-done //nolint:errcheck // the load error already explains the failure
 		return err
 	}
 	err = readProgress(response.Body, nil)

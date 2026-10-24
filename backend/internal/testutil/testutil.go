@@ -102,7 +102,7 @@ func NewActorHostForTest(t *testing.T, register func(t *testing.T, h *local.Host
 	go func() { errCh <- h.Run(ctx) }()
 	t.Cleanup(func() {
 		cancel()
-		<-errCh
+		<-errCh //nolint:errcheck // the host only has to stop before the next test
 	})
 
 	select {

@@ -29,7 +29,7 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return gcm.Seal(nil, nil, plaintext, nil), nil
+	return gcm.Seal(nil, nil, plaintext, nil), nil //nolint:gosec // NewGCMWithRandomNonce generates the nonce and requires a nil one
 }
 
 // Decrypt opens a ciphertext produced by Encrypt
