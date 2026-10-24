@@ -67,6 +67,14 @@ func TestListShowsRecentRunsAndTheNextMode(t *testing.T) {
 	seedRun(scripted, 1, "succeeded", ModeScripted, true, v)
 	seedRun(scripted, 2, "succeeded", ModeScripted, false, v)
 
+	// A graduated job whose main script handed most of its runs to the agent is demoted too
+	handingOver := seedJob("f handing over")
+	v = save(handingOver, playbook.Content{Learnings: learning, Main: &main})
+	for n := int64(1); n <= 3; n++ {
+		seedRun(handingOver, n, "succeeded", ModeScripted, false, v)
+	}
+	testutil.Exec(t, db, "UPDATE runs SET handed_over = TRUE WHERE job_id = $1", handingOver)
+
 	// A job with graduation turned off stays on the agent although its main script never fell back
 	agentOnly := seedJob("e agent only")
 	v = save(agentOnly, playbook.Content{Learnings: learning, Main: &main})
@@ -82,7 +90,7 @@ func TestListShowsRecentRunsAndTheNextMode(t *testing.T) {
 	out, err := m.list(ctx, &listInput{ListParams: httpserver.ListParams{Page: 1, PageSize: 25}})
 	require.NoError(t, err)
 	items := out.Body.Items
-	require.Len(t, items, 5)
+	require.Len(t, items, 6)
 	byName := map[string]JobListDto{}
 	for _, d := range items {
 		byName[d.Name] = d
@@ -114,6 +122,7 @@ func TestListShowsRecentRunsAndTheNextMode(t *testing.T) {
 
 	assert.Equal(t, ModeAssisted, byName["c demoted"].NextMode)
 	assert.Equal(t, ModeScripted, byName["d scripted"].NextMode)
+	assert.Equal(t, ModeAssisted, byName["f handing over"].NextMode)
 	assert.Equal(t, ModeAssisted, byName["e agent only"].NextMode)
 	assert.False(t, byName["e agent only"].Graduate)
 

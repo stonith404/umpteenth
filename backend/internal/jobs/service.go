@@ -105,20 +105,20 @@ func (m *Module) newRun(ctx context.Context, job jobsdb.Job, req runs.TriggerReq
 	}, nil
 }
 
-// nextMode derives the mode of the job's next run from its playbook and history
-// Nothing learned yet explores, know-how assists, and a main script runs without the agent unless repeated fallbacks demoted the job
-func (m *Module) nextMode(ctx context.Context, job jobsdb.Job) (mode string, demoted bool, err error) {
+// nextMode derives the mode of the job's next run from its playbook and history, and why it is demoted when it is
+// Nothing learned yet explores, know-how assists, and a main script runs without the agent unless repeated fallbacks or handovers demoted the job
+func (m *Module) nextMode(ctx context.Context, job jobsdb.Job) (mode, demotion string, err error) {
 	content, err := m.deps.Playbooks.Content(ctx, job.ID, job.PlaybookVersion)
 	if err != nil {
-		return "", false, fmt.Errorf("failed to load the playbook: %w", err)
+		return "", "", fmt.Errorf("failed to load the playbook: %w", err)
 	}
 	if content.Main != nil {
-		demoted, err = m.demoted(ctx, job)
+		demotion, err = m.demotion(ctx, job)
 		if err != nil {
-			return "", false, err
+			return "", "", err
 		}
 	}
-	return modeFor(content, job.Graduate, demoted), demoted, nil
+	return modeFor(content, job.Graduate, demotion != ""), demotion, nil
 }
 
 // modeFor applies the mode rules to a job's current playbook, whether it may graduate and whether it is demoted
@@ -133,33 +133,66 @@ func modeFor(content playbook.Content, graduate, demoted bool) string {
 	return ModeScripted
 }
 
-// demoted reports whether the last two scripted runs since the job graduated both fell back to the agent
+// demotion applies the demotion rules to the job's latest scripted runs since it graduated, and returns the cause or an empty string
 // The job stays demoted until reflection graduates it again, which moves the graduated version past these runs
-func (m *Module) demoted(ctx context.Context, job jobsdb.Job) (bool, error) {
+func (m *Module) demotion(ctx context.Context, job jobsdb.Job) (string, error) {
 	// A job with graduation turned off never runs its main script, so it is never demoted and nothing may report it as such
 	if !job.Graduate {
-		return false, nil
+		return "", nil
 	}
 
-	fellBack, err := m.queries.RecentScriptedRuns(ctx, jobsdb.RecentScriptedRunsParams{WorkspaceID: job.WorkspaceID, JobID: job.ID, SinceVersion: deref(job.GraduatedVersion)})
+	rows, err := m.queries.RecentScriptedRuns(ctx, jobsdb.RecentScriptedRunsParams{WorkspaceID: job.WorkspaceID, JobID: job.ID, SinceVersion: deref(job.GraduatedVersion), MaxRuns: demotionWindow})
 	if err != nil {
-		return false, fmt.Errorf("failed to load recent scripted runs: %w", err)
+		return "", fmt.Errorf("failed to load recent scripted runs: %w", err)
 	}
-	return demotedBy(fellBack), nil
+	runs := make([]scriptedRun, len(rows))
+	for i, r := range rows {
+		runs[i] = scriptedRun{FellBack: r.FellBack, HandedOver: r.HandedOver}
+	}
+	return demotedBy(runs), nil
 }
 
-// demotedBy applies the demotion rule to whether each of a job's latest two scripted runs since it graduated fell back
-func demotedBy(fellBack []bool) bool {
-	return len(fellBack) == 2 && fellBack[0] && fellBack[1]
+// Demotion rules, decided on 2026-10-24
+const (
+	// demotionWindow is how many of a job's latest finished scripted runs since it graduated the rules look at
+	demotionWindow = 5
+	// maxHandovers is how many of those runs may hand a case over to the agent before main counts as leaving it most of the job
+	maxHandovers = 2
+)
+
+// scriptedRun is what the demotion rules need to know about one finished scripted run
+type scriptedRun struct {
+	FellBack, HandedOver bool
 }
 
-// Demoted reports whether a job is demoted, which reflection needs to decide whether the job may graduate again
-func (m *Module) Demoted(ctx context.Context, workspaceID, jobID string) (bool, error) {
+// demotedBy applies the demotion rules to a job's latest scripted runs since it graduated, newest first
+// The two latest runs that didn't hand over both falling back means main is broken, and a handover neither counts toward that nor resets it
+func demotedBy(runs []scriptedRun) string {
+	handovers := 0
+	var fellBack []bool
+	for _, r := range runs {
+		if r.HandedOver {
+			handovers++
+			continue
+		}
+		fellBack = append(fellBack, r.FellBack)
+	}
+	switch {
+	case len(fellBack) >= 2 && fellBack[0] && fellBack[1]:
+		return runner.DemotedFellBack
+	case handovers > maxHandovers:
+		return runner.DemotedHandedOver
+	}
+	return ""
+}
+
+// Demotion returns why a job is demoted, or an empty string when it isn't, which reflection needs to decide whether the job may graduate again
+func (m *Module) Demotion(ctx context.Context, workspaceID, jobID string) (string, error) {
 	job, err := m.getJob(ctx, workspaceID, jobID)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	return m.demoted(ctx, job)
+	return m.demotion(ctx, job)
 }
 
 // LoadForRun implements runner.JobLoader: the job merged with workspace defaults and its playbook

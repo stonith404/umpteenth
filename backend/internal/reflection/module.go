@@ -51,9 +51,9 @@ type ImageVerifier interface {
 	Verify(ctx context.Context, jobID, dockerfile string) error
 }
 
-// DemotionChecker tells whether repeated fallbacks took a graduated job back to Assisted
+// DemotionChecker tells why repeated fallbacks or handovers took a graduated job back to Assisted, or returns an empty string when they didn't
 type DemotionChecker interface {
-	Demoted(ctx context.Context, workspaceID, jobID string) (bool, error)
+	Demotion(ctx context.Context, workspaceID, jobID string) (string, error)
 }
 
 // JobEditor checks that a job belongs to the workspace and changes its limits when someone applies a limits suggestion

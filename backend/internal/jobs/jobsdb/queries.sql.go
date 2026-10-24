@@ -376,32 +376,43 @@ func (q *Queries) NextRunNumber(ctx context.Context, arg NextRunNumberParams) (i
 }
 
 const recentScriptedRuns = `-- name: RecentScriptedRuns :many
-SELECT fell_back FROM runs
+SELECT fell_back, handed_over FROM runs
 WHERE workspace_id = $1 AND job_id = $2 AND mode = 'scripted'
   AND playbook_version >= $3 AND status IN ('succeeded', 'failed', 'timed_out')
-ORDER BY number DESC LIMIT 2
+ORDER BY number DESC LIMIT $4
 `
 
 type RecentScriptedRunsParams struct {
 	WorkspaceID  string
 	JobID        string
 	SinceVersion int64
+	MaxRuns      int32
 }
 
-// Two fallbacks in a row since the job graduated demote it to Assisted until it graduates again
-func (q *Queries) RecentScriptedRuns(ctx context.Context, arg RecentScriptedRunsParams) ([]bool, error) {
-	rows, err := q.db.QueryContext(ctx, recentScriptedRuns, arg.WorkspaceID, arg.JobID, arg.SinceVersion)
+type RecentScriptedRunsRow struct {
+	FellBack   bool
+	HandedOver bool
+}
+
+// Repeated fallbacks or handovers since the job graduated demote it to Assisted until it graduates again
+func (q *Queries) RecentScriptedRuns(ctx context.Context, arg RecentScriptedRunsParams) ([]RecentScriptedRunsRow, error) {
+	rows, err := q.db.QueryContext(ctx, recentScriptedRuns,
+		arg.WorkspaceID,
+		arg.JobID,
+		arg.SinceVersion,
+		arg.MaxRuns,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []bool{}
+	items := []RecentScriptedRunsRow{}
 	for rows.Next() {
-		var fell_back bool
-		if err := rows.Scan(&fell_back); err != nil {
+		var i RecentScriptedRunsRow
+		if err := rows.Scan(&i.FellBack, &i.HandedOver); err != nil {
 			return nil, err
 		}
-		items = append(items, fell_back)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

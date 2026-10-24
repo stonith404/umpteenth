@@ -33,6 +33,10 @@ func TestEventsFor(t *testing.T) {
 	assert.Equal(t, []string{settings.EventRunFellBack}, eventsFor(all, runner.Final{Status: runner.StatusSucceeded, FellBack: true}, no))
 	assert.Equal(t, []string{settings.EventRunFellBack, settings.EventJobDemoted}, eventsFor(all, runner.Final{Status: runner.StatusSucceeded, FellBack: true}, yes))
 
+	// A handover is main working as intended, so it is only worth a note when it demotes the job
+	assert.Empty(t, eventsFor(all, runner.Final{Status: runner.StatusSucceeded, HandedOver: true}, no))
+	assert.Equal(t, []string{settings.EventJobDemoted}, eventsFor(all, runner.Final{Status: runner.StatusSucceeded, HandedOver: true}, yes))
+
 	// Only the events the workspace chose are sent
 	assert.Equal(t, []string{settings.EventJobDemoted}, eventsFor([]string{settings.EventJobDemoted}, runner.Final{Status: runner.StatusSucceeded, FellBack: true}, yes))
 }

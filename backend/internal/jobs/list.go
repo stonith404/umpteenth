@@ -124,31 +124,31 @@ func (m *Module) addNextModes(ctx context.Context, wid string, items []JobListDt
 	demoted := map[string]bool{}
 	if len(demotable) > 0 {
 		query, args := perJobUnion(
-			"SELECT job_id, fell_back FROM runs WHERE workspace_id = $1 AND job_id = %[1]s AND mode = 'scripted' AND playbook_version >= %[2]s AND status IN ('succeeded', 'failed', 'timed_out') ORDER BY number DESC LIMIT $2",
-			wid, 2, demotable, func(jobID string) any { return graduated[jobID] })
+			"SELECT job_id, fell_back, handed_over FROM runs WHERE workspace_id = $1 AND job_id = %[1]s AND mode = 'scripted' AND playbook_version >= %[2]s AND status IN ('succeeded', 'failed', 'timed_out') ORDER BY number DESC LIMIT $2",
+			wid, demotionWindow, demotable, func(jobID string) any { return graduated[jobID] })
 		rows, err := m.deps.DB.QueryContext(ctx, query, args...)
 		if err != nil {
 			return fmt.Errorf("failed to load recent scripted runs: %w", err)
 		}
 		defer rows.Close()
-		fellBack := map[string][]bool{}
+		runs := map[string][]scriptedRun{}
 		for rows.Next() {
 			var (
 				jobID string
-				fell  bool
+				run   scriptedRun
 			)
-			err = rows.Scan(&jobID, &fell)
+			err = rows.Scan(&jobID, &run.FellBack, &run.HandedOver)
 			if err != nil {
 				return fmt.Errorf("failed to scan recent scripted run: %w", err)
 			}
-			fellBack[jobID] = append(fellBack[jobID], fell)
+			runs[jobID] = append(runs[jobID], run)
 		}
 		err = rows.Err()
 		if err != nil {
 			return fmt.Errorf("failed to load recent scripted runs: %w", err)
 		}
-		for id, flags := range fellBack {
-			demoted[id] = demotedBy(flags)
+		for id, r := range runs {
+			demoted[id] = demotedBy(r) != ""
 		}
 	}
 

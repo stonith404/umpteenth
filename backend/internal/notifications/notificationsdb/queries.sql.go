@@ -10,7 +10,7 @@ import (
 )
 
 const getRunDetails = `-- name: GetRunDetails :one
-SELECT r.id, r.job_id, j.name AS job_name, r.number, r.status, r.mode, r.trigger, r.fell_back, r.error
+SELECT r.id, r.job_id, j.name AS job_name, r.number, r.status, r.mode, r.trigger, r.fell_back, r.handed_over, r.error
 FROM runs r JOIN jobs j ON j.id = r.job_id
 WHERE r.workspace_id = $1 AND r.id = $2
 `
@@ -21,15 +21,16 @@ type GetRunDetailsParams struct {
 }
 
 type GetRunDetailsRow struct {
-	ID       string
-	JobID    string
-	JobName  string
-	Number   int64
-	Status   string
-	Mode     string
-	Trigger  string
-	FellBack bool
-	Error    *string
+	ID         string
+	JobID      string
+	JobName    string
+	Number     int64
+	Status     string
+	Mode       string
+	Trigger    string
+	FellBack   bool
+	HandedOver bool
+	Error      *string
 }
 
 func (q *Queries) GetRunDetails(ctx context.Context, arg GetRunDetailsParams) (GetRunDetailsRow, error) {
@@ -44,6 +45,7 @@ func (q *Queries) GetRunDetails(ctx context.Context, arg GetRunDetailsParams) (G
 		&i.Mode,
 		&i.Trigger,
 		&i.FellBack,
+		&i.HandedOver,
 		&i.Error,
 	)
 	return i, err

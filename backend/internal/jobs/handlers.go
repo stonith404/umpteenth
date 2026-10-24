@@ -140,7 +140,7 @@ func (m *Module) get(ctx context.Context, in *idInput) (*jobOutput, error) {
 	out := &jobOutput{Body: dto}
 
 	// The header shows which mode the next run starts in, since graduation and demotion happen between runs
-	out.Body.NextMode, out.Body.Demoted, err = m.nextMode(ctx, job)
+	out.Body.NextMode, out.Body.Demotion, err = m.nextMode(ctx, job)
 	if err != nil {
 		return nil, err
 	}

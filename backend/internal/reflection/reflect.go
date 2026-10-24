@@ -87,15 +87,15 @@ func (m *Module) reflect(ctx context.Context, run reflectiondb.GetRunRow) (resul
 	// A job with graduation turned off never runs a main script, so reflection doesn't spend tokens writing or repairing one
 	grad := graduation{Off: true, Reason: "graduation is turned off for this job"}
 	if job.Graduate {
-		demoted := false
+		demotion := ""
 		if current.Main != nil {
-			demoted, err = m.deps.Demotion.Demoted(ctx, run.WorkspaceID, run.JobID)
+			demotion, err = m.deps.Demotion.Demotion(ctx, run.WorkspaceID, run.JobID)
 			if err != nil {
 				return res, err
 			}
 		}
 		// Graduation facts are redacted like the transcript, since they quote what the runs reported
-		grad, err = m.checkGraduation(ctx, run, runEvents, current, demoted, newRedactor(job.Env))
+		grad, err = m.checkGraduation(ctx, run, runEvents, current, demotion, newRedactor(job.Env))
 		if err != nil {
 			return res, err
 		}

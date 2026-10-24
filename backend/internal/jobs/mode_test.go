@@ -11,6 +11,7 @@ import (
 
 	"github.com/stonith404/umpteenth/backend/internal/database"
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
+	"github.com/stonith404/umpteenth/backend/internal/runner"
 	"github.com/stonith404/umpteenth/backend/internal/testutil"
 )
 
@@ -25,9 +26,9 @@ func TestNextModeFollowsGraduationAndDemotion(t *testing.T) {
 		t.Helper()
 		job, err := m.getJob(ctx, wid, jobID)
 		require.NoError(t, err)
-		mode, demoted, err := m.nextMode(ctx, job)
+		mode, demotion, err := m.nextMode(ctx, job)
 		require.NoError(t, err)
-		return mode, demoted
+		return mode, demotion != ""
 	}
 	number := int64(0)
 	scriptedRun := func(version int64, fellBack bool) {
@@ -88,4 +89,24 @@ func TestNextModeFollowsGraduationAndDemotion(t *testing.T) {
 	got, demoted = mode()
 	assert.Equal(t, ModeAssisted, got)
 	assert.True(t, demoted)
+}
+
+func TestDemotedBy(t *testing.T) {
+	f, h, s := scriptedRun{FellBack: true}, scriptedRun{HandedOver: true}, scriptedRun{}
+	cases := []struct {
+		name string
+		runs []scriptedRun
+		want string
+	}{
+		{"two fallbacks in a row", []scriptedRun{f, f, s}, runner.DemotedFellBack},
+		{"a success between two fallbacks", []scriptedRun{f, s, f}, ""},
+		{"a handover between two fallbacks", []scriptedRun{f, h, f}, runner.DemotedFellBack},
+		{"most of the latest runs handed over", []scriptedRun{h, s, h, s, h}, runner.DemotedHandedOver},
+		{"a few handovers", []scriptedRun{h, h, s, s, s}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, demotedBy(tc.runs))
+		})
+	}
 }

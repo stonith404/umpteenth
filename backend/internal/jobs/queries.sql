@@ -73,11 +73,11 @@ WHERE workspace_id = sqlc.arg(workspace_id) AND job_id = sqlc.arg(job_id)
 ORDER BY queued_at DESC, id DESC LIMIT 1;
 
 -- name: RecentScriptedRuns :many
--- Two fallbacks in a row since the job graduated demote it to Assisted until it graduates again
-SELECT fell_back FROM runs
+-- Repeated fallbacks or handovers since the job graduated demote it to Assisted until it graduates again
+SELECT fell_back, handed_over FROM runs
 WHERE workspace_id = sqlc.arg(workspace_id) AND job_id = sqlc.arg(job_id) AND mode = 'scripted'
   AND playbook_version >= sqlc.arg(since_version) AND status IN ('succeeded', 'failed', 'timed_out')
-ORDER BY number DESC LIMIT 2;
+ORDER BY number DESC LIMIT sqlc.arg(max_runs);
 
 -- name: ListJobIDs :many
 SELECT id FROM jobs WHERE workspace_id = sqlc.arg(workspace_id);

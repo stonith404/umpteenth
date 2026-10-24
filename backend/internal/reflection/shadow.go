@@ -70,6 +70,14 @@ func (m *Module) verifyMain(ctx context.Context, run reflectiondb.GetRunRow, run
 	case shadow.Inconclusive != "":
 		results[primary].Test = &playbook.OpTest{Status: playbook.TestSkipped, Detail: "The shadow run was inconclusive: " + truncated(shadow.Inconclusive, 1000)}
 		return nil
+	case shadow.HandedOver != "" && eventReason(runEvents, events.TypeHandover, "the main script handed over") != "":
+		results[primary].Test = &playbook.OpTest{Status: playbook.TestSkipped, Detail: fmt.Sprintf("Main handed the shadow run over to the agent like it did in run #%d: %s", run.Number, truncated(shadow.HandedOver, 1000))}
+		return nil
+	case shadow.HandedOver != "":
+		// The run main was learned from got through without the agent's judgment, so a main that hands its input over leaves the agent work it doesn't need to
+		reason := fmt.Sprintf("main handed over to the agent (%s), but run #%d handled its input without that", shadow.HandedOver, run.Number)
+		rejectMain(current, next, results, primary, reason, shadow.Output)
+		return nil
 	case !shadow.Passed:
 		rejectMain(current, next, results, primary, shadow.Reason, shadow.Output)
 		return nil

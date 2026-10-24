@@ -37,12 +37,15 @@ type graduation struct {
 	// Runs are the qualifying runs that did the job's work, newest first, with what they reported
 	Runs []runPattern
 	// Idle are the numbers of the runs between them that found nothing to do, a case main must handle too
-	Idle    []int64
-	Demoted bool
+	Idle []int64
+	// Demotion is why repeated fallbacks or handovers took the job back to Assisted, empty while it isn't demoted
+	Demotion string
 	// Off means graduation is turned off for the job, so reflection may neither add nor repair a main script
 	Off bool
 	// FellBack is the reason this run's main script failed, when it did
 	FellBack string
+	// HandedOver is the reason this run's main script handed the run to the agent, when it did
+	HandedOver string
 }
 
 // runPattern is what one run did, reduced to what the graduation criteria compare
@@ -61,9 +64,9 @@ type runPattern struct {
 }
 
 // checkGraduation decides whether the job may graduate after this run, with what the qualifying runs reported passed through redact
-func (m *Module) checkGraduation(ctx context.Context, run reflectiondb.GetRunRow, runEvents []reflectiondb.RunEventsRow, current playbook.Content, demoted bool, redact func(string) string) (graduation, error) {
-	g := graduation{Demoted: demoted, FellBack: fallbackReason(runEvents)}
-	if current.Main != nil && !demoted {
+func (m *Module) checkGraduation(ctx context.Context, run reflectiondb.GetRunRow, runEvents []reflectiondb.RunEventsRow, current playbook.Content, demotion string, redact func(string) string) (graduation, error) {
+	g := graduation{Demotion: demotion, FellBack: eventReason(runEvents, events.TypeFallback, "the main script failed"), HandedOver: eventReason(runEvents, events.TypeHandover, "the main script handed over")}
+	if current.Main != nil && demotion == "" {
 		g.Reason = "the job already runs its main script"
 		return g, nil
 	}
@@ -233,10 +236,10 @@ func readOnlyCommand(cmd string) bool {
 	return true
 }
 
-// fallbackReason is why the run's main script handed over to the agent, or empty when it didn't
-func fallbackReason(rows []reflectiondb.RunEventsRow) string {
+// eventReason is the reason of the run's first event of a type, unnamed when the event gives none, or empty when there is no such event
+func eventReason(rows []reflectiondb.RunEventsRow, typ, unnamed string) string {
 	for _, row := range rows {
-		if row.Type != events.TypeFallback {
+		if row.Type != typ {
 			continue
 		}
 		var p struct {
@@ -244,7 +247,7 @@ func fallbackReason(rows []reflectiondb.RunEventsRow) string {
 		}
 		_ = json.Unmarshal([]byte(row.Payload), &p)
 		if p.Reason == "" {
-			return "the main script failed"
+			return unnamed
 		}
 		return p.Reason
 	}

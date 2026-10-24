@@ -27,7 +27,7 @@ const systemPrompt = `You are the reflection step of Umpteenth. After a run of a
     # ump:side-effects none   (or external, when it changes anything outside the sandbox)
 - dockerfile: the job's environment, built once and cached.
 - setup: a cheap shell step before every run, such as creating a directory.
-- main: once a job graduates, this script does the whole job without the agent, as /ump/main in /workspace. It reads the job's inputs from /ump/input.json, can call toolkit scripts, MCP tools with "ump mcp call <server> <tool> '<json>'" and the utility model with "ump llm" for judgment steps such as writing or classifying, keeps data for later runs with "ump state get <key>" (exit code 1 when the key is missing, as on a first run) and "ump state set <key> <value>", and reports with "ump output set <name> '<json value>'", "ump summary" and "ump step <name>". It does every step the instruction describes, including conditional ones no run has reached yet, and exits non-zero only on a real error.
+- main: once a job graduates, this script does the whole job without the agent, as /ump/main in /workspace. It reads the job's inputs from /ump/input.json, can call toolkit scripts, MCP tools with "ump mcp call <server> <tool> '<json>'" and the utility model with "ump llm" for judgment steps such as writing or classifying, keeps data for later runs with "ump state get <key>" (exit code 1 when the key is missing, as on a first run) and "ump state set <key> <value>", and reports with "ump output set <name> '<json value>'", "ump summary" and "ump step <name>". It does every step the instruction describes, including conditional ones no run has reached yet, and exits non-zero only on a real error. When it reaches a case that needs more judgment than one "ump llm" call, it stops with "ump handover <what it found>", leaving the workspace as it is, and the agent finishes the run.
 - verify: {"checks": [...], "llm": false, "varies": []}. Every scripted run must exit 0 and report the job's outputs, and checks add conditions in this syntax: ` + playbook.CheckSyntax + `. "stdout contains" only sees what main prints. Set llm to true only when success can't be checked mechanically, since every judged run costs a model call.
 - Shadow run: for a job without side effects, a new or changed main runs once with this run's input before it applies, and its outputs must equal this run's, except those verify lists under varies because they legitimately change between runs, such as a timestamp.
 - Job state: key-value data runs keep for later runs, such as the newest item handled, which the agent writes with state_set. It isn't part of the playbook, and you can't change it.
@@ -164,7 +164,8 @@ type candidate struct {
 // graduationSteps asks for a main script that covers the whole instruction, not just the path the qualifying runs took, and lets reflection decline
 const graduationSteps = `Before you write main, go through the instruction step by step and make main do every step, including conditional ones none of these runs reached, such as sending an email, with judgment steps handed to "ump llm". Main must work on whatever items a run finds.
 Then write main with propose_main, following this run's steps (a toolkit__<name> tool is /ump/toolkit/<name>), and set checks with set_verify that also pass on a run with nothing to do.
-If main can't do a step, for example one that needs more judgment than one "ump llm" call or a tool none of the runs used, leave out propose_main and start your summary with "Not graduating:" and that step.
+A step that needs more judgment than one "ump llm" call, such as resolving merge conflicts one by one, doesn't stop graduation when only some runs reach it and none of these runs did: main detects that case at run time from facts such as an exit code or a list of files, and stops there with "ump handover <what it found>". Hand over before side effects the agent couldn't take back, keep the steps after the handover in toolkit scripts the agent can call, never hand over in a case these runs handled on their own, and never replace the judgment with a fixed rule the instruction doesn't give.
+If main can't do a step, for example one that needs more judgment than one "ump llm" call in every run, a case main can't detect from facts, or a tool none of the runs used, leave out propose_main and start your summary with "Not graduating:" and that step.
 `
 
 // userMessage renders the reflection input
@@ -263,8 +264,15 @@ func (in input) userMessage() string {
 	case g.FellBack != "":
 		section("The main script failed")
 		fmt.Fprintf(&b, "This run started with the main script, but %s, so an agent finished the job (see the transcript). Repair what failed so the next run succeeds on its own, main with update_main or a toolkit script with upsert_script, following what the agent did. Adjust verify if the checks were wrong. Handle new data at run time instead of adding this run's data to a script.\n", g.FellBack)
-		if g.Demoted {
-			b.WriteString("The script failed twice in a row, so the job runs as Assisted again until it qualifies for graduation once more.\n")
+		if g.Demotion != "" {
+			fmt.Fprintf(&b, "The job was demoted to Assisted after %s, and runs as Assisted until it qualifies for graduation once more.\n", demotionCause(g.Demotion))
+		}
+	case g.HandedOver != "":
+		section("The main script handed over")
+		fmt.Fprintf(&b, "This run started with the main script, which handed the run to an agent (see the transcript): %s\n", g.HandedOver)
+		b.WriteString("That is how main handles a case that needs judgment, so leave main, its toolkit scripts and verify as they are, unless the transcript shows main handed over by mistake, such as a case that needed no judgment after all or facts main misread. Add learnings that help the agent with such a case next time.\n")
+		if g.Demotion != "" {
+			fmt.Fprintf(&b, "The job was demoted to Assisted after %s, and runs as Assisted until it qualifies for graduation once more.\n", demotionCause(g.Demotion))
 		}
 	case g.Eligible:
 		section("Graduation")
@@ -288,9 +296,13 @@ func (in input) userMessage() string {
 			fmt.Fprintf(&b, "Runs %s in between found nothing to do, so main must handle that too: skip the work, exit 0 and say so in its summary.\n", numberList(g.Idle))
 		}
 		b.WriteString(graduationSteps)
-	case g.Demoted:
+		// A main that handed most runs over showed that the case it left to the agent is common, so the next one must not leave it again
+		if g.Demotion == runner.DemotedHandedOver {
+			b.WriteString("The job's previous main script handed most of its runs to the agent, so the case it handed over is common: graduate the job only with a main that handles that case itself.\n")
+		}
+	case g.Demotion != "":
 		section("Graduation")
-		fmt.Fprintf(&b, "The job was demoted to Assisted after its main script failed twice in a row. It graduates again once it qualifies; for now %s.\n", g.Reason)
+		fmt.Fprintf(&b, "The job was demoted to Assisted after %s. It graduates again once it qualifies; for now %s.\n", demotionCause(g.Demotion), g.Reason)
 	}
 
 	// A main script keeps doing what the instruction said when it was written, so a changed instruction is checked against it once
@@ -344,6 +356,14 @@ func writeFacts(b *strings.Builder, f runFacts) {
 	if f.NothingToDo {
 		b.WriteString("The agent found nothing to do in this run, so learnings and scripts for the job's work going unused is no reason to change them.\n")
 	}
+}
+
+// demotionCause names what demoted a job, for the prompt
+func demotionCause(demotion string) string {
+	if demotion == runner.DemotedHandedOver {
+		return "its main script handed most of its latest runs to the agent"
+	}
+	return "its main script failed twice in a row"
 }
 
 // numberList names runs for the prompt, such as "#7, #5 and #3"

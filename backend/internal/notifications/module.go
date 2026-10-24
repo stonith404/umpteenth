@@ -49,9 +49,9 @@ type SecretResolver interface {
 	Resolve(ctx context.Context, workspaceID, name string) (string, error)
 }
 
-// DemotionChecker tells whether repeated fallbacks took a job back to Assisted
+// DemotionChecker tells why repeated fallbacks or handovers took a job back to Assisted, or returns an empty string when they didn't
 type DemotionChecker interface {
-	Demoted(ctx context.Context, workspaceID, jobID string) (bool, error)
+	Demotion(ctx context.Context, workspaceID, jobID string) (string, error)
 }
 
 // HTTPClients gives out clients whose dialer the egress guard checks
@@ -113,8 +113,8 @@ func (m *Module) RunFinished(ctx context.Context, run runner.Run, final runner.F
 	}
 
 	found := eventsFor(ws.NotifyOn, final, func() bool {
-		demoted, err := m.deps.Demotion.Demoted(ctx, run.WorkspaceID, run.JobID)
-		return err == nil && demoted
+		demotion, err := m.deps.Demotion.Demotion(ctx, run.WorkspaceID, run.JobID)
+		return err == nil && demotion != ""
 	})
 	for _, event := range found {
 		_, err := m.pool.Submit(ctx, task{WorkspaceID: run.WorkspaceID, RunID: run.ID, Event: event}, taskpool.WithTaskKey(run.ID+"-"+strings.ReplaceAll(event, ".", "-")))
@@ -125,7 +125,7 @@ func (m *Module) RunFinished(ctx context.Context, run runner.Run, final runner.F
 }
 
 // eventsFor lists the events a finished run caused that the workspace wants to hear about
-// Demotion is only checked after a fallback, since only a fallback can cause it
+// Demotion is only checked after a fallback or a handover, since only those can cause it
 func eventsFor(notifyOn []string, final runner.Final, demoted func() bool) []string {
 	var found []string
 	if final.Status == runner.StatusFailed || final.Status == runner.StatusTimedOut {
@@ -133,9 +133,9 @@ func eventsFor(notifyOn []string, final runner.Final, demoted func() bool) []str
 	}
 	if final.FellBack {
 		found = append(found, settings.EventRunFellBack)
-		if slices.Contains(notifyOn, settings.EventJobDemoted) && demoted() {
-			found = append(found, settings.EventJobDemoted)
-		}
+	}
+	if (final.FellBack || final.HandedOver) && slices.Contains(notifyOn, settings.EventJobDemoted) && demoted() {
+		found = append(found, settings.EventJobDemoted)
 	}
 	return slices.DeleteFunc(found, func(e string) bool { return !slices.Contains(notifyOn, e) })
 }
@@ -227,7 +227,11 @@ func (m *Module) payload(event, workspaceID string, run notificationsdb.GetRunDe
 	case settings.EventRunFellBack:
 		text = fmt.Sprintf("%s run #%d: the main script failed and the agent finished the job", run.JobName, run.Number)
 	case settings.EventJobDemoted:
+		// The run that demoted the job names the rule, since a fallback can only complete the fallback rule and a handover the handover rule
 		text = fmt.Sprintf("%s was demoted to Assisted after its main script failed twice in a row", run.JobName)
+		if run.HandedOver {
+			text = fmt.Sprintf("%s was demoted to Assisted after its main script handed most of its latest runs to the agent", run.JobName)
+		}
 	}
 	text = "Umpteenth: " + text
 

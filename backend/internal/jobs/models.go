@@ -97,9 +97,9 @@ type JobDto struct {
 	CreatedAt           int64          `json:"createdAt"`
 	UpdatedAt           int64          `json:"updatedAt"`
 	LastRun             *LastRun       `json:"lastRun"`
-	// NextMode is the mode the next run starts in, and Demoted tells whether repeated fallbacks took a graduated job back to Assisted
+	// NextMode is the mode the next run starts in
 	NextMode         string `json:"nextMode,omitempty" enum:"explore,assisted,scripted"`
-	Demoted          bool   `json:"demoted"`
+	Demotion         string `json:"demotion,omitempty" enum:"fell_back,handed_over" doc:"Why repeated fallbacks or handovers took a graduated job back to Assisted, missing while it isn't demoted"`
 	GraduatedVersion *int64 `json:"graduatedVersion" doc:"The playbook version the job last graduated to Scripted mode at"`
 }
 

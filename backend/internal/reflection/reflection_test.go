@@ -126,6 +126,15 @@ func TestRepairAndGraduationAskForRunTimeData(t *testing.T) {
 	assert.Contains(t, input{Graduation: graduation{FellBack: "a check failed"}}.userMessage(), "instead of adding this run's data to a script")
 	assert.Contains(t, input{Graduation: graduation{Eligible: true}}.userMessage(), "Main must work on whatever items a run finds")
 
+	// A handover is main working as intended, so reflection leaves main alone unless the handover was a mistake
+	handedOver := input{Graduation: graduation{HandedOver: "the rebase stopped with conflicts in go.mod"}}.userMessage()
+	assert.Contains(t, handedOver, "handed the run to an agent (see the transcript): the rebase stopped with conflicts in go.mod")
+	assert.Contains(t, handedOver, "leave main, its toolkit scripts and verify as they are")
+	assert.NotContains(t, handedOver, "Repair what failed")
+
+	// A job demoted for handing over too much only graduates again with a main that handles the case itself
+	assert.Contains(t, input{Graduation: graduation{Eligible: true, Demotion: runner.DemotedHandedOver}}.userMessage(), "graduate the job only with a main that handles that case itself")
+
 	// A candidate that installs software is flagged before reflection promotes it as it is
 	msg := input{ImageBuilds: true, Candidates: []candidate{{Name: "fetch.py", Content: "import subprocess\nsubprocess.run('pip install requests', shell=True)"}}}.userMessage()
 	assert.Contains(t, msg, "It installs software (subprocess.run('pip install requests', shell=True))")
@@ -159,7 +168,7 @@ func (fakeSettings) Get(context.Context, string) (settings.WorkspaceSettings, er
 
 type notDemoted struct{}
 
-func (notDemoted) Demoted(context.Context, string, string) (bool, error) { return false, nil }
+func (notDemoted) Demotion(context.Context, string, string) (string, error) { return "", nil }
 
 // newModule builds a reflection module around a scripted model and the job configuration its runs load
 func newModule(db *database.DB, pb *playbook.Module, provider llm.Provider, job runner.JobConfig) *Module {
@@ -505,7 +514,7 @@ func TestGraduationIsJudgedOnTheLatestRuns(t *testing.T) {
 		require.NoError(t, err)
 		runEvents, err := m.queries.RunEvents(ctx, id)
 		require.NoError(t, err)
-		g, err := m.checkGraduation(ctx, run, runEvents, playbook.Content{}, false, newRedactor(nil))
+		g, err := m.checkGraduation(ctx, run, runEvents, playbook.Content{}, "", newRedactor(nil))
 		require.NoError(t, err)
 		return g
 	}
@@ -540,7 +549,7 @@ func TestGraduationLooksPastRunsWithNothingToDo(t *testing.T) {
 		require.NoError(t, err)
 		runEvents, err := m.queries.RunEvents(ctx, id)
 		require.NoError(t, err)
-		g, err := m.checkGraduation(ctx, run, runEvents, playbook.Content{}, false, newRedactor(map[string]string{"TOKEN": "s3cr3t-value"}))
+		g, err := m.checkGraduation(ctx, run, runEvents, playbook.Content{}, "", newRedactor(map[string]string{"TOKEN": "s3cr3t-value"}))
 		require.NoError(t, err)
 		return g
 	}
@@ -591,6 +600,7 @@ func TestGraduationPromptAsksForEveryStep(t *testing.T) {
 	assert.Contains(t, msg, "toolkit__fetch → toolkit__send")
 	assert.Contains(t, msg, "Runs #6 in between found nothing to do")
 	assert.Contains(t, msg, "including conditional ones none of these runs reached")
+	assert.Contains(t, msg, `stops there with "ump handover <what it found>"`)
 	assert.Contains(t, msg, "Not graduating:")
 
 	// Without quiet runs in the streak, the prompt doesn't mention them
@@ -842,6 +852,38 @@ func TestAMainThatFailsItsShadowRunIsRejectedWithWhatItDependsOn(t *testing.T) {
 	assert.Equal(t, *before.Main, *content.Main)
 	assert.JSONEq(t, string(before.Verify), string(content.Verify))
 	assert.Len(t, content.Learnings, 1)
+}
+
+func TestAMainThatHandsOverInItsShadowRunIsRejectedUnlessTheRunHandedOverToo(t *testing.T) {
+	update := map[string]any{"summary": "Changed main", "usedLearnings": []string{}, "ops": []any{
+		op(playbook.OpUpdateMain, map[string]any{"content": "#!/usr/bin/env bash\njq -r .channel_url /ump/input.json\nump handover 'a new upload format'\n"}),
+	}}
+	handedOver := runner.ShadowResult{HandedOver: "a new upload format", Output: "handing over"}
+	reflectWith := func(t *testing.T, runHandedOver bool) result {
+		db := testutil.NewDatabaseForTest(t)
+		wid, _, runID, pb := graduatedJob(t, db)
+		if runHandedOver {
+			testutil.Exec(t, db, `INSERT INTO run_events (run_id, seq, ts, type, payload) VALUES ($1, 1, 1, 'handover', '{"reason":"A new upload format"}')`, runID)
+		}
+		provider := fake.New()
+		provider.Enqueue(submit(t, update), submit(t, update))
+		m := newModule(db, pb, provider, mp3Job)
+		m.tester = &fakeTester{results: []runner.ShadowResult{handedOver, handedOver}}
+		return reflectOn(t, m, wid, runID)
+	}
+
+	// The run got through without the agent's judgment, so a main that hands its input over is rejected
+	res := reflectWith(t, false)
+	require.Len(t, res.Ops, 1)
+	assert.Equal(t, playbook.OpRejected, res.Ops[0].Status)
+	assert.Contains(t, res.Ops[0].Reason, "main handed over to the agent (a new upload format), but run #4 handled its input without that")
+
+	// A run that handed over itself says nothing about a main that does the same
+	res = reflectWith(t, true)
+	require.Len(t, res.Ops, 1)
+	assert.Equal(t, playbook.OpApplied, res.Ops[0].Status)
+	require.NotNil(t, res.Ops[0].Test)
+	assert.Equal(t, playbook.TestSkipped, res.Ops[0].Test.Status)
 }
 
 func TestShadowRunsOnlyWhenTheyCantRepeatAnything(t *testing.T) {
