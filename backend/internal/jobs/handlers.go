@@ -493,6 +493,11 @@ func (m *Module) webhook(ctx context.Context, in *webhookInput) (*triggerOutput,
 		return nil, apperror.InvalidToken()
 	}
 
+	// The actor refuses a paused job too, but its error reaches a caller on another replica only as a plain message
+	if job.Paused {
+		return nil, apperror.Conflict("The job is paused")
+	}
+
 	// Webhooks are rate limited per job, and the limit holds across replicas because it is an actor
 	// An unreachable limiter lets the call through rather than failing every webhook of the job
 	if m.deps.WebhookLimiter != nil {
