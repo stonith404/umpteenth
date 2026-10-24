@@ -96,6 +96,8 @@ Neither does a run with [extra instructions](../triggers/#run-now).
 Neither kind breaks the streak, as long as it succeeded in Assisted mode.
 
 If the rules hold, reflection writes a main script and its verify checks from that tool sequence, and once that change applies, the job's next run is **Scripted**.
+Reflection still graduates a job with a step that needs judgment in only some runs, as long as none of the three runs needed it and main can spot it from facts such as an exit code.
+A daily rebase of a fork is the typical case: main rebases and pushes, and on a conflict it hands the run to the agent with `ump handover` (see [Handover](#handover)).
 If reflection finds a step main can't do, the job stays Assisted, and the reflection summary on the **Learned** tab starts with "Not graduating:".
 
 On a new job, run 5 is the earliest possible scripted run: run 1 explores, its reflection adds the first learnings, and runs 2 to 4 make the streak.
@@ -104,6 +106,7 @@ Umpteenth checks the rules only during reflection, so graduation needs **Self-im
 Main is an ordinary shell, Python or Node script, and its version history on the **Playbook** tab leaves it better documented than most cron jobs.
 It runs as `/ump/main` in `/workspace` and reads the run's input from `/ump/input.json`.
 Main can call toolkit scripts, MCP tools through `ump mcp call`, and the **Utility** model through `ump llm` for steps that need judgment, such as a summary.
+For a case that needs more judgment than one model call, main stops with `ump handover` and leaves the case to the agent.
 It reports results with `ump output set` and `ump summary`, and the [ump CLI](../../reference/ump-cli/) reference lists every command.
 
 ## Scripted runs
@@ -143,13 +146,25 @@ A run you cancel, or one that hits its time limit while main runs, ends there wi
 After a fallback, reflection repairs main with **Update the main script** and changes only what failed.
 That needs **Self-improve** on, or a click on **Learn from this run**.
 
+### Handover
+
+Main hands a run to the agent with `ump handover <reason>` when it reaches a case it can't handle, such as a merge conflict that needs someone to read both sides.
+Umpteenth skips verification, and the agent takes over in the same sandbox with main's reason, the end of its output and `/workspace` as main left it.
+The agent handles the case, does the steps main didn't get to, and its result decides the run.
+
+The timeline shows **Handed over to the agent** with the reason, and the mode reads **Scripted · handed over**.
+A handover means main works as intended, so reflection leaves main alone and adds learnings for the agent instead, unless the transcript shows main handed over by mistake.
+If main calls `ump fail` as well, the run counts as a fallback.
+
 ### Demotion
 
-If the last two finished scripted runs since graduation both fell back, Umpteenth demotes the job.
+Umpteenth demotes a job after its main script fails twice in a row, or after it hands over in three of its last five finished scripted runs since graduation.
 The job header shows **Demoted**, and runs stay Assisted until the job graduates again with three new successful Assisted runs and a new main script.
-One scripted success between two fallbacks resets the count, and repairs through **Update the main script** don't.
+One scripted success between two fallbacks resets the count.
+A handover between them doesn't, and neither do repairs through **Update the main script**.
 
 To hear about fallbacks, turn on `run.fell_back` under [Notifications](../notifications/), where `job.demoted` is on by default.
+Handovers send no notification of their own.
 
 ## The Learned tab
 

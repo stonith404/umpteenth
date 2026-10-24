@@ -26,7 +26,7 @@ To turn notifications off, clear **Webhook URL** and save.
 |---|---|---|
 | A run fails or times out | `run.failed` | On |
 | A scripted run's main script fails and the agent takes over | `run.fell_back` | Off |
-| A job is demoted to Assisted after two fallbacks in a row | `job.demoted` | On |
+| A job is demoted to Assisted after repeated fallbacks or handovers | `job.demoted` | On |
 
 `run.failed` covers runs that end as **Failed** or **Timed out**.
 A fallback whose run then fails as well sends both `run.fell_back` and `run.failed`.

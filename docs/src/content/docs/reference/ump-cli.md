@@ -21,7 +21,7 @@ A failed call turns red and shows the error, and an MCP call adds a **Result of*
 
 `ump help` lists the commands.
 Each command exits with `0` on success, `1` when the call fails, and `2` on a usage error such as a missing argument.
-A missing state key and `ump fail` count as failures.
+A missing state key, `ump fail` and `ump handover` count as failures.
 
 An argument written as `[value|-]` comes from stdin when you pass `-` or leave it out, and `ump` drops the trailing newlines.
 `ump mcp call` reads stdin only with an explicit `-`, and sends `{}` when you give no arguments at all.
@@ -158,6 +158,20 @@ ump fail <reason>
 
 In a scripted run, the failure fails verification and the agent takes over in the same sandbox, so the run can still end as `succeeded`.
 In an agent run, a run that would have succeeded ends as `failed` with the reason as its error.
+
+## ump handover
+
+```txt
+ump handover <reason|->
+```
+
+`ump handover` hands a scripted run to the agent from the job's main script, for a case main can't handle, and exits with `1` so a `set -e` script stops there.
+The agent takes over in the same sandbox with your reason, or `the script handed over without a reason` if you give none, and finishes the job.
+Umpteenth keeps the first 2,000 characters of the reason.
+
+Main's exit code and verify checks no longer count after a handover, but a `ump fail` from the same script turns it into a fallback.
+Outside a main script, such as in an agent run, the call fails with "Only a job's main script can hand the run over to the agent".
+[Handover](../../guides/self-improvement/#handover) explains what happens next.
 
 ## ump connect
 
