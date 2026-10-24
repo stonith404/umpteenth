@@ -33,6 +33,12 @@ const (
 	ModeScripted = "scripted"
 )
 
+// Demotion causes, which say why a graduated job runs as Assisted again until it graduates once more
+const (
+	DemotedFellBack   = "fell_back"
+	DemotedHandedOver = "handed_over"
+)
+
 // IsTerminal reports whether a run status is final
 func IsTerminal(status string) bool {
 	switch status {
@@ -178,6 +184,8 @@ type Final struct {
 	Toolkit map[string]ToolkitUsage
 	// FellBack is set when the run's main script failed and an agent finished the job
 	FellBack bool
+	// HandedOver is set when the run's main script handed a case it can't handle to the agent with ump handover
+	HandedOver bool
 	// MainRan is set once a scripted run started its main script, which makes a run without agent turns worth learning from
 	MainRan bool
 	// SetupFailed is set when the playbook's setup script exited non-zero, which reflection can repair
@@ -215,8 +223,9 @@ func ReflectionWanted(run Run, final Final) bool {
 	}
 
 	// A successful scripted run costs nothing extra, since reflection has nothing to add, while a fallback means main needs repair
+	// After a handover the agent's work on the case main left it can teach the agent for the next one
 	// A changed instruction gets one reflection, which brings a main script written for the old one in line
-	return run.Mode != ModeScripted || final.FellBack || final.Status != StatusSucceeded || final.InstructionChanged
+	return run.Mode != ModeScripted || final.FellBack || final.HandedOver || final.Status != StatusSucceeded || final.InstructionChanged
 }
 
 // RunStore reads and updates run rows
@@ -229,6 +238,8 @@ type RunStore interface {
 	SetBrokerToken(ctx context.Context, runID, tokenHash string) error
 	// SetFellBack records that the run's main script failed and an agent took over
 	SetFellBack(ctx context.Context, runID string) error
+	// SetHandedOver records that the run's main script handed a case to the agent
+	SetHandedOver(ctx context.Context, runID string) error
 	// Heartbeat records that the run is alive and reports whether a cancel was requested
 	Heartbeat(ctx context.Context, runID string) (bool, error)
 	// Finish writes the final result; it returns false when the run already had a final status

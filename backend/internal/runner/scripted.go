@@ -21,7 +21,7 @@ const mainPath = "/ump/main"
 // skillsDir holds one folder per skill attached to the job
 const skillsDir = "/ump/skills"
 
-// Limits of what a scripted run hands to the verifier and to a fallback agent
+// Limits of what a scripted run hands to the verifier and to an agent taking over
 const (
 	verifyStdoutChars   = 6_000
 	fallbackOutputChars = 3_000
@@ -47,7 +47,7 @@ var verdictSchema = json.RawMessage(`{"type":"object","additionalProperties":fal
 	`"reason":{"type":"string","description":"One sentence explaining the judgment"},` +
 	`"summary":{"type":"string","description":"A short markdown summary of what the run did, for the run page"}}}`)
 
-// runScripted runs the main script without the agent, checks what it did, and hands the job to an agent in the same sandbox when it falls short
+// runScripted runs the main script without the agent, checks what it did, and hands the job to an agent in the same sandbox when it falls short or hands over
 func (r *Runner) runScripted(ctx context.Context, s *session) Final {
 	// The script gets half the remaining time, so an agent taking over still has time to finish the job
 	timeout := time.Until(s.deadline) / 2
@@ -69,19 +69,32 @@ func (r *Runner) runScripted(ctx context.Context, s *session) Final {
 		return final
 	}
 
-	// Verify the result before calling the run a success
-	err := r.d.Runs.SetStatus(ctx, s.run.ID, StatusVerifying)
-	if err == nil {
-		r.publishStatus(ctx, s.run, StatusVerifying)
-	}
-	s.rec.Emit(ctx, events.Event{Type: events.TypeRunStatus, Payload: map[string]any{"status": StatusVerifying}})
-
 	// A script that could not even start has no exit code, which must not pass as a success
 	exitCode := -1
 	if code, ok := res.Meta["exitCode"].(int); ok {
 		exitCode = code
 	}
 	outputs := s.live.Outputs()
+
+	// A handover is main working as intended on a case it leaves to the agent, so there is nothing to verify, unless main also reported a failure
+	if reason := s.live.HandedOver(); reason != "" && s.live.Failure() == "" {
+		s.rec.Emit(ctx, events.Event{Type: events.TypeHandover, Payload: map[string]any{"reason": capitalize(reason)}})
+		err := r.d.Runs.SetHandedOver(ctx, s.run.ID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to record the handover", slog.String("run", s.run.ID), slog.Any("error", err))
+		}
+		final := r.takeOver(ctx, s, handoverBrief(s, reason, exitCode, outputs, res.Content))
+		final.HandedOver = true
+		final.MsTools += took.Milliseconds()
+		return final
+	}
+
+	// Verify the result before calling the run a success
+	err := r.d.Runs.SetStatus(ctx, s.run.ID, StatusVerifying)
+	if err == nil {
+		r.publishStatus(ctx, s.run, StatusVerifying)
+	}
+	s.rec.Emit(ctx, events.Event{Type: events.TypeRunStatus, Payload: map[string]any{"status": StatusVerifying}})
 	checks := runChecks(ctx, s.sb, s.job, exitCode, outputs, res.Content)
 	passed := true
 	reason := ""
@@ -145,17 +158,21 @@ func (r *Runner) runScripted(ctx context.Context, s *session) Final {
 		r.publishStatus(ctx, s.run, StatusRunning)
 	}
 	s.rec.Emit(ctx, events.Event{Type: events.TypeRunStatus, Payload: map[string]any{"status": StatusRunning}})
-
-	// The agent's own outcome decides the run from here, so the script's ump fail no longer counts once it is in the brief
-	s.live.ClearFailure()
-
-	// The agent needs every MCP tool from its first turn, so the servers main never called connect now
-	s.tools = append(s.tools, s.live.ConnectTools("")...)
-	final := r.runAgent(ctx, s, fallbackBrief(s, reason, exitCode, outputs, res.Content))
+	final := r.takeOver(ctx, s, fallbackBrief(s, reason, exitCode, outputs, res.Content))
 	final.FellBack = true
 	final.VerifyCost, final.VerifyTokens = verifyCost, verifyUsage.Tokens()
 	final.MsTools += took.Milliseconds()
 	return final
+}
+
+// takeOver has an agent finish the job in the same sandbox after the main script fell back or handed over
+func (r *Runner) takeOver(ctx context.Context, s *session, brief string) Final {
+	// The agent's own outcome decides the run from here, so the script's ump fail no longer counts once it is in the brief
+	s.live.TakeOver()
+
+	// The agent needs every MCP tool from its first turn, so the servers main never called connect now
+	s.tools = append(s.tools, s.live.ConnectTools("")...)
+	return r.runAgent(ctx, s, brief)
 }
 
 // runChecks evaluates the built-in checks, which every scripted run must pass, followed by the playbook's own
@@ -254,30 +271,45 @@ func scriptedSummary(s *session, judged *verdict, stdout string) string {
 func fallbackBrief(s *session, reason string, exitCode int, outputs map[string]json.RawMessage, stdout string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "This job has a main script (%s) that normally does the whole job without an agent. This time %s, so you take over.\n", mainPath, reason)
+	writeScriptReport(&b, s, exitCode, outputs, stdout)
+	b.WriteString("\nFinish the job from where the script stopped, as the job's instruction says, and call finish. Don't change the script, it is repaired after the run.")
+	return b.String()
+}
+
+// handoverBrief tells the agent which case the script handed over and what it did before, so it handles the case and finishes the job
+func handoverBrief(s *session, reason string, exitCode int, outputs map[string]json.RawMessage, stdout string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "This job has a main script (%s) that does the routine part of the job and hands the cases it can't handle to you. It handed this run over: %s\n", mainPath, reason)
+	b.WriteString("The script works as intended, and the sandbox and /workspace are as it left them.\n")
+	writeScriptReport(&b, s, exitCode, outputs, stdout)
+	b.WriteString("\nHandle this case, then do every step of the job's instruction the script didn't get to, with the toolkit tools where they fit, and call finish. Don't change the script.")
+	return b.String()
+}
+
+// writeScriptReport tells the agent taking over where the script stopped and what it already did
+func writeScriptReport(b *strings.Builder, s *session, exitCode int, outputs map[string]json.RawMessage, stdout string) {
 	steps := s.live.Steps()
 	if len(steps) > 0 {
-		fmt.Fprintf(&b, "\nThe last step the script reported was %q.", steps[len(steps)-1])
+		fmt.Fprintf(b, "\nThe last step the script reported was %q.", steps[len(steps)-1])
 	}
-	fmt.Fprintf(&b, "\nThe script exited with code %d. The end of its output:\n```\n", exitCode)
+	fmt.Fprintf(b, "\nThe script exited with code %d. The end of its output:\n```\n", exitCode)
 	tail, _ := agent.Truncate(strings.TrimSpace(stdout), 0, fallbackOutputChars)
 	b.WriteString(tail + "\n```\n")
 	if len(outputs) > 0 {
 		raw, _ := json.Marshal(outputs)
-		fmt.Fprintf(&b, "\nOutputs the script already reported: %s\n", raw)
+		fmt.Fprintf(b, "\nOutputs the script already reported: %s\n", raw)
 	}
 	// Only MCP calls through ump are logged, so the brief never claims the script changed nothing
 	actions := s.live.Actions()
 	if len(actions) > 0 {
 		b.WriteString("\nThese calls already happened and may have changed things outside the sandbox. Do not repeat them:\n")
 		for _, a := range actions {
-			fmt.Fprintf(&b, "- %s\n", a)
+			fmt.Fprintf(b, "- %s\n", a)
 		}
 	} else {
 		b.WriteString("\nNo MCP calls with side effects went through ump.\n")
 	}
 	b.WriteString("The script may also have changed things through toolkit scripts or its own requests, so check whether a step already took effect before doing it again.\n")
-	b.WriteString("\nFinish the job from where the script stopped, as the job's instruction says, and call finish. Don't change the script, it is repaired after the run.")
-	return b.String()
 }
 
 func capitalize(s string) string {

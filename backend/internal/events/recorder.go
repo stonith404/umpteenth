@@ -29,6 +29,7 @@ const (
 	TypeScriptStep     = "script.step"
 	TypeVerifyResult   = "verify.result"
 	TypeFallback       = "fallback"
+	TypeHandover       = "handover"
 	TypeFinish         = "finish"
 	TypeError          = "error"
 	TypeLog            = "log"

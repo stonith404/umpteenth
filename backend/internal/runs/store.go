@@ -113,6 +113,7 @@ func (s *store) Finish(ctx context.Context, runID string, f runner.Final) (bool,
 		Reflection:            reflection,
 		ReflectionRequestedAt: requestedAt,
 		FellBack:              f.FellBack,
+		HandedOver:            f.HandedOver,
 		VerifyCost:            f.VerifyCost,
 		VerifyTokens:          f.VerifyTokens,
 	})
@@ -121,6 +122,10 @@ func (s *store) Finish(ctx context.Context, runID string, f runner.Final) (bool,
 
 func (s *store) SetFellBack(ctx context.Context, runID string) error {
 	return s.queries.SetRunFellBack(ctx, runID)
+}
+
+func (s *store) SetHandedOver(ctx context.Context, runID string) error {
+	return s.queries.SetRunHandedOver(ctx, runID)
 }
 
 func (s *store) SpentSince(ctx context.Context, workspaceID string, since int64) (int64, error) {

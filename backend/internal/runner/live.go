@@ -44,6 +44,10 @@ type LiveRun struct {
 	refused []string
 	summary string
 	failure string
+	// handover is why the main script handed the run to the agent with ump handover
+	handover string
+	// takenOver is set once an agent took over from the main script, which can't hand over to itself
+	takenOver bool
 	// brokerEvents counts the broker calls the run put on its timeline
 	brokerEvents int
 	// wroteState is set once the run wrote to the job's state through the broker
@@ -145,6 +149,7 @@ const (
 	maxActions     = 200
 	maxSummary     = 16 << 10
 	maxFailure     = 2000
+	maxHandover    = 2000
 	// maxBrokerRequests bounds the broker requests a run has in flight at once, since each one can hold a request body and a state value in the control plane's memory
 	maxBrokerRequests = 8
 	// maxWaitingBrokerRequests bounds the broker requests that wait for one of those slots, since each one holds a connection and a goroutine meanwhile
@@ -329,11 +334,32 @@ func (l *LiveRun) Fail(reason string) {
 	l.failure = reason
 }
 
-// ClearFailure forgets a failure the main script reported, once an agent has taken over the run
-func (l *LiveRun) ClearFailure() {
+// Handover records that the main script hands the run to the agent with ump handover, keeping the start of a long reason since the agent's brief quotes it
+// It returns false outside a main script, where no agent waits to take over
+func (l *LiveRun) Handover(reason string) bool {
+	reason, _ = agent.Truncate(reason, maxHandover, 0)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.takenOver || (!l.Shadow && l.Run.Mode != ModeScripted) {
+		return false
+	}
+	l.handover = reason
+	return true
+}
+
+// HandedOver returns why the main script handed the run over, if it did
+func (l *LiveRun) HandedOver() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.handover
+}
+
+// TakeOver marks that an agent took over from the main script, whose ump fail no longer decides the run
+func (l *LiveRun) TakeOver() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.failure = ""
+	l.takenOver = true
 }
 
 // Failure returns the explicit failure reason, if any

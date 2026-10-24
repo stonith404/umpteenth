@@ -131,6 +131,67 @@ func TestScriptedRunFallsBackToTheAgentInTheSameSandbox(t *testing.T) {
 	assert.Contains(t, brief, "as the job's instruction says")
 }
 
+func TestScriptedRunHandsACaseOverToTheAgent(t *testing.T) {
+	h := newHarness(t)
+	id := h.graduate(t, `{"checks":["output.count > 0"],"llm":false}`)
+
+	// Main rebased until a conflict and handed over through ump handover, which exits 1
+	h.onMain(id, "CONFLICT (content): Merge conflict in go.mod\n", 1, func(live *runner.LiveRun) {
+		require.NoError(t, live.AddStep("rebase"))
+		require.True(t, live.Handover("the rebase stopped with conflicts in go.mod"))
+	})
+	h.provider.Enqueue(fake.ScriptedResponse{ToolCalls: []fake.ScriptedToolCall{{Name: "finish", Args: map[string]any{
+		"status": "success", "summary": "Resolved the conflict and pushed", "outputs": map[string]any{"count": 1},
+	}}}})
+
+	require.NoError(t, h.runner.Execute(context.Background(), id))
+
+	// The agent finished the job, and the run counts as handed over, not as a broken main
+	status, errMsg, summary, _, _ := h.run(t, id)
+	require.Equal(t, runner.StatusSucceeded, status, errMsg)
+	assert.Equal(t, "Resolved the conflict and pushed", summary)
+	assert.False(t, h.fellBack(t, id))
+	var handedOver bool
+	require.NoError(t, h.db.QueryRowContext(context.Background(), "SELECT handed_over FROM runs WHERE id = $1", id).Scan(&handedOver))
+	assert.True(t, handedOver)
+	types := h.eventTypes(t, id)
+	assert.Contains(t, types, "handover")
+	assert.NotContains(t, types, "verify.result")
+	assert.NotContains(t, types, "fallback")
+	require.Len(t, h.finals, 1)
+	assert.True(t, h.finals[0].HandedOver)
+	assert.False(t, h.finals[0].FellBack)
+
+	// The agent learns which case it got and that the script isn't broken
+	brief := h.provider.Requests()[0].Messages[0].Text()
+	assert.Contains(t, brief, "It handed this run over: the rebase stopped with conflicts in go.mod")
+	assert.Contains(t, brief, "The script works as intended")
+	assert.Contains(t, brief, `The last step the script reported was "rebase"`)
+	assert.Contains(t, brief, "Merge conflict in go.mod")
+}
+
+func TestScriptedRunThatHandsOverAndFailsFallsBack(t *testing.T) {
+	h := newHarness(t)
+	id := h.graduate(t, `{"checks":[],"llm":false}`)
+	var live *runner.LiveRun
+	h.onMain(id, "", 1, func(l *runner.LiveRun) {
+		live = l
+		require.True(t, l.Handover("a conflict"))
+		l.Fail("the API answered 500")
+	})
+	h.provider.Enqueue(fake.ScriptedResponse{ToolCalls: []fake.ScriptedToolCall{{Name: "finish", Args: map[string]any{"status": "success", "summary": "Done by the agent"}}}})
+
+	require.NoError(t, h.runner.Execute(context.Background(), id))
+
+	// A failure means main is broken, whatever it handed over before
+	assert.True(t, h.fellBack(t, id))
+	assert.False(t, h.finals[0].HandedOver)
+
+	// Only a main script the agent hasn't taken over from can hand over
+	assert.False(t, live.Handover("again"))
+	assert.False(t, (&runner.LiveRun{Run: runner.Run{Mode: runner.ModeAssisted}}).Handover("a conflict"))
+}
+
 func TestScriptedRunIsJudgedWhenVerifyAsksForIt(t *testing.T) {
 	h := newHarness(t)
 	id := h.graduate(t, `{"checks":[],"llm":true}`)

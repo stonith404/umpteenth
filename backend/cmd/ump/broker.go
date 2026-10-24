@@ -133,6 +133,7 @@ func init() {
 	register("output", command{Summary: "Structured run output: ump output set <key> [value|-]", Run: runOutput})
 	register("step", command{Summary: "Mark progress on the run timeline: ump step <name>", Run: runStep})
 	register("fail", command{Summary: "Fail the run with a reason: ump fail <reason>", Run: runFail})
+	register("handover", command{Summary: "Hand the run to the agent from a main script, for a case it can't handle: ump handover <reason|->", Run: runHandover})
 	register("summary", command{Summary: "Set the run's markdown summary: ump summary [text|-]", Run: runSummary})
 }
 
@@ -355,6 +356,21 @@ func runFail(args []string) int {
 	_ = call("fail", http.MethodPost, "/v1/fail", map[string]string{"reason": reason}, nil)
 
 	// fail always exits non-zero so `set -e` scripts stop here
+	return 1
+}
+
+func runHandover(args []string) int {
+	reason, err := textArg(args)
+	if err != nil {
+		errorf("handover", "%v", err)
+		return 1
+	}
+	if reason == "" {
+		reason = "the script handed over without a reason"
+	}
+	_ = call("handover", http.MethodPost, "/v1/handover", map[string]string{"reason": reason}, nil)
+
+	// handover always exits non-zero so `set -e` scripts stop here, while the runner goes by the recorded handover
 	return 1
 }
 

@@ -67,6 +67,7 @@ type RunDetailDto struct {
 	TriggeredByName *string         `json:"triggeredByName" doc:"Name or email of the user who started the run"`
 	JobDeleted      bool            `json:"jobDeleted" doc:"Whether the run's job was deleted, so the run can no longer be retried"`
 	FellBack        bool            `json:"fellBack"`
+	HandedOver      bool            `json:"handedOver" doc:"Whether the run's main script handed a case it can't handle to the agent"`
 	CancelRequested bool            `json:"cancelRequested"`
 	Reflection      string          `json:"reflection" enum:"skipped,pending,done,failed"`
 	// The outcome of reflection, shown on the run's Learned tab
@@ -191,6 +192,7 @@ func (m *Module) get(ctx context.Context, in *idInput) (*getOutput, error) {
 		SandboxAdapter:    run.SandboxAdapter,
 		TriggeredBy:       run.TriggeredBy,
 		FellBack:          run.FellBack,
+		HandedOver:        run.HandedOver,
 		CancelRequested:   run.CancelRequested,
 		Reflection:        run.Reflection,
 		ReflectionError:   run.ReflectionError,

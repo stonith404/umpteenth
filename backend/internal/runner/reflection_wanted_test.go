@@ -27,6 +27,7 @@ func TestReflectionWanted(t *testing.T) {
 		{"setup script broke the run", explore, runner.Final{SelfImprove: true, Status: runner.StatusFailed, SetupFailed: true}, true},
 		{"successful scripted run", scripted, runner.Final{SelfImprove: true, Status: runner.StatusSucceeded, Turns: 1}, false},
 		{"scripted run fell back", scripted, runner.Final{SelfImprove: true, Status: runner.StatusSucceeded, Turns: 2, FellBack: true}, true},
+		{"scripted run handed over", scripted, runner.Final{SelfImprove: true, Status: runner.StatusSucceeded, Turns: 2, HandedOver: true}, true},
 		{"instruction changed since main was written", scripted, runner.Final{SelfImprove: true, Status: runner.StatusSucceeded, MainRan: true, InstructionChanged: true}, true},
 		{"main script timed out", scripted, runner.Final{SelfImprove: true, Status: runner.StatusTimedOut, MainRan: true}, true},
 		{"scripted run failed before main started", scripted, runner.Final{SelfImprove: true, Status: runner.StatusFailed, Error: "Failed to create the sandbox"}, false},

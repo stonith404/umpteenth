@@ -75,6 +75,7 @@ func (b *Broker) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/output", b.auth(b.output))
 	mux.HandleFunc("POST /v1/step", b.auth(b.step))
 	mux.HandleFunc("POST /v1/fail", b.auth(b.fail))
+	mux.HandleFunc("POST /v1/handover", b.auth(b.handover))
 	mux.HandleFunc("POST /v1/summary", b.auth(b.setSummary))
 	api := httpserver.RequestIDMiddleware(mux)
 
@@ -581,5 +582,18 @@ func (b *Broker) fail(_ http.ResponseWriter, r *http.Request, live *runner.LiveR
 
 	// The reason can be megabytes and a sandbox may report failures without end, so the log only gets its start
 	slog.InfoContext(r.Context(), "Run reported failure through the broker", slog.String("run", live.Run.ID), slog.String("reason", clip(req.Reason)))
+	return okResponse{OK: true}, nil
+}
+
+func (b *Broker) handover(_ http.ResponseWriter, r *http.Request, live *runner.LiveRun) (any, error) {
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := decode(r, &req); err != nil {
+		return nil, err
+	}
+	if !live.Handover(req.Reason) {
+		return nil, apperror.Conflict("Only a job's main script can hand the run over to the agent")
+	}
 	return okResponse{OK: true}, nil
 }

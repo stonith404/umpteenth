@@ -152,8 +152,8 @@ UPDATE runs SET status = $1, finished_at = $2, ms_total = $3,
   tok_in = $7, tok_out = $8, tok_cache_read = $9, tok_cache_write = $10,
   cost = $11, summary = $12, outputs = $13, error = $14, broker_token_hash = NULL,
   reflection = $15, reflection_requested_at = $16,
-  fell_back = $17, verify_cost = $18, verify_tokens = $19
-WHERE id = $20 AND status IN ('queued', 'provisioning', 'running', 'verifying')
+  fell_back = $17, handed_over = $18, verify_cost = $19, verify_tokens = $20
+WHERE id = $21 AND status IN ('queued', 'provisioning', 'running', 'verifying')
 `
 
 type FinishRunParams struct {
@@ -174,6 +174,7 @@ type FinishRunParams struct {
 	Reflection            string
 	ReflectionRequestedAt *int64
 	FellBack              bool
+	HandedOver            bool
 	VerifyCost            int64
 	VerifyTokens          int64
 	ID                    string
@@ -199,6 +200,7 @@ func (q *Queries) FinishRun(ctx context.Context, arg FinishRunParams) (int64, er
 		arg.Reflection,
 		arg.ReflectionRequestedAt,
 		arg.FellBack,
+		arg.HandedOver,
 		arg.VerifyCost,
 		arg.VerifyTokens,
 		arg.ID,
@@ -222,7 +224,7 @@ func (q *Queries) GetPruneWatermark(ctx context.Context, key string) (string, er
 }
 
 const getRun = `-- name: GetRun :one
-SELECT id, workspace_id, job_id, number, status, mode, fell_back, trigger, triggered_by, input, instructions, playbook_version, model_id, image_id, image_ref, host_id, heartbeat_at, broker_token_hash, sandbox_adapter, sandbox_id, sandbox_isolation, queued_at, started_at, finished_at, ms_queue, ms_provision, ms_llm, ms_tools, ms_total, turns, tok_in, tok_out, tok_cache_read, tok_cache_write, cost, summary, outputs, error, cancel_requested, reflection, reflection_requested_at, reflection_error, reflection_summary, reflection_ops, reflection_version, reflection_cost, reflection_tokens, verify_cost, verify_tokens FROM runs WHERE workspace_id = $1 AND id = $2
+SELECT id, workspace_id, job_id, number, status, mode, fell_back, trigger, triggered_by, input, instructions, playbook_version, model_id, image_id, image_ref, host_id, heartbeat_at, broker_token_hash, sandbox_adapter, sandbox_id, sandbox_isolation, queued_at, started_at, finished_at, ms_queue, ms_provision, ms_llm, ms_tools, ms_total, turns, tok_in, tok_out, tok_cache_read, tok_cache_write, cost, summary, outputs, error, cancel_requested, reflection, reflection_requested_at, reflection_error, reflection_summary, reflection_ops, reflection_version, reflection_cost, reflection_tokens, verify_cost, verify_tokens, handed_over FROM runs WHERE workspace_id = $1 AND id = $2
 `
 
 type GetRunParams struct {
@@ -283,6 +285,7 @@ func (q *Queries) GetRun(ctx context.Context, arg GetRunParams) (Run, error) {
 		&i.ReflectionTokens,
 		&i.VerifyCost,
 		&i.VerifyTokens,
+		&i.HandedOver,
 	)
 	return i, err
 }
@@ -300,7 +303,7 @@ func (q *Queries) GetRunByBrokerToken(ctx context.Context, brokerTokenHash *stri
 }
 
 const getRunUnscoped = `-- name: GetRunUnscoped :one
-SELECT id, workspace_id, job_id, number, status, mode, fell_back, trigger, triggered_by, input, instructions, playbook_version, model_id, image_id, image_ref, host_id, heartbeat_at, broker_token_hash, sandbox_adapter, sandbox_id, sandbox_isolation, queued_at, started_at, finished_at, ms_queue, ms_provision, ms_llm, ms_tools, ms_total, turns, tok_in, tok_out, tok_cache_read, tok_cache_write, cost, summary, outputs, error, cancel_requested, reflection, reflection_requested_at, reflection_error, reflection_summary, reflection_ops, reflection_version, reflection_cost, reflection_tokens, verify_cost, verify_tokens FROM runs WHERE id = $1
+SELECT id, workspace_id, job_id, number, status, mode, fell_back, trigger, triggered_by, input, instructions, playbook_version, model_id, image_id, image_ref, host_id, heartbeat_at, broker_token_hash, sandbox_adapter, sandbox_id, sandbox_isolation, queued_at, started_at, finished_at, ms_queue, ms_provision, ms_llm, ms_tools, ms_total, turns, tok_in, tok_out, tok_cache_read, tok_cache_write, cost, summary, outputs, error, cancel_requested, reflection, reflection_requested_at, reflection_error, reflection_summary, reflection_ops, reflection_version, reflection_cost, reflection_tokens, verify_cost, verify_tokens, handed_over FROM runs WHERE id = $1
 `
 
 // unscoped: used by the runs taskpool, which is keyed by the globally unique run ID
@@ -357,6 +360,7 @@ func (q *Queries) GetRunUnscoped(ctx context.Context, id string) (Run, error) {
 		&i.ReflectionTokens,
 		&i.VerifyCost,
 		&i.VerifyTokens,
+		&i.HandedOver,
 	)
 	return i, err
 }
@@ -605,6 +609,16 @@ UPDATE runs SET fell_back = TRUE WHERE id = $1
 // unscoped: only the replica executing the run records that its script fell back to the agent
 func (q *Queries) SetRunFellBack(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, setRunFellBack, id)
+	return err
+}
+
+const setRunHandedOver = `-- name: SetRunHandedOver :exec
+UPDATE runs SET handed_over = TRUE WHERE id = $1
+`
+
+// unscoped: only the replica executing the run records that its script handed over to the agent
+func (q *Queries) SetRunHandedOver(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, setRunHandedOver, id)
 	return err
 }
 

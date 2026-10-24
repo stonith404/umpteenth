@@ -39,7 +39,7 @@ UPDATE runs SET status = sqlc.arg(status), finished_at = sqlc.arg(finished_at), 
   tok_in = sqlc.arg(tok_in), tok_out = sqlc.arg(tok_out), tok_cache_read = sqlc.arg(tok_cache_read), tok_cache_write = sqlc.arg(tok_cache_write),
   cost = sqlc.arg(cost), summary = sqlc.narg(summary), outputs = sqlc.narg(outputs), error = sqlc.narg(error), broker_token_hash = NULL,
   reflection = sqlc.arg(reflection), reflection_requested_at = sqlc.narg(reflection_requested_at),
-  fell_back = sqlc.arg(fell_back), verify_cost = sqlc.arg(verify_cost), verify_tokens = sqlc.arg(verify_tokens)
+  fell_back = sqlc.arg(fell_back), handed_over = sqlc.arg(handed_over), verify_cost = sqlc.arg(verify_cost), verify_tokens = sqlc.arg(verify_tokens)
 WHERE id = sqlc.arg(id) AND status IN ('queued', 'provisioning', 'running', 'verifying');
 
 -- name: RequestCancel :execrows
@@ -84,6 +84,10 @@ SELECT id FROM runs WHERE workspace_id = sqlc.arg(workspace_id) AND finished_at 
 -- name: SetRunFellBack :exec
 -- unscoped: only the replica executing the run records that its script fell back to the agent
 UPDATE runs SET fell_back = TRUE WHERE id = sqlc.arg(id);
+
+-- name: SetRunHandedOver :exec
+-- unscoped: only the replica executing the run records that its script handed over to the agent
+UPDATE runs SET handed_over = TRUE WHERE id = sqlc.arg(id);
 
 -- name: CountActiveRuns :one
 SELECT COUNT(*) FROM runs WHERE workspace_id = sqlc.arg(workspace_id) AND status IN ('queued', 'provisioning', 'running', 'verifying');

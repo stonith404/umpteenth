@@ -271,6 +271,7 @@ type Run struct {
 	ReflectionTokens      int64
 	VerifyCost            int64
 	VerifyTokens          int64
+	HandedOver            bool
 }
 
 type RunEvent struct {

@@ -33,8 +33,10 @@ type ShadowResult struct {
 	// Inconclusive explains why the shadow run says nothing about main either way, such as a call it had to refuse
 	Inconclusive string
 	// Reason explains why main didn't pass
-	Reason  string
-	Outputs map[string]json.RawMessage
+	Reason string
+	// HandedOver is why main handed this input over to the agent with ump handover
+	HandedOver string
+	Outputs    map[string]json.RawMessage
 	// Output is the end of what main printed
 	Output string
 	// Cost is what the script's ump llm calls and the verifier cost, in micro-USD
@@ -163,6 +165,12 @@ func (r *Runner) Shadow(ctx context.Context, run Run, job JobConfig) (ShadowResu
 	// A refused call means main needs something a shadow run can't give it, which says nothing about whether it works
 	if refused := live.Refused(); len(refused) > 0 {
 		res.Inconclusive = "main made calls that may have side effects, which a shadow run refuses: " + strings.Join(refused, "; ")
+		return res, nil
+	}
+
+	// A handover leaves the input to the agent, which only reflection can judge against the run main was learned from
+	if reason := live.HandedOver(); reason != "" && live.Failure() == "" {
+		res.HandedOver = reason
 		return res, nil
 	}
 
