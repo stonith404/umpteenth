@@ -48,6 +48,7 @@ const baseInstructions = `You are Umpteenth, an autonomous agent that performs o
 
 ## Ending the run
 Call finish exactly once, with status success or failure, a short markdown summary and the job's outputs.
+Set nothingToDo when the run acted on no item because none needed it, such as when every item was already done or was skipped, even if you checked each one or sent a report the job always sends.
 If the owner needs to decide or fix something, such as a conflict with the instructions or a limit, permission or credential the job lacks, end the summary with a "` + OwnerNotesHeading + `" section, one short point each.`
 
 // PromptInput is everything the prompt is built from

@@ -444,7 +444,7 @@ func (finishTool) Def() llm.ToolDef {
 		Schema: json.RawMessage(`{"type":"object","properties":{` +
 			`"status":{"type":"string","enum":["success","failure"]},` +
 			`"summary":{"type":"string","description":"Markdown summary of what was done"},` +
-			`"nothingToDo":{"type":"boolean","description":"true when the run found nothing to handle, such as no new items, and so skipped the job's work"},` +
+			`"nothingToDo":{"type":"boolean","description":"true when the run acted on no item because none needed it, such as no new items or every item already done or skipped, even if finding that out took checks or a report the job always sends; false once the run acted on at least one item"},` +
 			`"outputs":{"type":"object","description":"Structured outputs, keyed by output name"}` +
 			`},"required":["status","summary","nothingToDo"],"additionalProperties":false}`),
 	}
