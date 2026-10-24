@@ -25,10 +25,12 @@
 		mode: RunMode | (string & {});
 		// Marks a scripted run that fell back to the agent, shown as a trailing hint
 		fellBack?: boolean;
+		// Marks a scripted run whose script handed a case to the agent, shown the same way
+		handedOver?: boolean;
 		class?: string;
 	};
 
-	let { mode, fellBack = false, class: className }: Props = $props();
+	let { mode, fellBack = false, handedOver = false, class: className }: Props = $props();
 
 	const Icon = $derived(modeIcons[mode as RunMode]);
 	const label = $derived(modeLabel(mode));
@@ -37,7 +39,11 @@
 <span
 	data-slot="mode-badge"
 	data-mode={mode}
-	title={fellBack ? 'The script failed and the agent took over' : undefined}
+	title={fellBack
+		? 'The script failed and the agent took over'
+		: handedOver
+			? 'The script handed a case it can’t handle to the agent'
+			: undefined}
 	class={cn(
 		'text-muted-foreground inline-flex w-fit shrink-0 items-center gap-1.5 whitespace-nowrap',
 		className
@@ -49,5 +55,7 @@
 	{label}
 	{#if fellBack}
 		<span class="opacity-70">· fell back</span>
+	{:else if handedOver}
+		<span class="opacity-70">· handed over</span>
 	{/if}
 </span>

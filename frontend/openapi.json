@@ -1271,8 +1271,10 @@
 					"cron": {
 						"type": ["string", "null"]
 					},
-					"demoted": {
-						"type": "boolean"
+					"demotion": {
+						"description": "Why repeated fallbacks or handovers took a graduated job back to Assisted, missing while it isn't demoted",
+						"enum": ["fell_back", "handed_over"],
+						"type": "string"
 					},
 					"graduate": {
 						"description": "Whether the job may graduate to a main script that runs without the agent",
@@ -1368,7 +1370,6 @@
 					"createdAt",
 					"updatedAt",
 					"lastRun",
-					"demoted",
 					"graduatedVersion"
 				],
 				"type": "object"
@@ -2879,6 +2880,10 @@
 						"format": "int64",
 						"type": ["integer", "null"]
 					},
+					"handedOver": {
+						"description": "Whether the run's main script handed a case it can't handle to the agent",
+						"type": "boolean"
+					},
 					"id": {
 						"type": "string"
 					},
@@ -3042,6 +3047,7 @@
 					"triggeredByName",
 					"jobDeleted",
 					"fellBack",
+					"handedOver",
 					"cancelRequested",
 					"reflection",
 					"reflectionError",

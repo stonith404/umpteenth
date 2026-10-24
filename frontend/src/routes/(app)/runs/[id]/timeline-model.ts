@@ -79,7 +79,7 @@ export type SandboxPayload = {
 	output?: string;
 };
 
-// Fields of the `run.status`, `script.step`, `fallback`, `error` and `log` events, each of which sets only some of them
+// Fields of the `run.status`, `script.step`, `fallback`, `handover`, `error` and `log` events, each of which sets only some of them
 export type NotePayload = {
 	status?: string;
 	name?: string;

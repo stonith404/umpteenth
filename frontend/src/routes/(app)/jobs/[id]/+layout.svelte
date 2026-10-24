@@ -200,7 +200,7 @@
 				<Tooltip.Content side="bottom" class="max-w-64">{graduationNote}</Tooltip.Content>
 			</Tooltip.Root>
 		{/if}
-		{#if job.demoted}
+		{#if job.demotion}
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					{#snippet child({ props })}
@@ -210,8 +210,10 @@
 					{/snippet}
 				</Tooltip.Trigger>
 				<Tooltip.Content side="bottom" class="max-w-64">
-					The main script fell back to the agent twice in a row, so runs are Assisted until the job
-					graduates again
+					{job.demotion === 'handed_over'
+						? 'The main script handed most of its latest runs to the agent'
+						: 'The main script fell back to the agent twice in a row'}, so runs are Assisted until
+					the job graduates again
 				</Tooltip.Content>
 			</Tooltip.Root>
 		{/if}

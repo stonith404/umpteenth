@@ -136,7 +136,7 @@
 				{/if}
 			</span>
 			<!-- The mode is a fact like the rest, the same as in the job header -->
-			<ModeBadge mode={run.mode} fellBack={run.fellBack} />
+			<ModeBadge mode={run.mode} fellBack={run.fellBack} handedOver={run.handedOver} />
 			<span class="inline-flex items-center gap-1.5">
 				{#if TriggerIcon}
 					<TriggerIcon class="size-4 shrink-0" aria-hidden="true" />

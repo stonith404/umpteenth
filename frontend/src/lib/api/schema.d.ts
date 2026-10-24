@@ -2029,7 +2029,11 @@ export interface components {
 			/** Format: int64 */
 			createdAt: number;
 			cron: string | null;
-			demoted: boolean;
+			/**
+			 * @description Why repeated fallbacks or handovers took a graduated job back to Assisted, missing while it isn't demoted
+			 * @enum {string}
+			 */
+			demotion?: 'fell_back' | 'handed_over';
 			/** @description Whether the job may graduate to a main script that runs without the agent */
 			graduate: boolean;
 			/**
@@ -2628,6 +2632,8 @@ export interface components {
 			fellBack: boolean;
 			/** Format: int64 */
 			finishedAt: number | null;
+			/** @description Whether the run's main script handed a case it can't handle to the agent */
+			handedOver: boolean;
 			id: string;
 			imageRef: string | null;
 			input: unknown;

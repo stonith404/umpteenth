@@ -26,6 +26,7 @@ export type Run = {
 	input: unknown;
 	imageRef: string;
 	fellBack: boolean;
+	handedOver: boolean;
 	turns: number;
 	cost: number;
 	summary: string | null;

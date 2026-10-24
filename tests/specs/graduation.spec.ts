@@ -30,7 +30,7 @@ async function runWith(
 async function job(request: APIRequestContext, id: string) {
 	return (await (await request.get(`/api/jobs/${id}`)).json()) as {
 		nextMode: string;
-		demoted: boolean;
+		demotion?: string;
 	};
 }
 
@@ -43,11 +43,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--count", type=int, required=True)
 print(json.dumps([{"title": f"Story {i}"} for i in range(parser.parse_args().count)]))`;
 
-// The main script reads the story count from the run input, which a renamed field breaks
+// The main script reads the story count from the run input, which a renamed field breaks, and hands a conflict to the agent
 const main = `#!/usr/bin/env bash
 # ump:description Report the top stories without the agent
 set -euo pipefail
 count=$(python3 -c "import json; print(json.load(open('/ump/input.json'))['count'])")
+if python3 -c "import json, sys; sys.exit(0 if json.load(open('/ump/input.json')).get('conflict') else 1)"; then
+	ump handover "the input asks for a judgment call"
+fi
 ump step "fetch stories"
 /ump/toolkit/top_stories --count "$count" > /tmp/stories.json
 ump output set count "$count"
@@ -161,6 +164,21 @@ test('A job graduates to a main script, falls back when it breaks, and gets repa
 	({ run } = await runWith(request, id, broken, []));
 	expect(run).toMatchObject({ status: 'succeeded', mode: 'scripted', fellBack: false });
 
+	// A case main leaves to the agent hands the run over, which is no fallback
+	const handover = await runWith(request, id, { count: 1, conflict: true }, [
+		finish('Made the judgment call', { count: 1 }),
+		reflection('Learned how the agent made the call')
+	]);
+	expect(handover.run).toMatchObject({
+		status: 'succeeded',
+		mode: 'scripted',
+		fellBack: false,
+		handedOver: true
+	});
+	await page.goto(`/runs/${handover.runId}`);
+	await expect(page.getByText('Handed over to the agent')).toBeVisible();
+	await expect(page.getByText('Scripted · handed over')).toBeVisible();
+
 	// Turning graduation off puts the agent back on every run, and reflection may no longer touch main
 	await page.goto(`/jobs/${id}/settings`);
 	const learning = page.getByRole('form', { name: 'Learning' });
@@ -190,7 +208,7 @@ test('A job graduates to a main script, falls back when it breaks, and gets repa
 		expect(run.fellBack).toBe(true);
 	}
 	const demoted = await job(request, id);
-	expect(demoted).toMatchObject({ nextMode: 'assisted', demoted: true });
+	expect(demoted).toMatchObject({ nextMode: 'assisted', demotion: 'fell_back' });
 	await page.goto(`/jobs/${id}`);
 	await expect(page.getByText('Demoted', { exact: true })).toBeVisible();
 	await expect(page.getByText('Runs as')).toContainText('Assisted');

@@ -36,7 +36,10 @@
 			value: 'run.fell_back',
 			label: "A scripted run's main script fails and the agent takes over"
 		},
-		{ value: 'job.demoted', label: 'A job is demoted to Assisted after two fallbacks in a row' }
+		{
+			value: 'job.demoted',
+			label: 'A job is demoted to Assisted after repeated fallbacks or handovers'
+		}
 	] as const;
 	type NotifyEvent = (typeof EVENTS)[number]['value'];
 

@@ -236,6 +236,13 @@
 			<p class="text-muted-foreground text-sm">{p.reason}</p>
 		{/if}
 	</StepShell>
+{:else if event.type === 'handover'}
+	{@const p = payloadOf<NotePayload>(event)}
+	<StepShell glyph="bot" tone="llm" title="Handed over to the agent" ts={event.ts} {startTs}>
+		{#if p.reason}
+			<p class="text-muted-foreground text-sm">{p.reason}</p>
+		{/if}
+	</StepShell>
 {:else if event.type === 'agent.compaction'}
 	{@const p = payloadOf<CompactionPayload>(event)}
 	{@const usage = usageOf(p)}
