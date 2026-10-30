@@ -49,7 +49,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 # Stage 3: runtime image
 # It runs as root because it talks to the Docker socket; a socket proxy is the recommended way to limit that
 # On Kubernetes, which needs no socket, the Helm chart runs it as a non-root user instead
-FROM gcr.io/distroless/static-debian13@sha256:034df5c1737e8241f6ed6423a12e720ee0f6d6f088609ee172f98f6f2166ef5d
+FROM gcr.io/distroless/static-debian13@sha256:15f8637509792e05b97d83451b0b6ccfa4abd548f997e406ac1e72c87fe1fa78
 ARG TARGETARCH
 WORKDIR /app
 COPY --from=backend-builder /build/umpteenth /app/umpteenth
