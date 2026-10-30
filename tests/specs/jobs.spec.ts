@@ -152,13 +152,12 @@ test('The compile step matches the credentials a job needs to secrets, and savin
 
 	// The token is matched to its secret, and the project ID has none yet
 	const needs = page.getByRole('list', { name: 'Secrets the job needs' });
-	await expect(page.getByRole('button', { name: 'Secret for CROWDIN_PERSONAL_TOKEN' })).toHaveText(
-		'crowdin-token',
-		{
-			timeout: 15_000
-		}
-	);
-	await expect(page.getByRole('button', { name: 'Secret for CROWDIN_PROJECT_ID' })).toHaveText(
+	await expect(
+		page.getByRole('combobox', { name: 'Secret for CROWDIN_PERSONAL_TOKEN' })
+	).toHaveText('crowdin-token', {
+		timeout: 15_000
+	});
+	await expect(page.getByRole('combobox', { name: 'Secret for CROWDIN_PROJECT_ID' })).toHaveText(
 		'Pick a secret'
 	);
 	await expect(needs).toContainText("No secret is picked, so runs won't get this variable.");
@@ -166,7 +165,7 @@ test('The compile step matches the credentials a job needs to secrets, and savin
 	// A secret created in another tab is picked for the variable its name suggests once the page gets focus again
 	await createSecret(page.request, 'crowdin-project-id', '42');
 	await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-	await expect(page.getByRole('button', { name: 'Secret for CROWDIN_PROJECT_ID' })).toHaveText(
+	await expect(page.getByRole('combobox', { name: 'Secret for CROWDIN_PROJECT_ID' })).toHaveText(
 		'crowdin-project-id'
 	);
 

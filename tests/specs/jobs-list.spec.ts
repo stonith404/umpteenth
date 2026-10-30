@@ -308,7 +308,7 @@ test('The jobs list sorts by name and by next run with unscheduled jobs last, an
 	await expect(names.nth(2)).toHaveText(/^Job \d\d$/);
 
 	// A bigger page size fits every job and is kept in the URL
-	await page.getByRole('button', { name: 'Rows per page' }).click();
+	await page.getByRole('combobox', { name: 'Rows per page' }).click();
 	await page.getByRole('option', { name: '50' }).click();
 	await expect(page).toHaveURL(/pageSize=50/);
 	await expect(names).toHaveCount(28);

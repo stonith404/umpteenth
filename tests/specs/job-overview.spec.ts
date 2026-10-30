@@ -78,7 +78,7 @@ test('The Spec card refuses duplicate input names inline and drops blank rows wh
 		.fill('Repository to deploy');
 	await spec.getByRole('button', { name: 'Add input' }).click();
 	await spec.getByRole('textbox', { name: 'Input 2 name', exact: true }).fill('repo');
-	await spec.getByRole('button', { name: 'Input 2 type', exact: true }).click();
+	await spec.getByRole('combobox', { name: 'Input 2 type', exact: true }).click();
 	await page.getByRole('option', { name: 'integer', exact: true }).click();
 
 	// One filled criterion and one left blank, which saving should drop
@@ -99,7 +99,7 @@ test('The Spec card refuses duplicate input names inline and drops blank rows wh
 	await expect(duplicate).toBeHidden();
 	await spec.getByRole('button', { name: 'Add input' }).click();
 	await spec.getByRole('textbox', { name: 'Input 3 name', exact: true }).fill('dryRun');
-	await spec.getByRole('button', { name: 'Input 3 type', exact: true }).click();
+	await spec.getByRole('combobox', { name: 'Input 3 type', exact: true }).click();
 	await page.getByRole('option', { name: 'boolean', exact: true }).click();
 	await saveForm(spec);
 

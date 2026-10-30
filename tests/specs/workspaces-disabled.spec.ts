@@ -32,7 +32,7 @@ test('Everyone who signs in joins the one workspace, the first as its owner', as
 	// Roles and ownership still work, but nobody is removed, since they would rejoin at their next sign-in
 	const members = page.getByRole('table', { name: 'Members' });
 	await expect(members.getByRole('row', { name: /E2E User/ })).toContainText('Owner');
-	await page.getByRole('button', { name: 'Role of Bob Builder', exact: true }).click();
+	await page.getByRole('combobox', { name: 'Role of Bob Builder', exact: true }).click();
 	await page.getByRole('option', { name: 'Admin' }).click();
 	await expect(page.getByText('Bob Builder is now admin')).toBeVisible();
 	await page.getByRole('button', { name: 'Actions for Bob Builder' }).click();

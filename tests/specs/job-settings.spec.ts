@@ -102,7 +102,7 @@ test('The Secrets card refuses incomplete, invalid and duplicate mappings, drops
 	// Picking a secret keeps a name that was typed already, which is not a valid variable name here
 	await pickOption(
 		page,
-		secrets.getByRole('button', { name: 'Secret 1', exact: true }),
+		secrets.getByRole('combobox', { name: 'Secret 1', exact: true }),
 		'github-token'
 	);
 	await expect(firstName).toHaveValue('9LIVES');
@@ -114,7 +114,11 @@ test('The Secrets card refuses incomplete, invalid and duplicate mappings, drops
 
 	// An empty name is suggested from the secret's name, and a name used twice is refused
 	await secrets.getByRole('button', { name: 'Add secret' }).click();
-	await pickOption(page, secrets.getByRole('button', { name: 'Secret 2', exact: true }), 'api.key');
+	await pickOption(
+		page,
+		secrets.getByRole('combobox', { name: 'Secret 2', exact: true }),
+		'api.key'
+	);
 	const secondName = secrets.getByRole('textbox', { name: 'Environment variable 2' });
 	await expect(secondName).toHaveValue('API_KEY');
 	await secondName.fill('GITHUB_TOKEN');
@@ -138,7 +142,7 @@ test('The Secrets card refuses incomplete, invalid and duplicate mappings, drops
 	// The mappings survive a reload in the same order
 	await page.reload();
 	await expect(rows).toHaveCount(2);
-	await expect(secrets.getByRole('button', { name: 'Secret 1', exact: true })).toHaveText(
+	await expect(secrets.getByRole('combobox', { name: 'Secret 1', exact: true })).toHaveText(
 		'api.key'
 	);
 	await expect(secrets.getByRole('textbox', { name: 'Environment variable 1' })).toHaveValue(

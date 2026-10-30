@@ -121,10 +121,10 @@ test('Admins manage members but can neither hand the workspace over nor delete i
 	await bob.goto('/settings/members');
 	const members = bob.getByRole('table', { name: 'Members' });
 	await expect(bob.getByRole('button', { name: 'Invite member' })).toBeVisible();
-	await expect(members.getByRole('button', { name: 'Role of Carol', exact: true })).toBeVisible();
-	await expect(members.getByRole('button', { name: 'Role of E2E User', exact: true })).toHaveCount(
-		0
-	);
+	await expect(members.getByRole('combobox', { name: 'Role of Carol', exact: true })).toBeVisible();
+	await expect(
+		members.getByRole('combobox', { name: 'Role of E2E User', exact: true })
+	).toHaveCount(0);
 	await expect(members.getByRole('button', { name: 'Actions for E2E User' })).toHaveCount(0);
 	await expect(members.getByRole('button', { name: 'Actions for Bob Builder' })).toHaveCount(0);
 
@@ -251,9 +251,9 @@ test('Inviting the same address again replaces its pending invite', async ({ pag
 	// The owner invites her again as an admin for longer
 	const dialog = await openInviteDialog(page);
 	await dialog.getByLabel('Email').fill('carol@example.com');
-	await dialog.getByRole('button', { name: 'Role', exact: true }).click();
+	await dialog.getByRole('combobox', { name: 'Role', exact: true }).click();
 	await page.getByRole('option', { name: 'Admin' }).click();
-	await dialog.getByRole('button', { name: 'Expires after' }).click();
+	await dialog.getByRole('combobox', { name: 'Expires after' }).click();
 	await page.getByRole('option', { name: '30 days' }).click();
 	await dialog.getByRole('button', { name: 'Invite', exact: true }).click();
 	await expect(page.getByText('carol@example.com joins the next time they sign in')).toBeVisible();
@@ -357,7 +357,7 @@ test('Inviting someone who signed in before answers like any other address, and 
 	await page.goto('/settings/members');
 	const dialog = await openInviteDialog(page);
 	await dialog.getByLabel('Email').fill('carol@example.com');
-	await dialog.getByRole('button', { name: 'Role', exact: true }).click();
+	await dialog.getByRole('combobox', { name: 'Role', exact: true }).click();
 	await page.getByRole('option', { name: 'Admin' }).click();
 	await dialog.getByRole('button', { name: 'Invite', exact: true }).click();
 	await expect(page.getByText('carol@example.com joins the next time they sign in')).toBeVisible();
@@ -528,13 +528,13 @@ test('An admin who makes themselves a member loses the admin controls at once', 
 	await expect(workspaceSwitcher(bob)).toContainText('Admin');
 
 	// He makes himself a member
-	await bob.getByRole('button', { name: 'Role of Bob Builder', exact: true }).click();
+	await bob.getByRole('combobox', { name: 'Role of Bob Builder', exact: true }).click();
 	await bob.getByRole('option', { name: 'Member' }).click();
 	await expect(bob.getByText('Bob Builder is now member')).toBeVisible();
 
 	// The page drops every admin control without a reload
 	await expect(bob.getByRole('button', { name: 'Invite member' })).toBeHidden();
-	await expect(bob.getByRole('button', { name: /^Role of / })).toHaveCount(0);
+	await expect(bob.getByRole('combobox', { name: /^Role of / })).toHaveCount(0);
 	await expect(workspaceSwitcher(bob)).toContainText('Member');
 	await expect(
 		bob.getByRole('table', { name: 'Members' }).getByRole('row', { name: /Bob Builder/ })
@@ -551,7 +551,7 @@ test('An admin who makes themselves a member loses the admin controls at once', 
 
 	// The owner sees him as a member
 	await page.goto('/settings/members');
-	await expect(page.getByRole('button', { name: 'Role of Bob Builder', exact: true })).toHaveText(
+	await expect(page.getByRole('combobox', { name: 'Role of Bob Builder', exact: true })).toHaveText(
 		'Member'
 	);
 });
@@ -570,7 +570,7 @@ test('An admin who makes themselves a member no longer sees the pending invites'
 	await expect(pending.getByRole('row', { name: /erin@example\.com/ })).toBeVisible();
 
 	// Once he is a member, the invites and their Revoke action go away with the other admin controls
-	await bob.getByRole('button', { name: 'Role of Bob Builder', exact: true }).click();
+	await bob.getByRole('combobox', { name: 'Role of Bob Builder', exact: true }).click();
 	await bob.getByRole('option', { name: 'Member' }).click();
 	await expect(bob.getByText('Bob Builder is now member')).toBeVisible();
 	await expect(bob.getByRole('button', { name: 'Invite member' })).toBeHidden();

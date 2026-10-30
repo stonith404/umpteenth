@@ -20,7 +20,7 @@ async function createInviteLink(page: Page, role: 'Member' | 'Admin' = 'Member')
 	const dialog = page.getByRole('dialog', { name: 'Invite to workspace' });
 	await dialog.getByRole('tab', { name: 'Invite link' }).click();
 	if (role !== 'Member') {
-		await dialog.getByRole('button', { name: 'Role', exact: true }).click();
+		await dialog.getByRole('combobox', { name: 'Role', exact: true }).click();
 		await page.getByRole('option', { name: role }).click();
 	}
 	await dialog.getByRole('button', { name: 'Create link' }).click();
@@ -121,7 +121,7 @@ test('An email invite waits for a sign-in with the verified address', async ({
 	await page.getByRole('button', { name: 'Invite member' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Invite to workspace' });
 	await dialog.getByLabel('Email').fill('carol@example.com');
-	await dialog.getByRole('button', { name: 'Role', exact: true }).click();
+	await dialog.getByRole('combobox', { name: 'Role', exact: true }).click();
 	await page.getByRole('option', { name: 'Admin' }).click();
 	await dialog.getByRole('button', { name: 'Invite' }).click();
 	await expect(page.getByText('carol@example.com joins the next time they sign in')).toBeVisible();
@@ -173,7 +173,7 @@ test('Members can look at the settings but only admins change them', async ({
 
 	// Made an admin, he can
 	await page.goto('/settings/members');
-	await page.getByRole('button', { name: 'Role of Bob Builder', exact: true }).click();
+	await page.getByRole('combobox', { name: 'Role of Bob Builder', exact: true }).click();
 	await page.getByRole('option', { name: 'Admin' }).click();
 	await expect(page.getByText('Bob Builder is now admin')).toBeVisible();
 	await bob.reload();
