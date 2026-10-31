@@ -1,3 +1,32 @@
+## v0.5.0
+
+### Features
+
+- add pause job button ([f6ba1de](https://github.com/stonith404/umpteenth/commit/f6ba1ded327fcbb193bdcfce316e360e9ee0b962) by @stonith404)
+- **runner:** let main hand a case to the agent with ump handover ([2176e58](https://github.com/stonith404/umpteenth/commit/2176e58e7e012e4634ba101ec50572cd0de6944b) by @stonith404)
+- **reflection:** graduate jobs with rare judgment steps and demote on frequent handovers ([5293f82](https://github.com/stonith404/umpteenth/commit/5293f82ffe5581dbff2fe7ce7cc42d5ec1bb3f76) by @stonith404)
+- **frontend:** show handovers and the demotion cause ([e80d08c](https://github.com/stonith404/umpteenth/commit/e80d08c88d9d8633baf620bf2654730b0d7c8fe5) by @stonith404)
+
+### Bug Fixes
+
+- **agent:** mark runs that acted on no item as nothing to do ([4b39430](https://github.com/stonith404/umpteenth/commit/4b39430724820a937add4bc87e305c7350cccc41) by @stonith404)
+- **jobs:** refuse a paused job's webhook on any replica ([7607809](https://github.com/stonith404/umpteenth/commit/76078096ce2c8dacfaa830876db421e88694483b) by @stonith404)
+
+### Documentation
+
+- document main script handovers ([60df223](https://github.com/stonith404/umpteenth/commit/60df223dd7d4cd75ac84cf834ee2a5e913fa8a67) by @stonith404)
+
+### Other
+
+- bump golangci-lint to v2.15.0 for Go 1.27.2 ([7078ba5](https://github.com/stonith404/umpteenth/commit/7078ba56e64fcd6809301a2df399758e10e22a31) by @stonith404)
+- find Select triggers by their combobox role ([e3a7e38](https://github.com/stonith404/umpteenth/commit/e3a7e38a79af2938c9698e174959fd99fef515fb) by @stonith404)
+
+### Dependencies
+
+- **deps:** bump taiki-e/install-action ([#20](https://github.com/stonith404/umpteenth/pull/20) by @dependabot[bot])
+- **deps:** Bump the "all-dependencies" group with 4 updates across multiple ecosystems ([#22](https://github.com/stonith404/umpteenth/pull/22) by @dependabot[bot])
+
+**Full Changelog**: https://github.com/stonith404/umpteenth/compare/v0.4.0...v0.5.0
 ## v0.4.0
 
 ### Features
