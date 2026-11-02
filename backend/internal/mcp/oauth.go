@@ -50,6 +50,8 @@ var (
 	ErrLoginExpired = errors.New("the OAuth login expired, log in again")
 	// ErrOAuthUnsupported means the server doesn't advertise an OAuth login
 	ErrOAuthUnsupported = errors.New("the server doesn't advertise an OAuth login")
+
+	errIssuerMismatch = errors.New("the authorization server metadata is for another issuer")
 )
 
 // OAuthMetadata is what discovery learned about a server's OAuth login
@@ -175,7 +177,11 @@ func (m *Manager) DiscoverOAuth(ctx context.Context, serverURL string, headers m
 	}
 
 	// Servers from before the 2025-06-18 spec are their own authorization server
+	// Metadata for another issuer belongs to something else on the host, so the server has no login of its own
 	asm, err := findAuthServerMetadata(ctx, client, origin(base), origin(base))
+	if errors.Is(err, errIssuerMismatch) {
+		return nil, nil
+	}
 	if err != nil || asm == nil {
 		return nil, err
 	}
@@ -326,7 +332,7 @@ func findAuthServerMetadata(ctx context.Context, client *http.Client, issuer, ex
 			continue
 		}
 		if expectedIssuer != "" && !issuersEqual(asm.Issuer, expectedIssuer) {
-			return nil, fmt.Errorf("authorization server metadata at %s is for issuer %q, not %q", candidate, asm.Issuer, expectedIssuer)
+			return nil, fmt.Errorf("%w: %s names %q, not %q", errIssuerMismatch, candidate, asm.Issuer, expectedIssuer)
 		}
 		if asm.AuthorizationEndpoint == "" || asm.TokenEndpoint == "" {
 			continue

@@ -390,6 +390,7 @@ func TestLegacyMetadataCannotImpersonateAnotherIssuer(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	_, err := NewManager(egress.New(true)).DiscoverOAuth(t.Context(), srv.URL+"/mcp", nil)
-	require.ErrorContains(t, err, "not")
+	meta, err := NewManager(egress.New(true)).DiscoverOAuth(t.Context(), srv.URL+"/mcp", nil)
+	require.NoError(t, err)
+	require.Nil(t, meta)
 }
