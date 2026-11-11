@@ -5,7 +5,7 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { transportLabel } from '#lib/utils/mcp-util.js';
 	import { cn } from '#lib/utils/style.js';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
 
 	let {
 		needs,
@@ -44,7 +44,7 @@
 		<ul class="flex flex-col gap-2" aria-label="Services the job needs">
 			{#each matched as need, i (i)}
 				<li class="bg-muted/40 flex items-start gap-3 rounded-lg px-3 py-2.5">
-					<CircleCheckIcon class="text-success mt-0.5 size-4 shrink-0" />
+					<CheckCircleIcon class="text-success mt-0.5 size-4 shrink-0" />
 					<div class="flex min-w-0 flex-col gap-0.5">
 						<span class="flex flex-wrap items-center gap-2">
 							<span class="text-sm font-medium">{need.server}</span>

@@ -11,7 +11,7 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { createForm } from '#lib/utils/form-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import SendIcon from '@lucide/svelte/icons/send';
+	import PaperPlaneRightIcon from 'phosphor-svelte/lib/PaperPlaneRight';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 	import ReadOnlyValues from './read-only-values.svelte';
@@ -97,7 +97,7 @@
 	{#snippet actions()}
 		{#if savedUrl}
 			<Button variant="outline" size="sm" disabled={testing} onclick={sendTest}>
-				<SendIcon data-icon="inline-start" />
+				<PaperPlaneRightIcon data-icon="inline-start" />
 				Send test
 			</Button>
 		{:else}
@@ -106,7 +106,7 @@
 				<Tooltip.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="sm" softDisabled>
-							<SendIcon data-icon="inline-start" />
+							<PaperPlaneRightIcon data-icon="inline-start" />
 							Send test
 						</Button>
 					{/snippet}

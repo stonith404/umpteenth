@@ -15,10 +15,10 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { formatDateTime, formatRelative } from '#lib/utils/format-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import KeyIcon from 'phosphor-svelte/lib/Key';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { toast } from 'svelte-sonner';
 	import SecretDialog from './secret-dialog.svelte';
@@ -118,10 +118,10 @@
 	<RowActions
 		name={secret.name}
 		items={[
-			{ label: 'Update value', icon: PencilIcon, onSelect: () => openUpdate(secret) },
+			{ label: 'Update value', icon: PencilSimpleIcon, onSelect: () => openUpdate(secret) },
 			{
 				label: 'Delete',
-				icon: Trash2Icon,
+				icon: TrashIcon,
 				variant: 'destructive',
 				onSelect: () => confirmDelete(secret)
 			}
@@ -150,7 +150,7 @@
 			<Empty.Root size="sm">
 				<Empty.Header>
 					<Empty.Media variant="icon">
-						<KeyRoundIcon />
+						<KeyIcon />
 					</Empty.Media>
 					<Empty.Title>No secrets</Empty.Title>
 					<Empty.Description>

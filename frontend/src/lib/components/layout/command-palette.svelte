@@ -17,9 +17,9 @@
 	import { formatRelative } from '#lib/utils/format-util.js';
 	import { scheduleLabel } from '#lib/utils/job-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import SearchIcon from '@lucide/svelte/icons/search';
+	import BriefcaseIcon from 'phosphor-svelte/lib/Briefcase';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { untrack } from 'svelte';
 
@@ -269,7 +269,7 @@
 		</Dialog.Description>
 		<Command.Root bind:value={selected} shouldFilter={false} variant="palette" class="min-h-0">
 			<div class="flex shrink-0 items-center gap-3 border-b px-4">
-				<SearchIcon class="text-muted-foreground size-4 shrink-0" />
+				<MagnifyingGlassIcon class="text-muted-foreground size-4 shrink-0" />
 				<CommandPrimitive.Input
 					value={query}
 					oninput={(e) => onQueryInput(e.currentTarget.value)}

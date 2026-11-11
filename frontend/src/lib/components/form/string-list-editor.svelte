@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import XIcon from '@lucide/svelte/icons/x';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import XIcon from 'phosphor-svelte/lib/X';
 	import { tick } from 'svelte';
 
 	let {

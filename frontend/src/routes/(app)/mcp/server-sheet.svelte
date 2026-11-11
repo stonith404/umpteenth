@@ -5,10 +5,10 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { authDescription, canLogIn, transportLabel } from '#lib/utils/mcp-util.js';
-	import LogInIcon from '@lucide/svelte/icons/log-in';
-	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import PlugZapIcon from '@lucide/svelte/icons/plug-zap';
+	import SignInIcon from 'phosphor-svelte/lib/SignIn';
+	import SignOutIcon from 'phosphor-svelte/lib/SignOut';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import PlugsConnectedIcon from 'phosphor-svelte/lib/PlugsConnected';
 	import AuthBadge from './auth-badge.svelte';
 	import ToolList from './tool-list.svelte';
 
@@ -97,7 +97,7 @@
 							<div class="flex gap-2">
 								{#if server.auth.loggedInAt}
 									<Button variant="outline" size="sm" onclick={() => server && onLogOut(server)}>
-										<LogOutIcon data-icon="inline-start" />
+										<SignOutIcon data-icon="inline-start" />
 										Log out
 									</Button>
 								{/if}
@@ -107,7 +107,7 @@
 										size="sm"
 										onclick={() => server && onLogIn(server)}
 									>
-										<LogInIcon data-icon="inline-start" />
+										<SignInIcon data-icon="inline-start" />
 										{server.auth.status === 'oauth' ? 'Log in again' : 'Log in'}
 									</Button>
 								{/if}
@@ -148,14 +148,14 @@
 			</Sheet.Body>
 			<Sheet.Footer class="flex-row justify-end">
 				<Button variant="outline" onclick={() => server && onEdit(server)}>
-					<PencilIcon data-icon="inline-start" />
+					<PencilSimpleIcon data-icon="inline-start" />
 					Edit
 				</Button>
 				<Button
 					variant={needsLogin ? 'outline' : 'default'}
 					onclick={() => server && onTest(server)}
 				>
-					<PlugZapIcon data-icon="inline-start" />
+					<PlugsConnectedIcon data-icon="inline-start" />
 					Test
 				</Button>
 			</Sheet.Footer>

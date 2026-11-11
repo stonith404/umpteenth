@@ -21,8 +21,8 @@
 	import { preventDefault } from '#lib/utils/event-util.js';
 	import { cn } from '#lib/utils/style.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 	import { untrack } from 'svelte';
 
 	let {
@@ -303,7 +303,7 @@
 						<Collapsible.Trigger>
 							{#snippet child({ props })}
 								<Button {...props} variant="ghost" size="sm" class="-ml-2">
-									<ChevronRightIcon
+									<CaretRightIcon
 										data-icon="inline-start"
 										class={cn('transition-transform', oauthOpen && 'rotate-90')}
 									/>
@@ -390,7 +390,7 @@
 								</Field.Field>
 								{#if !oauthSendResource}
 									<Alert.Root variant="warning">
-										<TriangleAlertIcon />
+										<WarningIcon />
 										<Alert.Description>
 											Only turn this off for a server you trust. The provider checks the resource to
 											stop a malicious server from obtaining tokens for other APIs.

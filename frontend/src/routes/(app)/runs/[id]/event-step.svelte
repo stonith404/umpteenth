@@ -36,8 +36,8 @@
 	import { transportLabel } from '#lib/utils/mcp-util.js';
 	import { formatDuration, formatTokens, sentenceCase } from '#lib/utils/format-util.js';
 	import { usageFormat } from '#lib/utils/usage-util.js';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import CircleXIcon from '@lucide/svelte/icons/circle-x';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
+	import XCircleIcon from 'phosphor-svelte/lib/XCircle';
 	import Disclosure from './disclosure.svelte';
 	import JsonView from './json-view.svelte';
 	import OutputsView from './outputs-view.svelte';
@@ -203,9 +203,17 @@
 			{#each verify.checks ?? [] as check (check.check)}
 				<li class="flex items-start gap-2">
 					{#if check.passed}
-						<CircleCheckIcon class="text-success mt-0.5 size-4 shrink-0" aria-label="Passed" />
+						<CheckCircleIcon
+							class="text-success mt-0.5 size-4 shrink-0"
+							aria-hidden="false"
+							aria-label="Passed"
+						/>
 					{:else}
-						<CircleXIcon class="text-destructive mt-0.5 size-4 shrink-0" aria-label="Failed" />
+						<XCircleIcon
+							class="text-destructive mt-0.5 size-4 shrink-0"
+							aria-hidden="false"
+							aria-label="Failed"
+						/>
 					{/if}
 					<span class="min-w-0">
 						<code class="font-mono text-xs">{check.check}</code>
@@ -216,9 +224,17 @@
 			{#if verify.llm}
 				<li class="flex items-start gap-2">
 					{#if verify.llm.pass}
-						<CircleCheckIcon class="text-success mt-0.5 size-4 shrink-0" aria-label="Passed" />
+						<CheckCircleIcon
+							class="text-success mt-0.5 size-4 shrink-0"
+							aria-hidden="false"
+							aria-label="Passed"
+						/>
 					{:else}
-						<CircleXIcon class="text-destructive mt-0.5 size-4 shrink-0" aria-label="Failed" />
+						<XCircleIcon
+							class="text-destructive mt-0.5 size-4 shrink-0"
+							aria-hidden="false"
+							aria-label="Failed"
+						/>
 					{/if}
 					<span class="min-w-0">
 						Judged by the utility model<span class="text-muted-foreground">

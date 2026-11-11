@@ -37,15 +37,15 @@
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
 	import { onMount, type Snippet } from 'svelte';
-	import ArchiveIcon from '@lucide/svelte/icons/archive';
-	import ArchiveRestoreIcon from '@lucide/svelte/icons/archive-restore';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';
-	import FileJsonIcon from '@lucide/svelte/icons/file-json';
-	import GitCompareIcon from '@lucide/svelte/icons/git-compare';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import ArchiveIcon from 'phosphor-svelte/lib/Archive';
+	import BoxArrowUpIcon from 'phosphor-svelte/lib/BoxArrowUp';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import ArrowUpRightIcon from 'phosphor-svelte/lib/ArrowUpRight';
+	import BracketsCurlyIcon from 'phosphor-svelte/lib/BracketsCurly';
+	import GitDiffIcon from 'phosphor-svelte/lib/GitDiff';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwise';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { toast } from 'svelte-sonner';
 	import JsonEditDialog from './json-edit-dialog.svelte';
@@ -371,7 +371,7 @@
 	<RowActions
 		name="version {item.version}"
 		items={[
-			{ label: 'Show changes', icon: GitCompareIcon, onSelect: () => (diffVersion = item.version) },
+			{ label: 'Show changes', icon: GitDiffIcon, onSelect: () => (diffVersion = item.version) },
 			!!item.sourceRunId && {
 				label: 'Open source run',
 				icon: ArrowUpRightIcon,
@@ -379,7 +379,7 @@
 			},
 			item.version !== playbook.version && {
 				label: `Roll back to version ${item.version}`,
-				icon: RotateCcwIcon,
+				icon: ArrowCounterClockwiseIcon,
 				onSelect: () => confirmRollback(item.version)
 			}
 		]}
@@ -430,7 +430,7 @@
 				disabled={savingLearnings}
 				onclick={() => editLearning(learning)}
 			>
-				<PencilIcon />
+				<PencilSimpleIcon />
 			</Button>
 			{#if learning.status === 'retired'}
 				<Button
@@ -441,7 +441,7 @@
 					disabled={savingLearnings}
 					onclick={() => setLearningStatus(learning, 'active')}
 				>
-					<ArchiveRestoreIcon />
+					<BoxArrowUpIcon />
 				</Button>
 			{:else}
 				<Button
@@ -481,7 +481,7 @@
 							<span class="sm:hidden">{@render aside()}</span>
 						</span>
 						<span class="shrink-0 max-sm:hidden">{@render aside()}</span>
-						<ChevronRightIcon
+						<CaretRightIcon
 							class="text-muted-foreground mt-1 size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none"
 						/>
 					</button>
@@ -570,12 +570,12 @@
 		<div class="flex flex-wrap gap-2">
 			{#if playbook.version > 0}
 				<Button variant="outline" onclick={() => (diffVersion = playbook.version)}>
-					<GitCompareIcon data-icon="inline-start" />
+					<GitDiffIcon data-icon="inline-start" />
 					Show changes
 				</Button>
 			{/if}
 			<Button variant="outline" onclick={() => (jsonOpen = true)}>
-				<FileJsonIcon data-icon="inline-start" />
+				<BracketsCurlyIcon data-icon="inline-start" />
 				Edit as JSON
 			</Button>
 		</div>
@@ -608,7 +608,7 @@
 				<Collapsible.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="ghost" size="sm" class="-ml-2">
-							<ChevronRightIcon
+							<CaretRightIcon
 								data-icon="inline-start"
 								class={cn('transition-transform', showRetired && 'rotate-90')}
 							/>
@@ -667,7 +667,7 @@
 									aria-label="Edit script {script.name}"
 									onclick={() => editScript(script)}
 								>
-									<PencilIcon data-icon="inline-start" />
+									<PencilSimpleIcon data-icon="inline-start" />
 									Edit
 								</Button>
 								<Button
@@ -676,7 +676,7 @@
 									aria-label="Delete script {script.name}"
 									onclick={() => confirmDeleteScript(script)}
 								>
-									<Trash2Icon data-icon="inline-start" />
+									<TrashIcon data-icon="inline-start" />
 									Delete
 								</Button>
 							</div>
@@ -723,7 +723,7 @@
 								{#if part.kind === 'main' && content.main}
 									{@const main = content.main}
 									<Button variant="ghost" size="sm" onclick={() => editMain(main)}>
-										<PencilIcon data-icon="inline-start" />
+										<PencilSimpleIcon data-icon="inline-start" />
 										Edit
 									</Button>
 								{:else}

@@ -6,8 +6,12 @@
 <script lang="ts">
 	import { Toaster as Sonner, type ToasterProps as SonnerProps } from 'svelte-sonner';
 	import { mode } from 'mode-watcher';
-	import Loader2Icon from '@lucide/svelte/icons/loader-2';
-	import XIcon from '@lucide/svelte/icons/x';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotch';
+	import InfoIcon from 'phosphor-svelte/lib/Info';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
+	import WarningOctagonIcon from 'phosphor-svelte/lib/WarningOctagon';
+	import XIcon from 'phosphor-svelte/lib/X';
 
 	let { toastOptions, ...restProps }: SonnerProps = $props();
 
@@ -63,36 +67,19 @@
 	{...restProps}
 >
 	{#snippet loadingIcon()}
-		<Loader2Icon class="size-4 animate-spin" />
+		<CircleNotchIcon class="size-4 animate-spin" />
 	{/snippet}
-	<!-- Kumo's filled Phosphor icons: check-circle, warning-octagon, warning and info -->
 	{#snippet successIcon()}
-		<svg viewBox="0 0 256 256" fill="currentColor" class="size-4" aria-hidden="true">
-			<path
-				d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"
-			/>
-		</svg>
+		<CheckCircleIcon weight="fill" class="size-4" />
 	{/snippet}
 	{#snippet errorIcon()}
-		<svg viewBox="0 0 256 256" fill="currentColor" class="size-4" aria-hidden="true">
-			<path
-				d="M227.31,80.23,175.77,28.69A16.13,16.13,0,0,0,164.45,24H91.55a16.13,16.13,0,0,0-11.32,4.69L28.69,80.23A16.13,16.13,0,0,0,24,91.55v72.9a16.13,16.13,0,0,0,4.69,11.32l51.54,51.54A16.13,16.13,0,0,0,91.55,232h72.9a16.13,16.13,0,0,0,11.32-4.69l51.54-51.54A16.13,16.13,0,0,0,232,164.45V91.55A16.13,16.13,0,0,0,227.31,80.23ZM120,80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm8,104a12,12,0,1,1,12-12A12,12,0,0,1,128,184Z"
-			/>
-		</svg>
+		<WarningOctagonIcon weight="fill" class="size-4" />
 	{/snippet}
 	{#snippet warningIcon()}
-		<svg viewBox="0 0 256 256" fill="currentColor" class="size-4" aria-hidden="true">
-			<path
-				d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"
-			/>
-		</svg>
+		<WarningIcon weight="fill" class="size-4" />
 	{/snippet}
 	{#snippet infoIcon()}
-		<svg viewBox="0 0 256 256" fill="currentColor" class="size-4" aria-hidden="true">
-			<path
-				d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-4,48a12,12,0,1,1-12,12A12,12,0,0,1,124,72Zm12,112a16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40a8,8,0,0,1,0,16Z"
-			/>
-		</svg>
+		<InfoIcon weight="fill" class="size-4" />
 	{/snippet}
 	{#snippet closeIcon()}
 		<XIcon class="size-3" />

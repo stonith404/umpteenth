@@ -34,12 +34,12 @@
 	} from '#lib/utils/job-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { hasRole } from '#lib/utils/workspace-util.js';
-	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import InfoIcon from '@lucide/svelte/icons/info';
-	import PencilLineIcon from '@lucide/svelte/icons/pencil-line';
-	import PlayIcon from '@lucide/svelte/icons/play';
-	import SparklesIcon from '@lucide/svelte/icons/sparkles';
+	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import InfoIcon from 'phosphor-svelte/lib/Info';
+	import PencilLineIcon from 'phosphor-svelte/lib/PencilLine';
+	import PlayIcon from 'phosphor-svelte/lib/Play';
+	import SparkleIcon from 'phosphor-svelte/lib/Sparkle';
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -676,7 +676,7 @@
 									{/if}
 									{#if compileError && !needsModel}
 										<Alert.Root variant="destructive">
-											<CircleAlertIcon />
+											<WarningCircleIcon />
 											<Alert.Title>Compiling failed</Alert.Title>
 											<Alert.Description>
 												{compileErrorMessage} You can try again, or fill in the spec yourself.
@@ -717,7 +717,7 @@
 											</kbd>
 										{/if}
 										<Button disabled={!instruction.trim() || needsModel} onclick={compile}>
-											<SparklesIcon data-icon="inline-start" />
+											<SparkleIcon data-icon="inline-start" />
 											{compileError && !needsModel ? 'Try again' : 'Compile'}
 										</Button>
 									{/if}
@@ -807,7 +807,7 @@
 											disabled={!instruction.trim()}
 											onclick={compile}
 										>
-											<SparklesIcon data-icon="inline-start" />
+											<SparkleIcon data-icon="inline-start" />
 											{compiled ? 'Compile again' : 'Compile'}
 										</Button>
 									</div>

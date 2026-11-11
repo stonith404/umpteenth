@@ -3,7 +3,7 @@
 	import RunDuration from '#lib/components/runs/run-duration.svelte';
 	import StatusBadge from '#lib/components/runs/status-badge.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import CircleStopIcon from '@lucide/svelte/icons/circle-stop';
+	import StopCircleIcon from 'phosphor-svelte/lib/StopCircle';
 
 	// A compact stand-in for the run header while a live run's timeline has scrolled it away
 	let { run, onCancel }: { run: RunDetail; onCancel: () => void } = $props();
@@ -23,7 +23,7 @@
 		<RunDuration {run} plain />
 	</span>
 	<Button variant="outline" size="sm" onclick={onCancel} disabled={run.cancelRequested}>
-		<CircleStopIcon data-icon="inline-start" />
+		<StopCircleIcon data-icon="inline-start" />
 		Stop
 	</Button>
 </div>

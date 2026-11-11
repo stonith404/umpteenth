@@ -14,7 +14,7 @@
 	"typescript": true,
 	"registry": "https://shadcn-svelte.com/registry",
 	"style": "luma",
-	"iconLibrary": "lucide",
+	"iconLibrary": "phosphor",
 	"menuColor": "default-translucent",
 	"menuAccent": "subtle"
 }

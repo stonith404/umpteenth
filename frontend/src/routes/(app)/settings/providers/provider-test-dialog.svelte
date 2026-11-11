@@ -10,8 +10,8 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { formatDuration } from '#lib/utils/format-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
 	import { untrack } from 'svelte';
 
 	let { provider = $bindable(null) }: { provider: Provider | null } = $props();
@@ -100,7 +100,7 @@
 			{#if result}
 				{#if result.ok}
 					<Alert.Root variant="success">
-						<CircleCheckIcon />
+						<CheckCircleIcon />
 						<Alert.Title>Replied in {formatDuration(result.latencyMs)}</Alert.Title>
 						<Alert.Description>
 							<p class="font-mono text-xs break-all whitespace-pre-wrap">
@@ -110,7 +110,7 @@
 					</Alert.Root>
 				{:else}
 					<Alert.Root variant="destructive">
-						<CircleAlertIcon />
+						<WarningCircleIcon />
 						<Alert.Title>Failed after {formatDuration(result.latencyMs)}</Alert.Title>
 						<Alert.Description>
 							<p class="font-mono text-xs break-all whitespace-pre-wrap">{result.error}</p>

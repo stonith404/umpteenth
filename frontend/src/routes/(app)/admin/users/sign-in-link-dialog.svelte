@@ -7,7 +7,7 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as InputGroup from '#lib/components/ui/input-group/index.js';
 	import { formatRelative } from '#lib/utils/format-util.js';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 
 	// The link is only known right after creation, closing the dialog forgets it for good
 	let {
@@ -51,7 +51,7 @@
 				<Field.Description>Expires {formatRelative(link.expiresAt)}.</Field.Description>
 			</Field.Field>
 			<Alert.Root variant="warning">
-				<TriangleAlertIcon />
+				<WarningIcon />
 				<Alert.Description>
 					Copy the link now, it won't be shown again. Whoever opens it is signed in as {name}, so
 					only send it to them.

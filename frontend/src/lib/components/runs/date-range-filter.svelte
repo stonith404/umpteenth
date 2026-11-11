@@ -3,7 +3,7 @@
 	import * as Popover from '#lib/components/ui/popover/index.js';
 	import { RangeCalendar } from '#lib/components/ui/range-calendar/index.js';
 	import { getLocalTimeZone, today } from '@internationalized/date';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 	import type { DateRange } from 'bits-ui';
 	import { DATE_RANGE_PRESETS, dateRangeLabel, parseIsoDate } from './date-range';
 
@@ -64,7 +64,7 @@
 					<span class="bg-border h-4 w-px" aria-hidden="true"></span>
 					<span class="truncate font-normal">{activeLabel}</span>
 				{/if}
-				<ChevronDownIcon data-icon="inline-end" class="text-muted-foreground" />
+				<CaretDownIcon data-icon="inline-end" class="text-muted-foreground" />
 			</Button>
 		{/snippet}
 	</Popover.Trigger>

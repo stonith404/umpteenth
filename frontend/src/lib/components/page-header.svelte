@@ -4,13 +4,15 @@
 	Detail pages pass a `meta` snippet for a muted line of facts under the title
 -->
 <script lang="ts">
+	import { cn } from '#lib/utils/style.js';
 	import type { Snippet } from 'svelte';
 
 	let {
 		title,
 		description,
 		meta,
-		actions
+		actions,
+		size = 'default'
 	}: {
 		// The text of the page's only h1, or a snippet rendered inside it for titles with extra inline parts, e.g. a muted `#7`
 		title: string | Snippet;
@@ -21,6 +23,8 @@
 		meta?: Snippet;
 		// Buttons pinned top right beside the title's first line from the sm breakpoint, and stacked under everything else below it
 		actions?: Snippet;
+		// 'compact' is Cloudflare's 20px overview title, for a resource whose sub-nav strip already says where you are
+		size?: 'default' | 'compact';
 	} = $props();
 </script>
 
@@ -30,7 +34,12 @@
 	class="grid grid-cols-1 gap-y-2 sm:grid-cols-trailing-action sm:gap-x-6"
 >
 	<!-- Long names wrap rather than truncate, so nothing that follows the name, like a run number, gets cut off -->
-	<h1 class="min-w-0 text-2xl font-semibold break-words sm:text-3xl">
+	<h1
+		class={cn(
+			'min-w-0 font-semibold break-words',
+			size === 'default' ? 'text-2xl sm:text-3xl' : 'text-xl'
+		)}
+	>
 		{#if typeof title === 'string'}
 			{title}
 		{:else}

@@ -9,8 +9,8 @@
 	import { formatDuration, formatRelative, formatShortDate } from '#lib/utils/format-util.js';
 	import { cn } from '#lib/utils/style.js';
 	import { usageFormat } from '#lib/utils/usage-util.js';
-	import ChartColumnIcon from '@lucide/svelte/icons/chart-column';
-	import PlayIcon from '@lucide/svelte/icons/play';
+	import ChartBarIcon from 'phosphor-svelte/lib/ChartBar';
+	import PlayIcon from 'phosphor-svelte/lib/Play';
 	import GraduationChart from './graduation-chart.svelte';
 	import { DEFAULT_STATS_RANGE, statsRanges } from './stats-ranges';
 	import SuggestionsSection from './suggestions-section.svelte';
@@ -108,7 +108,7 @@
 		<Empty.Root variant="panel">
 			<Empty.Header>
 				<Empty.Media variant="icon">
-					<ChartColumnIcon />
+					<ChartBarIcon />
 				</Empty.Media>
 				<Empty.Title>No runs yet</Empty.Title>
 				<Empty.Description>
@@ -139,14 +139,14 @@
 		>
 			<div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
 				{#each tiles as tile (tile.label)}
-					<!-- The dashboard's tile: the label in the card's strip and the value on its panel, with a small card's gutters on phones -->
+					<!-- The dashboard's tile: Cloudflare's flat chart card with a small label over the figure -->
 					<Card.Root size="tile">
 						<Card.Header>
 							<Card.Description variant="label">{tile.label}</Card.Description>
 						</Card.Header>
 						<Card.Content class="flex flex-col">
 							<div class="flex flex-1 flex-col gap-3 text-sm">
-								<p class="numeric sm:text-figure text-2xl leading-tight font-semibold">
+								<p class="numeric text-2xl leading-tight font-semibold">
 									{tile.value}
 								</p>
 								{#if tile.detail}
@@ -181,7 +181,7 @@
 						<Empty.Root size="md">
 							<Empty.Header>
 								<Empty.Media variant="icon">
-									<ChartColumnIcon />
+									<ChartBarIcon />
 								</Empty.Media>
 								<Empty.Title>No runs in this period</Empty.Title>
 								<Empty.Description>{emptyPeriodText}</Empty.Description>

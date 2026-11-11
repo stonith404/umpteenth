@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { authorLabel } from '#lib/utils/playbook-util.js';
-	import HammerIcon from '@lucide/svelte/icons/hammer';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-	import SparklesIcon from '@lucide/svelte/icons/sparkles';
+	import HammerIcon from 'phosphor-svelte/lib/Hammer';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwise';
+	import SparkleIcon from 'phosphor-svelte/lib/Sparkle';
 	import type { Component } from 'svelte';
 
 	let { author }: { author: string } = $props();
 
 	const authorIcons: Record<string, Component> = {
-		reflection: SparklesIcon,
-		user: PencilIcon,
-		rollback: RotateCcwIcon,
+		reflection: SparkleIcon,
+		user: PencilSimpleIcon,
+		rollback: ArrowCounterClockwiseIcon,
 		compile: HammerIcon
 	};
 

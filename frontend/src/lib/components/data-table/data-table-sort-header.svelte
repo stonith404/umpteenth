@@ -1,9 +1,9 @@
 <script lang="ts" generics="TData">
 	import { cn } from '#lib/utils/style.js';
 	import type { Column } from '@tanstack/table-core';
-	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
-	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
-	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
+	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDown';
+	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUp';
+	import CaretUpDownIcon from 'phosphor-svelte/lib/CaretUpDown';
 
 	let {
 		column,
@@ -21,7 +21,7 @@
 		<ArrowDownIcon class="size-4 shrink-0" />
 	{:else}
 		<!-- The idle hint only shows while the header is hovered or focused, so only the active sort stands out -->
-		<ChevronsUpDownIcon
+		<CaretUpDownIcon
 			class="size-4 shrink-0 opacity-0 transition-opacity group-focus-visible/sort:opacity-40 group-hover/th:opacity-40"
 		/>
 	{/if}

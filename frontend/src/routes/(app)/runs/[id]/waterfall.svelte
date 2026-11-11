@@ -63,7 +63,7 @@
 	import { secondClock } from '#lib/utils/clock.svelte.js';
 	import { cn } from '#lib/utils/style.js';
 	import { usageFormat } from '#lib/utils/usage-util.js';
-	import ChartGanttIcon from '@lucide/svelte/icons/chart-gantt';
+	import ChartBarHorizontalIcon from 'phosphor-svelte/lib/ChartBarHorizontal';
 	import {
 		commandOf,
 		isSettledFinish,
@@ -293,7 +293,7 @@
 {#if spans.length === 0}
 	<Empty.Root variant="panel">
 		<Empty.Header>
-			<Empty.Media variant="icon"><ChartGanttIcon /></Empty.Media>
+			<Empty.Media variant="icon"><ChartBarHorizontalIcon /></Empty.Media>
 			<Empty.Title>No timed steps yet</Empty.Title>
 			<Empty.Description
 				>Steps with a duration show up here as the run progresses.</Empty.Description

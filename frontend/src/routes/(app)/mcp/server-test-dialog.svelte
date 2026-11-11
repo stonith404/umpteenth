@@ -10,9 +10,9 @@
 	import { formatDuration } from '#lib/utils/format-util.js';
 	import { authDescription } from '#lib/utils/mcp-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import LogInIcon from '@lucide/svelte/icons/log-in';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
+	import SignInIcon from 'phosphor-svelte/lib/SignIn';
 	import { untrack } from 'svelte';
 	import ToolList from './tool-list.svelte';
 
@@ -110,7 +110,7 @@
 			{:else if result}
 				{#if result.ok}
 					<Alert.Root variant="success">
-						<CircleCheckIcon />
+						<CheckCircleIcon />
 						<Alert.Title>Connected</Alert.Title>
 						<Alert.Description>
 							Took {formatDuration(result.latencyMs)} and found {result.tools?.length ?? 0}
@@ -120,13 +120,13 @@
 					<ToolList tools={result.tools ?? []} />
 				{:else if needsLogin}
 					<Alert.Root variant="warning">
-						<LogInIcon />
+						<SignInIcon />
 						<Alert.Title>Login required</Alert.Title>
 						<Alert.Description>{authDescription(result.auth)}</Alert.Description>
 					</Alert.Root>
 				{:else}
 					<Alert.Root variant="destructive">
-						<CircleAlertIcon />
+						<WarningCircleIcon />
 						<Alert.Title>Connection failed after {formatDuration(result.latencyMs)}</Alert.Title>
 						<Alert.Description>
 							<p class="font-mono text-xs break-all whitespace-pre-wrap">{result.error}</p>
@@ -140,7 +140,7 @@
 			{#if needsLogin && server && onLogIn}
 				<Button variant="outline" onclick={runTest} isLoading={testing}>Test again</Button>
 				<Button onclick={() => server && onLogIn?.(server)}>
-					<LogInIcon data-icon="inline-start" />
+					<SignInIcon data-icon="inline-start" />
 					Log in
 				</Button>
 			{:else}

@@ -12,7 +12,8 @@
 			// Collapsed, the button is the rail's 34px and 9px of padding centers the 16px icon in it
 			'group-data-[collapsible=icon]:px-[9px]',
 			'group-has-data-[sidebar=menu-action]/menu-item:pr-8',
-			'[&_svg]:size-4 [&_svg]:shrink-0 [&>svg]:opacity-40',
+			// The dashboard draws nav icons at 50% rather than Kumo's default 40%, which suits Phosphor's thinner regular weight
+			'[&_svg]:size-4 [&_svg]:shrink-0 [&>svg]:opacity-50',
 			// Labels fade while the narrowing rail clips them, rather than truncating to an ellipsis that changes every frame
 			'[&>:not(svg)]:transition-opacity [&>:not(svg)]:duration-(--sidebar-duration) [&>:not(svg)]:ease-(--sidebar-easing) group-data-[collapsible=icon]:[&>:not(svg)]:opacity-0',
 			'disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50'
@@ -23,7 +24,7 @@
 				// A boxed item like Kumo's quick search, whose box fades away when the sidebar collapses to icons
 				// It reads as a field rather than a destination, so its label is set in regular weight
 				outline:
-					'ring-sidebar-border shadow-xs ring font-normal group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:ring-transparent'
+					'bg-card ring-sidebar-border shadow-xs ring font-normal group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:ring-transparent'
 			},
 			size: {
 				default: 'min-h-8.5',

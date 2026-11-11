@@ -11,9 +11,11 @@ test('Signed-in user sees the app shell', async ({ page }) => {
 	await page.goto('/');
 
 	const sidebar = page.locator('[data-slot="sidebar"]');
-	for (const item of ['Dashboard', 'Runs', 'Jobs', 'MCP servers', 'Settings']) {
+	for (const item of ['Dashboard', 'Runs', 'Jobs', 'MCP servers']) {
 		await expect(sidebar.getByRole('link', { name: item, exact: true })).toBeVisible();
 	}
+	// Settings is a group that opens to its pages
+	await expect(sidebar.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
 });
@@ -21,10 +23,9 @@ test('Signed-in user sees the app shell', async ({ page }) => {
 test('Create, search and delete an API token', async ({ page }) => {
 	await page.goto('/');
 
-	// Navigate to the API tokens tab through the sidebar and the settings tabs
-	await page.getByRole('link', { name: 'Settings', exact: true }).click();
-	await expect(page).toHaveURL('/settings/general');
-	await page.getByRole('tab', { name: 'API tokens' }).click();
+	// Navigate to the API tokens page through the sidebar's settings group
+	await page.getByRole('button', { name: 'Settings', exact: true }).click();
+	await page.getByRole('link', { name: 'API tokens', exact: true }).click();
 	await expect(page).toHaveURL('/settings/tokens');
 	await expect(page.getByText('No API tokens')).toBeVisible();
 

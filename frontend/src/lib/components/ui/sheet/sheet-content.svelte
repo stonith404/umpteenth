@@ -4,7 +4,7 @@
 
 <script lang="ts">
 	import { Dialog as SheetPrimitive } from 'bits-ui';
-	import XIcon from '@lucide/svelte/icons/x';
+	import XIcon from 'phosphor-svelte/lib/X';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { cn, type WithoutChildrenOrChild } from '#lib/utils/style.js';
 	import SheetOverlay from './sheet-overlay.svelte';

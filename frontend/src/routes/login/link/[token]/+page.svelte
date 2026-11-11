@@ -9,7 +9,7 @@
 	import UserService from '#lib/services/user-service.js';
 	import { getErrorMessage } from '#lib/utils/error-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
 	import { onMount } from 'svelte';
 
 	const userService = new UserService();
@@ -53,7 +53,7 @@
 					class="bg-warning-tint text-warning-foreground flex size-12 items-center justify-center rounded-xl"
 					aria-hidden="true"
 				>
-					<CircleAlertIcon class="size-6" />
+					<WarningCircleIcon class="size-6" />
 				</span>
 				<h1 class="display-title">{problem.title}</h1>
 				<p class="text-muted-foreground max-w-lede text-balance">{problem.message}</p>

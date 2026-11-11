@@ -8,8 +8,8 @@
 	import JobService from '#lib/services/job-service.js';
 	import { createForm } from '#lib/utils/form-util.js';
 	import { envNameOf, mergeListChanges } from '#lib/utils/job-util.js';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import XIcon from '@lucide/svelte/icons/x';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import XIcon from 'phosphor-svelte/lib/X';
 	import { z } from 'zod/v4';
 	import LoadError from './load-error.svelte';
 

@@ -17,9 +17,9 @@
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { hasRole } from '#lib/utils/workspace-util.js';
 	import type { ColumnDef } from '@tanstack/table-core';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import KeyIcon from 'phosphor-svelte/lib/Key';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import { toast } from 'svelte-sonner';
 	import Expiry from '../expiry.svelte';
 	import CreateTokenDialog from './create-token-dialog.svelte';
@@ -126,7 +126,7 @@
 		items={[
 			{
 				label: 'Delete',
-				icon: Trash2Icon,
+				icon: TrashIcon,
 				variant: 'destructive',
 				onSelect: () => confirmDelete(token)
 			}
@@ -157,7 +157,7 @@
 			<Empty.Root size="sm">
 				<Empty.Header>
 					<Empty.Media variant="icon">
-						<KeyRoundIcon />
+						<KeyIcon />
 					</Empty.Media>
 					<Empty.Title>No API tokens</Empty.Title>
 					<Empty.Description>

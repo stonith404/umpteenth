@@ -2,9 +2,9 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { formatBytes } from '#lib/utils/format-util.js';
 	import { cn } from '#lib/utils/style.js';
-	import FileArchiveIcon from '@lucide/svelte/icons/file-archive';
-	import UploadIcon from '@lucide/svelte/icons/upload';
-	import XIcon from '@lucide/svelte/icons/x';
+	import FileArchiveIcon from 'phosphor-svelte/lib/FileArchive';
+	import UploadSimpleIcon from 'phosphor-svelte/lib/UploadSimple';
+	import XIcon from 'phosphor-svelte/lib/X';
 
 	let {
 		file = $bindable(null),
@@ -99,7 +99,7 @@
 		}}
 		ondrop={onDrop}
 	>
-		<UploadIcon class="text-muted-foreground size-5" />
+		<UploadSimpleIcon class="text-muted-foreground size-5" />
 		<p class="text-muted-foreground text-sm">{hint}, or</p>
 		<Button variant="outline" size="sm" onclick={() => input.click()}>Choose file</Button>
 	</div>

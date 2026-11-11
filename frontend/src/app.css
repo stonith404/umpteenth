@@ -99,9 +99,10 @@
 	--switch-ring: oklch(0.87 0 0);
 	--switch-thumb: var(--card);
 	--switch-thumb-checked: var(--card);
-	--sidebar: oklch(1 0 0);
+	/* The dashboard draws its sidebar on the page's canvas, so the shell reads as one surface split only by lines */
+	--sidebar: var(--background);
 	--sidebar-foreground: oklch(0.205 0 0);
-	--sidebar-accent: oklch(0.97 0 0);
+	--sidebar-accent: oklch(0.96 0 0);
 	--sidebar-accent-foreground: oklch(0.145 0 0);
 	--sidebar-border: oklch(0.145 0 0 / 0.1);
 	--sidebar-ring: oklch(0.5772 0.2324 260);
@@ -179,9 +180,9 @@
 	--switch-ring: oklch(0.439 0 0);
 	--switch-thumb: oklch(0.269 0 0);
 	--switch-thumb-checked: oklch(0.809 0.105 251.813);
-	--sidebar: oklch(0.17 0 0);
+	--sidebar: var(--background);
 	--sidebar-foreground: oklch(0.97 0 0);
-	--sidebar-accent: oklch(0.269 0 0);
+	--sidebar-accent: oklch(0.205 0 0);
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(0.32 0 0);
 	--sidebar-ring: oklch(0.62 0.2 260);
@@ -203,8 +204,8 @@
 	--text-base--line-height: 1.5;
 	--text-lg: 1rem;
 	--text-lg--line-height: 1.5;
-	/* A KPI tile's figure from the sm breakpoint, between 2xl and 3xl, with the line height set where it is used */
-	--text-figure: 1.75rem;
+	/* Kumo's interactions are quick, so colour and shadow changes settle in 100ms rather than Tailwind's 150ms */
+	--default-transition-duration: 100ms;
 
 	/* Kumo rounds nearly everything to 8px, so the larger steps collapse onto it instead of producing pills */
 	--radius-sm: 0.25rem;
@@ -256,6 +257,11 @@
 	--grid-template-columns-label-value-clipped: auto minmax(0, 1fr);
 	/* A label taking the room and a figure hugging the right edge, as in a chart's hover card or a timeline step's title and offset */
 	--grid-template-columns-label-figure: 1fr auto;
+	/* A settings page beside its table of contents */
+	--grid-template-columns-toc: minmax(0, 1fr) 13.75rem;
+	/* A section that slides open by growing its only row, like a sidebar group's pages */
+	--grid-template-rows-open: 1fr;
+	--grid-template-rows-closed: 0fr;
 	/* A form beside a rail of fixed width, like the new job review and its save summary */
 	--grid-template-columns-form-rail: minmax(0, 1fr) 18rem;
 	/* An answered question: a check, the question and the answer */
@@ -368,9 +374,8 @@
 		font-feature-settings: normal;
 	}
 
-	/* Lucide's default stroke reads heavier than the Phosphor icons Kumo uses */
-	svg.lucide-icon {
-		stroke-width: 1.75;
+	::selection {
+		background: color-mix(in oklch, var(--primary) 25%, transparent);
 	}
 
 	button {
@@ -520,6 +525,20 @@
 	transition-property: color, box-shadow, background-color;
 	transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
 	transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+/* The sidebar's motion for a group of pages sliding open */
+@utility transition-grid-rows {
+	transition-property: grid-template-rows;
+	transition-timing-function: var(--sidebar-easing);
+	transition-duration: var(--sidebar-duration);
+}
+
+/* The sidebar's motion for a control that fades out in the rail while keeping its hover fill quick */
+@utility transition-rail-fade {
+	transition-property: opacity, visibility, background-color;
+	transition-timing-function: var(--sidebar-easing);
+	transition-duration: var(--sidebar-duration);
 }
 
 /* A frame that reaches the rounded corners of the card around it takes the card's radius, on the sides where it reaches them */

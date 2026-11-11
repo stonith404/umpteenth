@@ -17,7 +17,7 @@
 		rememberLoginRedirect
 	} from '#lib/utils/error-util.js';
 	import { LOGIN_PATH, loginUrl } from '#lib/utils/redirection-util.js';
-	import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwise';
 
 	let {
 		branded = false
@@ -72,7 +72,7 @@
 	{#if showRetry}
 		<Button isLoading={retrying} onclick={retry}>
 			{#if !retrying}
-				<RotateCwIcon data-icon="inline-start" />
+				<ArrowClockwiseIcon data-icon="inline-start" />
 			{/if}
 			Try again
 		</Button>

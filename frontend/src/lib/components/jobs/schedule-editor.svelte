@@ -11,7 +11,7 @@
 		isValidCron
 	} from '#lib/utils/cron-util.js';
 	import { localTimezone } from '#lib/utils/job-util.js';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 	import { untrack } from 'svelte';
 
 	let {
@@ -117,7 +117,7 @@
 									{#snippet child({ props })}
 										<InputGroup.Button {...props} size="xs" aria-label="Schedule presets">
 											Presets
-											<ChevronDownIcon />
+											<CaretDownIcon />
 										</InputGroup.Button>
 									{/snippet}
 								</DropdownMenu.Trigger>

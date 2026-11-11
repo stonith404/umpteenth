@@ -4,8 +4,8 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
 	import { IO_FIELD_TYPES } from '#lib/utils/job-util.js';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import XIcon from '@lucide/svelte/icons/x';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import XIcon from 'phosphor-svelte/lib/X';
 
 	let {
 		fields = $bindable([]),

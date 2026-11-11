@@ -22,15 +22,15 @@
 	import { formatPricePerMillion, formatTokens } from '#lib/utils/format-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { hasRole } from '#lib/utils/workspace-util.js';
-	import BotIcon from '@lucide/svelte/icons/bot';
-	import CloudIcon from '@lucide/svelte/icons/cloud';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import PlugZapIcon from '@lucide/svelte/icons/plug-zap';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
-	import ToggleLeftIcon from '@lucide/svelte/icons/toggle-left';
-	import ToggleRightIcon from '@lucide/svelte/icons/toggle-right';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import RobotIcon from 'phosphor-svelte/lib/Robot';
+	import CloudIcon from 'phosphor-svelte/lib/Cloud';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import PlugsConnectedIcon from 'phosphor-svelte/lib/PlugsConnected';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwise';
+	import ToggleLeftIcon from 'phosphor-svelte/lib/ToggleLeft';
+	import ToggleRightIcon from 'phosphor-svelte/lib/ToggleRight';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { toast } from 'svelte-sonner';
 	import ModelDialog from './model-dialog.svelte';
@@ -260,13 +260,17 @@
 		items: (RowAction | false)[];
 	} {
 		return {
-			inline: { label: 'Test', icon: PlugZapIcon, onSelect: () => (testingProvider = provider) },
+			inline: {
+				label: 'Test',
+				icon: PlugsConnectedIcon,
+				onSelect: () => (testingProvider = provider)
+			},
 			items: [
-				{ label: 'Edit', icon: PencilIcon, onSelect: () => openEditProvider(provider) },
+				{ label: 'Edit', icon: PencilSimpleIcon, onSelect: () => openEditProvider(provider) },
 				{ label: 'Add model', icon: PlusIcon, onSelect: () => openAddModel(provider.id) },
 				provider.modelSource !== 'manual' && {
 					label: 'Sync models',
-					icon: RefreshCwIcon,
+					icon: ArrowsClockwiseIcon,
 					disabled: syncing[provider.id],
 					onSelect: () => syncModels(provider)
 				},
@@ -282,7 +286,7 @@
 				},
 				{
 					label: 'Delete',
-					icon: Trash2Icon,
+					icon: TrashIcon,
 					variant: 'destructive',
 					onSelect: () => confirmDeleteProvider(provider)
 				}
@@ -462,10 +466,10 @@
 		<RowActions
 			name={modelName(model)}
 			items={[
-				{ label: 'Edit', icon: PencilIcon, onSelect: () => openEditModel(model) },
+				{ label: 'Edit', icon: PencilSimpleIcon, onSelect: () => openEditModel(model) },
 				(!model.synced || model.unlistedAt !== null) && {
 					label: 'Delete',
-					icon: Trash2Icon,
+					icon: TrashIcon,
 					variant: 'destructive',
 					onSelect: () => confirmDeleteModel(model)
 				}
@@ -581,7 +585,7 @@
 				<Empty.Root size="sm">
 					<Empty.Header>
 						<Empty.Media variant="icon">
-							<BotIcon />
+							<RobotIcon />
 						</Empty.Media>
 						<Empty.Title>No models</Empty.Title>
 						<Empty.Description>

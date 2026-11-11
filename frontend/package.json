@@ -41,7 +41,6 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@internationalized/date": "^3.12.1",
-		"@lucide/svelte": "^1.48.0",
 		"@shadcn/lint": "^0.2.0",
 		"@sveltejs/adapter-static": "^4.0.0",
 		"@sveltejs/kit": "^3.0.0",
@@ -56,6 +55,7 @@
 		"layerchart": "^2.5.0",
 		"mode-watcher": "^1.1.0",
 		"openapi-typescript": "^7.13.0",
+		"phosphor-svelte": "^3.1.1",
 		"prettier": "^3.8.3",
 		"prettier-plugin-svelte": "^3.5.2",
 		"prettier-plugin-tailwindcss": "^0.8.0",

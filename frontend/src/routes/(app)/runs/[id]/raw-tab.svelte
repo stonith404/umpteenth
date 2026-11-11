@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { RunDetail, RunEvent } from '#lib/api/types.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import CopyIcon from '@lucide/svelte/icons/copy';
-	import DownloadIcon from '@lucide/svelte/icons/download';
+	import CopyIcon from 'phosphor-svelte/lib/Copy';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimple';
 	import { toast } from 'svelte-sonner';
 	import JsonView from './json-view.svelte';
 
@@ -42,7 +42,7 @@
 				Copy
 			</Button>
 			<Button variant="outline" size="sm" onclick={download}>
-				<DownloadIcon data-icon="inline-start" />
+				<DownloadSimpleIcon data-icon="inline-start" />
 				Download JSON
 			</Button>
 		</div>

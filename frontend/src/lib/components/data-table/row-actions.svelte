@@ -14,7 +14,7 @@ Use it in a column made by `actionsColumn`, e.g.
 <script lang="ts">
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+	import DotsThreeIcon from 'phosphor-svelte/lib/DotsThree';
 	import type { RowAction } from './types';
 
 	type Props = {
@@ -88,7 +88,7 @@ Use it in a column made by `actionsColumn`, e.g.
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="ghost" size="icon-sm" aria-label={`Actions for ${name}`}>
-							<EllipsisIcon />
+							<DotsThreeIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>

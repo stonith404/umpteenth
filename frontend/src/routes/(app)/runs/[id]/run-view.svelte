@@ -12,7 +12,7 @@
 	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
 	import { hasRole } from '#lib/utils/workspace-util.js';
 	import { onMount } from 'svelte';
-	import WifiOffIcon from '@lucide/svelte/icons/wifi-off';
+	import WifiSlashIcon from 'phosphor-svelte/lib/WifiSlash';
 	import { toast } from 'svelte-sonner';
 	import LearnedTab from './learned-tab.svelte';
 	import LiveBar from './live-bar.svelte';
@@ -279,7 +279,7 @@
 
 {#if reconnecting}
 	<Alert.Root variant="warning">
-		<WifiOffIcon />
+		<WifiSlashIcon />
 		<Alert.Title>Live updates paused, reconnecting…</Alert.Title>
 		<Alert.Description
 			>The run keeps going on the server. This page catches up once the connection is back.</Alert.Description
@@ -288,7 +288,7 @@
 {/if}
 
 <Tabs.Root value={activeTab} onValueChange={onTabChange} spacing="md">
-	<Tabs.List variant="line">
+	<Tabs.List>
 		{#each TABS as tab (tab.value)}
 			<Tabs.Trigger value={tab.value}>{tab.label}</Tabs.Trigger>
 		{/each}

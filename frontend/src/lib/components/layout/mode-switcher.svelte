@@ -2,9 +2,9 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { cn } from '#lib/utils/style.js';
-	import MonitorIcon from '@lucide/svelte/icons/monitor';
-	import MoonIcon from '@lucide/svelte/icons/moon';
-	import SunIcon from '@lucide/svelte/icons/sun';
+	import MonitorIcon from 'phosphor-svelte/lib/Monitor';
+	import MoonIcon from 'phosphor-svelte/lib/Moon';
+	import SunIcon from 'phosphor-svelte/lib/Sun';
 	import { mode, resetMode, setMode, userPrefersMode } from 'mode-watcher';
 
 	const isDark = $derived(mode.current === 'dark');

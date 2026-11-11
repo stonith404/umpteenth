@@ -6,7 +6,7 @@
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
-	import BracesIcon from '@lucide/svelte/icons/braces';
+	import BracketsCurlyIcon from 'phosphor-svelte/lib/BracketsCurly';
 	import JobService from '#lib/services/job-service.js';
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { preventDefault } from '#lib/utils/event-util.js';
@@ -159,7 +159,7 @@
 				{:else}
 					<div>
 						<Button variant="ghost" size="sm" class="-ml-2" onclick={revealInput}>
-							<BracesIcon data-icon="inline-start" />
+							<BracketsCurlyIcon data-icon="inline-start" />
 							Add input JSON
 						</Button>
 					</div>

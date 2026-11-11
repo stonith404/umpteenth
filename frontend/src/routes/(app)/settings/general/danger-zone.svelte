@@ -6,8 +6,8 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { enterWorkspace } from '#lib/utils/workspace-util.js';
-	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import SignOutIcon from 'phosphor-svelte/lib/SignOut';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import { toast } from 'svelte-sonner';
 
 	let { user }: { user: User } = $props();
@@ -77,7 +77,7 @@
 					title: 'Delete this workspace',
 					description: deleteDescription,
 					label: 'Delete workspace',
-					icon: Trash2Icon,
+					icon: TrashIcon,
 					onclick: confirmDelete
 				}
 			]
@@ -87,7 +87,7 @@
 					description:
 						"Takes away your access to its jobs, runs and secrets. You'll need a new invite to come back.",
 					label: 'Leave workspace',
-					icon: LogOutIcon,
+					icon: SignOutIcon,
 					onclick: confirmLeave
 				}
 			]}

@@ -2,11 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.js';
 	import DangerZone from '#lib/components/danger-zone.svelte';
-	import * as Card from '#lib/components/ui/card/index.js';
+	import SettingsSection from '#lib/components/settings-section.svelte';
+	import TableOfContents from '#lib/components/table-of-contents.svelte';
 	import JobService from '#lib/services/job-service.js';
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import { toast } from 'svelte-sonner';
 	import GeneralCard from './general-card.svelte';
 	import LearningCard from './learning-card.svelte';
@@ -51,91 +52,101 @@
 	<title>Settings · {job.name} · Umpteenth</title>
 </svelte:head>
 
-<div class="flex flex-col gap-6">
-	<!-- Each card saves its own fields, so saving one never sends another card's edits along -->
-	<GeneralCard
-		{job}
-		models={data.models.data ?? []}
-		modelsError={data.models.error}
-		settings={data.settings}
-	/>
-	<!-- A rebuilt spec replaces the card's values, which its form only reads when it starts -->
-	{#key JSON.stringify( [job.spec.goal, job.spec.successCriteria, job.spec.inputs, job.spec.outputs, job.spec.sideEffects] )}
-		<SpecCard {job} />
-	{/key}
-	<ScheduleCard {job} />
-	<SandboxCard {job} settings={data.settings} networks={data.networks} />
-	<LearningCard {job} />
-
-	<!-- Without the job's own attachments the card can't be edited safely, since saving would replace them -->
-	{#if data.jobServers.data}
-		<McpServersCard
-			jobId={job.id}
-			attached={data.jobServers.data}
-			servers={data.servers.data}
-			serversError={data.servers.error}
+<!-- Cloudflare's settings layout: a column of sections beside a table of contents that follows the scroll -->
+<div class="lg:grid-cols-toc grid grid-cols-1 gap-8">
+	<div class="flex min-w-0 flex-col gap-10">
+		<!-- Each card saves its own fields, so saving one never sends another card's edits along -->
+		<GeneralCard
+			{job}
+			models={data.models.data ?? []}
+			modelsError={data.models.error}
+			settings={data.settings}
 		/>
-	{:else}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>MCP servers</Card.Title>
-				<Card.Description>The job can call the tools of attached servers.</Card.Description>
-			</Card.Header>
-			<Card.Content>
+		<!-- A rebuilt spec replaces the card's values, which its form only reads when it starts -->
+		{#key JSON.stringify( [job.spec.goal, job.spec.successCriteria, job.spec.inputs, job.spec.outputs, job.spec.sideEffects] )}
+			<SpecCard {job} />
+		{/key}
+		<ScheduleCard {job} />
+		<SandboxCard {job} settings={data.settings} networks={data.networks} />
+		<LearningCard {job} />
+
+		<!-- Without the job's own attachments the card can't be edited safely, since saving would replace them -->
+		{#if data.jobServers.data}
+			<McpServersCard
+				jobId={job.id}
+				attached={data.jobServers.data}
+				servers={data.servers.data}
+				serversError={data.servers.error}
+			/>
+		{:else}
+			<SettingsSection
+				title="MCP servers"
+				description="The job can call the tools of attached servers."
+			>
 				<LoadError title="Couldn't load the job's MCP servers" error={data.jobServers.error} />
-			</Card.Content>
-		</Card.Root>
-	{/if}
+			</SettingsSection>
+		{/if}
 
-	{#if data.jobSkills.data}
-		<SkillsCard
-			jobId={job.id}
-			attached={data.jobSkills.data}
-			skills={data.skills.data}
-			skillsError={data.skills.error}
-		/>
-	{:else}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Skills</Card.Title>
-				<Card.Description>Every run gets the attached skills in /ump/skills.</Card.Description>
-			</Card.Header>
-			<Card.Content>
+		{#if data.jobSkills.data}
+			<SkillsCard
+				jobId={job.id}
+				attached={data.jobSkills.data}
+				skills={data.skills.data}
+				skillsError={data.skills.error}
+			/>
+		{:else}
+			<SettingsSection
+				title="Skills"
+				description="Every run gets the attached skills in /ump/skills."
+			>
 				<LoadError title="Couldn't load the job's skills" error={data.jobSkills.error} />
-			</Card.Content>
-		</Card.Root>
-	{/if}
+			</SettingsSection>
+		{/if}
 
-	{#if data.jobSecrets.data}
-		<SecretsCard
-			jobId={job.id}
-			mappings={data.jobSecrets.data}
-			secrets={data.secrets.data}
-			secretsError={data.secrets.error}
-		/>
-	{:else}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Secrets</Card.Title>
-				<Card.Description>Secrets reach the sandbox as environment variables.</Card.Description>
-			</Card.Header>
-			<Card.Content>
+		{#if data.jobSecrets.data}
+			<SecretsCard
+				jobId={job.id}
+				mappings={data.jobSecrets.data}
+				secrets={data.secrets.data}
+				secretsError={data.secrets.error}
+			/>
+		{:else}
+			<SettingsSection
+				title="Secrets"
+				description="Secrets reach the sandbox as environment variables."
+			>
 				<LoadError title="Couldn't load the job's secrets" error={data.jobSecrets.error} />
-			</Card.Content>
-		</Card.Root>
-	{/if}
+			</SettingsSection>
+		{/if}
 
-	<WebhookCard {job} />
+		<WebhookCard {job} />
 
-	<DangerZone
-		actions={[
-			{
-				title: 'Delete this job',
-				description: 'Stops the schedule and the webhook. Past runs and their outputs are kept.',
-				label: 'Delete job',
-				icon: Trash2Icon,
-				onclick: confirmDelete
-			}
-		]}
-	/>
+		<DangerZone
+			actions={[
+				{
+					title: 'Delete this job',
+					description: 'Stops the schedule and the webhook. Past runs and their outputs are kept.',
+					label: 'Delete job',
+					icon: TrashIcon,
+					onclick: confirmDelete
+				}
+			]}
+		/>
+	</div>
+	<div class="max-lg:hidden">
+		<TableOfContents
+			items={[
+				{ label: 'General' },
+				{ label: 'Spec' },
+				{ label: 'Schedule' },
+				{ label: 'Sandbox' },
+				{ label: 'Learning' },
+				{ label: 'MCP servers' },
+				{ label: 'Skills' },
+				{ label: 'Secrets' },
+				{ label: 'Webhook' },
+				{ label: 'Danger zone', danger: true }
+			]}
+		/>
+	</div>
 </div>

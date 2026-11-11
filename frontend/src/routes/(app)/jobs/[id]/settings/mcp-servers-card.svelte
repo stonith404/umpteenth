@@ -8,9 +8,9 @@
 	import { createForm } from '#lib/utils/form-util.js';
 	import { mergeListChanges } from '#lib/utils/job-util.js';
 	import { transportLabel } from '#lib/utils/mcp-util.js';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import ServerIcon from '@lucide/svelte/icons/server';
-	import XIcon from '@lucide/svelte/icons/x';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
+	import XIcon from 'phosphor-svelte/lib/X';
 	import { z } from 'zod/v4';
 	import LoadError from './load-error.svelte';
 	import ToolAllowList from './tool-allow-list.svelte';
@@ -92,7 +92,7 @@
 					{@const name = server?.name ?? attachedNames.get(item.serverId) ?? 'Unknown server'}
 					<!-- The tool choice sits after the name and wraps under it when the row gets narrow -->
 					<li class="bg-muted/40 flex items-center gap-3 rounded-lg py-2 pr-2 pl-3">
-						<ServerIcon class="text-muted-foreground size-4 shrink-0" />
+						<HardDrivesIcon class="text-muted-foreground size-4 shrink-0" />
 						<div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
 							<div class="mr-auto flex max-w-full min-w-0 flex-wrap items-center gap-2">
 								<span class="truncate text-sm font-medium">{name}</span>

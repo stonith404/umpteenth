@@ -19,10 +19,10 @@
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { usageFormat } from '#lib/utils/usage-util.js';
 	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
-	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import TrendingDownIcon from '@lucide/svelte/icons/trending-down';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import TrendDownIcon from 'phosphor-svelte/lib/TrendDown';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 	import { onMount, untrack } from 'svelte';
 	import CostByJobChart from './cost-by-job-chart.svelte';
 	import KpiCard, { percentDelta, pointsDelta } from './kpi-card.svelte';
@@ -283,7 +283,7 @@
 	<Empty.Root variant="panel" size="lg" class="flex-none">
 		<Empty.Header>
 			<Empty.Media variant="icon">
-				<TriangleAlertIcon />
+				<WarningIcon />
 			</Empty.Media>
 			<Empty.Title>The dashboard could not be loaded</Empty.Title>
 			<Empty.Description>{getErrorMessage(loadError)}</Empty.Description>
@@ -296,7 +296,7 @@
 	<Empty.Root variant="panel" size="lg" class="flex-none" data-testid="dashboard-empty">
 		<Empty.Header>
 			<Empty.Media variant="icon">
-				<LayoutDashboardIcon />
+				<SquaresFourIcon />
 			</Empty.Media>
 			<Empty.Title>Nothing to show yet</Empty.Title>
 			<Empty.Description>
@@ -520,7 +520,7 @@
 										class="hover:bg-muted/60 flex items-start gap-3 rounded-lg px-2 py-2 text-sm"
 									>
 										<span class="flex size-5 shrink-0 items-center justify-center">
-											<TrendingDownIcon class="text-success size-4" aria-hidden="true" />
+											<TrendDownIcon class="text-success size-4" aria-hidden="true" />
 										</span>
 										<span class="flex min-w-0 flex-1 flex-col">
 											<span class="flex min-w-0 items-baseline gap-3">

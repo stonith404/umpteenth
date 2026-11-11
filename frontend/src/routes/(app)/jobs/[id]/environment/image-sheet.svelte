@@ -14,7 +14,7 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { formatBytes, formatDuration } from '#lib/utils/format-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
 	import { tick } from 'svelte';
 
 	let {
@@ -130,7 +130,7 @@
 			{:else}
 				{#if image.error}
 					<Alert.Root variant="destructive">
-						<CircleAlertIcon />
+						<WarningCircleIcon />
 						<Alert.Title>The build failed</Alert.Title>
 						<Alert.Description>{image.error}</Alert.Description>
 					</Alert.Root>

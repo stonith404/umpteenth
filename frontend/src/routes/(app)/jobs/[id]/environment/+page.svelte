@@ -28,11 +28,11 @@
 		invalidateAfterNavigation,
 		subscribeWorkspaceEvents
 	} from '#lib/utils/workspace-events.js';
-	import ContainerIcon from '@lucide/svelte/icons/container';
-	import HammerIcon from '@lucide/svelte/icons/hammer';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
-	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
+	import CubeIcon from 'phosphor-svelte/lib/Cube';
+	import HammerIcon from 'phosphor-svelte/lib/Hammer';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwise';
+	import ScrollIcon from 'phosphor-svelte/lib/Scroll';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { onMount, tick, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -261,7 +261,7 @@
 {#snippet actionsCell(image: JobImage)}
 	<RowActions
 		name="the build from {formatDateTime(image.createdAt)}"
-		inline={{ label: 'Log', icon: ScrollTextIcon, onSelect: () => (openImageId = image.id) }}
+		inline={{ label: 'Log', icon: ScrollIcon, onSelect: () => (openImageId = image.id) }}
 	/>
 {/snippet}
 
@@ -276,7 +276,7 @@
 	<Empty.Root variant="panel">
 		<Empty.Header>
 			<Empty.Media variant="icon">
-				<ContainerIcon />
+				<CubeIcon />
 			</Empty.Media>
 			<!-- 'Base image' is the job settings' name for it, and a Dockerfile builds on top of it -->
 			<Empty.Title>Runs use the base image</Empty.Title>
@@ -342,7 +342,7 @@
 					<!-- A rebuild uses the saved Dockerfile, so it only shows while the editor holds that one -->
 					{#if savedDockerfile && !dirty}
 						<Button variant="outline" onclick={rebuild} isLoading={rebuilding}>
-							<RefreshCwIcon data-icon="inline-start" />
+							<ArrowsClockwiseIcon data-icon="inline-start" />
 							Rebuild
 						</Button>
 					{/if}
@@ -394,7 +394,7 @@
 					<Empty.Root size="sm">
 						<Empty.Header>
 							<Empty.Media variant="icon">
-								<ContainerIcon />
+								<CubeIcon />
 							</Empty.Media>
 							<Empty.Title>No builds yet</Empty.Title>
 							<Empty.Description>

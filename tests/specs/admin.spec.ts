@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 test('Only instance admins see the admin area', async ({ page }) => {
 	await authUtil.authenticate(page);
 	await page.goto('/');
-	await expect(page.getByRole('link', { name: 'Admin', exact: true })).toBeHidden();
+	await expect(page.getByRole('button', { name: 'Admin', exact: true })).toBeHidden();
 	const refused = await page.request.get('/api/admin/users');
 	expect(refused.status()).toBe(403);
 
@@ -20,7 +20,9 @@ test('Only instance admins see the admin area', async ({ page }) => {
 		admin: true
 	});
 	await page.goto('/');
-	await page.getByRole('link', { name: 'Admin', exact: true }).click();
+	// The sidebar's admin group opens to the admin pages
+	await page.getByRole('button', { name: 'Admin', exact: true }).click();
+	await page.getByRole('link', { name: 'Users', exact: true }).click();
 	await expect(page).toHaveURL('/admin/users');
 	await expect(
 		page.getByRole('table', { name: 'Users' }).getByRole('row', { name: /Ivy Admin/ })

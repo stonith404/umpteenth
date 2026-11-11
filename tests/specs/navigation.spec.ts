@@ -180,11 +180,12 @@ test('Instance admins get only the admin tabs that apply, search users by name a
 	await signUp(browser, testInfo, accounts.carol);
 	const ivy = await authUtil.pageAs(browser, testInfo, accounts.ivy);
 
-	// The admin area only lists workspaces where people can have several
+	// The sidebar's admin group only lists workspaces where people can have several
 	await ivy.goto('/admin/users');
-	await expect(ivy.getByRole('tablist', { name: 'Admin sections' }).getByRole('tab')).toHaveText(
-		workspacesEnabled ? ['Users', 'Workspaces'] : ['Users']
-	);
+	const adminPages = ivy
+		.getByRole('navigation', { name: 'Main' })
+		.getByRole('link', { name: /^(Users|Workspaces)$/ });
+	await expect(adminPages).toHaveText(workspacesEnabled ? ['Users', 'Workspaces'] : ['Users']);
 
 	// Only the instance admin's row carries the Admin badge
 	const table = ivy.getByRole('table', { name: 'Users' });
@@ -243,7 +244,7 @@ test('An instance admin loses the admin area in every session once their provide
 	await ivy.goto('/admin/users');
 	await expect(ivy.getByRole('table', { name: 'Users' })).toBeVisible();
 	const sidebar = ivy.getByRole('navigation', { name: 'Main' });
-	await expect(sidebar.getByRole('link', { name: 'Admin', exact: true })).toBeVisible();
+	await expect(sidebar.getByRole('button', { name: 'Admin', exact: true })).toBeVisible();
 
 	// Ivy signs in somewhere else, and this time the provider doesn't say she is an admin
 	const elsewhere = await authUtil.pageAs(browser, testInfo, { ...accounts.ivy, admin: false });
@@ -254,7 +255,7 @@ test('An instance admin loses the admin area in every session once their provide
 	await expect(ivy.getByRole('heading', { level: 1 })).toHaveText(
 		"You don't have access to this page"
 	);
-	await expect(sidebar.getByRole('link', { name: 'Admin', exact: true })).toBeHidden();
+	await expect(sidebar.getByRole('button', { name: 'Admin', exact: true })).toBeHidden();
 
 	// The new session never had it
 	await elsewhere.goto('/');
@@ -262,7 +263,7 @@ test('An instance admin loses the admin area in every session once their provide
 	await expect(
 		elsewhere
 			.getByRole('navigation', { name: 'Main' })
-			.getByRole('link', { name: 'Admin', exact: true })
+			.getByRole('button', { name: 'Admin', exact: true })
 	).toBeHidden();
 	await ivy.context().close();
 	await elsewhere.context().close();

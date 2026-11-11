@@ -8,10 +8,10 @@
 	import { clearNewJobDrafts } from '#lib/utils/job-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { DOCS_URL } from '#lib/navigation.js';
-	import BookOpenIcon from '@lucide/svelte/icons/book-open';
-	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import UserIcon from '@lucide/svelte/icons/user';
+	import BookOpenIcon from 'phosphor-svelte/lib/BookOpen';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOut';
+	import SignOutIcon from 'phosphor-svelte/lib/SignOut';
+	import UserIcon from 'phosphor-svelte/lib/User';
 
 	let { user }: { user: User } = $props();
 
@@ -86,12 +86,12 @@
 					<a href={DOCS_URL} target="_blank" rel="noopener" {...props}>
 						<BookOpenIcon />
 						Documentation
-						<ExternalLinkIcon class="text-muted-foreground ml-auto" />
+						<ArrowSquareOutIcon class="text-muted-foreground ml-auto" />
 					</a>
 				{/snippet}
 			</DropdownMenu.Item>
 			<DropdownMenu.Item onclick={logout}>
-				<LogOutIcon />
+				<SignOutIcon />
 				Sign out
 			</DropdownMenu.Item>
 		</DropdownMenu.Group>

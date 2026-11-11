@@ -16,13 +16,13 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { formatBytes } from '#lib/utils/format-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import DownloadIcon from '@lucide/svelte/icons/download';
-	import EyeIcon from '@lucide/svelte/icons/eye';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import PuzzleIcon from '@lucide/svelte/icons/puzzle';
-	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import UploadIcon from '@lucide/svelte/icons/upload';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimple';
+	import EyeIcon from 'phosphor-svelte/lib/Eye';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import PuzzlePieceIcon from 'phosphor-svelte/lib/PuzzlePiece';
+	import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwise';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
+	import UploadSimpleIcon from 'phosphor-svelte/lib/UploadSimple';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { toast } from 'svelte-sonner';
 	import SkillDialog from './skill-dialog.svelte';
@@ -217,7 +217,7 @@
 
 {#snippet selectionActions(ids: string[])}
 	<Button variant="destructive-outline" onclick={() => confirmDeleteMany(ids)}>
-		<Trash2Icon data-icon="inline-start" />
+		<TrashIcon data-icon="inline-start" />
 		Delete
 	</Button>
 {/snippet}
@@ -236,19 +236,19 @@
 		items={[
 			!!skill.sourceUrl && {
 				label: 'Update from link',
-				icon: RefreshCwIcon,
+				icon: ArrowsClockwiseIcon,
 				disabled: updating[skill.id],
 				onSelect: () => updateFromLink(skill)
 			},
-			{ label: 'Replace', icon: UploadIcon, onSelect: () => openReplace(skill) },
+			{ label: 'Replace', icon: UploadSimpleIcon, onSelect: () => openReplace(skill) },
 			{
 				label: 'Download',
-				icon: DownloadIcon,
+				icon: DownloadSimpleIcon,
 				onSelect: () => window.location.assign(skillService.downloadUrl(skill.id))
 			},
 			{
 				label: 'Delete',
-				icon: Trash2Icon,
+				icon: TrashIcon,
 				variant: 'destructive',
 				onSelect: () => confirmDelete(skill)
 			}
@@ -263,7 +263,6 @@
 <PageHeader
 	title="Skills"
 	description="Instructions, scripts and resources that jobs' agents load when a task calls for them."
-	actions={noSkills === false ? addButton : undefined}
 />
 
 <DataTable
@@ -272,6 +271,7 @@
 	{columns}
 	fetchPage={fetchSkills}
 	bind:isEmpty={noSkills}
+	actions={noSkills === false ? addButton : undefined}
 	getRowId={(skill) => skill.id}
 	selectable
 	rowLabel={(skill) => skill.name}
@@ -284,7 +284,7 @@
 		<Empty.Root size="sm">
 			<Empty.Header>
 				<Empty.Media variant="icon">
-					<PuzzleIcon />
+					<PuzzlePieceIcon />
 				</Empty.Media>
 				<Empty.Title>No skills yet</Empty.Title>
 				<Empty.Description>

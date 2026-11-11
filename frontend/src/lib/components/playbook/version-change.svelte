@@ -8,11 +8,11 @@
 	import { LIMIT_FIELDS } from '#lib/utils/job-util.js';
 	import { opLanguage, opStatusLabel, type PlaybookChange } from '#lib/utils/playbook-util.js';
 	import { cn } from '#lib/utils/style.js';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
-	import InfoIcon from '@lucide/svelte/icons/info';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
+	import CircleDashedIcon from 'phosphor-svelte/lib/CircleDashed';
+	import InfoIcon from 'phosphor-svelte/lib/Info';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 
 	let {
 		change,
@@ -101,7 +101,7 @@
 			{/if}
 			{#if op.test?.status === 'passed'}
 				<p class="text-muted-foreground flex items-start gap-1.5 text-xs">
-					<CircleCheckIcon class="text-success mt-px size-3.5 shrink-0" aria-hidden="true" />
+					<CheckCircleIcon class="text-success mt-px size-3.5 shrink-0" aria-hidden="true" />
 					{op.test.detail}
 				</p>
 			{:else if op.test?.status === 'skipped'}
@@ -112,7 +112,7 @@
 			{/if}
 			{#each op.flags ?? [] as flag, index (index)}
 				<p class="text-destructive flex items-start gap-1.5 text-xs">
-					<TriangleAlertIcon class="mt-px size-3.5 shrink-0" aria-hidden="true" />
+					<WarningIcon class="mt-px size-3.5 shrink-0" aria-hidden="true" />
 					{flag}
 				</p>
 			{/each}
@@ -129,7 +129,7 @@
 			{#if op.test?.output}
 				<Collapsible.Root>
 					<Collapsible.Trigger variant="link">
-						<ChevronRightIcon />
+						<CaretRightIcon />
 						Show the shadow run's output
 					</Collapsible.Trigger>
 					<Collapsible.Content>
@@ -146,7 +146,7 @@
 			{#if op.content && !section && !isSuggestion}
 				<Collapsible.Root>
 					<Collapsible.Trigger variant="link">
-						<ChevronRightIcon />
+						<CaretRightIcon />
 						Show the proposed content
 					</Collapsible.Trigger>
 					<Collapsible.Content>
@@ -167,7 +167,7 @@
 		{#if section}
 			<Collapsible.Root bind:open>
 				<Collapsible.Trigger variant="link">
-					<ChevronRightIcon />
+					<CaretRightIcon />
 					{open ? 'Hide changes' : 'Show changes'}
 				</Collapsible.Trigger>
 				<Collapsible.Content>

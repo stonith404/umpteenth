@@ -9,11 +9,9 @@ export function toast(page: Page, title: string, description?: string | RegExp) 
 	return description === undefined ? toasts : toasts.filter({ hasText: description });
 }
 
-// A card found by its exact title, including the header actions that sit outside a settings card's form
+// A settings section found by its exact title, including the header actions that sit outside its form
 export function card(page: Page, title: string) {
-	return page
-		.locator('[data-slot="card"]')
-		.filter({ has: page.getByRole('heading', { name: title, exact: true }) });
+	return page.getByRole('region', { name: title, exact: true });
 }
 
 // The value next to a term of a description list whose terms sit in rows of their own, such as a run detail or a structured output

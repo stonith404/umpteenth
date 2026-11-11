@@ -21,14 +21,14 @@
 	import { sentenceCase } from '#lib/utils/format-util.js';
 	import { cn } from '#lib/utils/style.js';
 	import { usageFormat } from '#lib/utils/usage-util.js';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import CircleStopIcon from '@lucide/svelte/icons/circle-stop';
-	import ClockIcon from '@lucide/svelte/icons/clock';
-	import CpuIcon from '@lucide/svelte/icons/cpu';
-	import GraduationCapIcon from '@lucide/svelte/icons/graduation-cap';
-	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-	import TimerOffIcon from '@lucide/svelte/icons/timer-off';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import StopCircleIcon from 'phosphor-svelte/lib/StopCircle';
+	import ClockIcon from 'phosphor-svelte/lib/Clock';
+	import CpuIcon from 'phosphor-svelte/lib/Cpu';
+	import GraduationCapIcon from 'phosphor-svelte/lib/GraduationCap';
+	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwise';
+	import HourglassHighIcon from 'phosphor-svelte/lib/HourglassHigh';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -177,7 +177,7 @@
 					disabled={run.cancelRequested}
 					class={cn(hideCancel && 'invisible')}
 				>
-					<CircleStopIcon data-icon="inline-start" />
+					<StopCircleIcon data-icon="inline-start" />
 					Stop
 				</Button>
 			{:else}
@@ -196,7 +196,7 @@
 				<!-- A retry starts the job again, which a deleted job can't be -->
 				{#if !run.jobDeleted}
 					<Button variant="outline" onclick={onRetry}>
-						<RotateCcwIcon data-icon="inline-start" />
+						<ArrowCounterClockwiseIcon data-icon="inline-start" />
 						Retry
 					</Button>
 				{/if}
@@ -210,7 +210,7 @@
 							? 'The run can be deleted once learning from it is done'
 							: undefined}
 					>
-						<Trash2Icon data-icon="inline-start" />
+						<TrashIcon data-icon="inline-start" />
 						Delete
 					</Button>
 				{/if}
@@ -271,9 +271,9 @@
 	{#if errorVisible}
 		<Alert.Root variant={alertVariant}>
 			{#if run.status === 'timed_out'}
-				<TimerOffIcon />
+				<HourglassHighIcon />
 			{:else}
-				<CircleAlertIcon />
+				<WarningCircleIcon />
 			{/if}
 			{#if agentReportedFailure && run.summary}
 				<Alert.Title>The agent reported a failure</Alert.Title>

@@ -10,7 +10,7 @@
 	import JobService from '#lib/services/job-service.js';
 	import { createForm } from '#lib/utils/form-util.js';
 	import { cleanSpec } from '#lib/utils/job-util.js';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 	import { untrack } from 'svelte';
 	import { z } from 'zod/v4';
 
@@ -135,7 +135,7 @@
 		<!-- Outside the outputs' set, since Chromium leaves the container-query list above it at zero height when the banner appears inside the same set -->
 		{#if job.nextMode === 'scripted' && outputsChanged}
 			<Alert.Root variant="warning">
-				<TriangleAlertIcon />
+				<WarningIcon />
 				<Alert.Description>
 					This job runs as a script, which has to report every output. Runs fall back to the agent
 					until the script reports a new one, and repeated fallbacks take the job back to Assisted.

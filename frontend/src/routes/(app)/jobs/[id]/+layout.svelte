@@ -28,16 +28,16 @@
 		invalidateAfterNavigation,
 		subscribeWorkspaceEvents
 	} from '#lib/utils/workspace-events.js';
-	import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
-	import CalendarOffIcon from '@lucide/svelte/icons/calendar-off';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
-	import CirclePauseIcon from '@lucide/svelte/icons/circle-pause';
-	import CirclePlayIcon from '@lucide/svelte/icons/circle-play';
-	import ClockIcon from '@lucide/svelte/icons/clock';
-	import GraduationCapIcon from '@lucide/svelte/icons/graduation-cap';
-	import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
-	import PinIcon from '@lucide/svelte/icons/pin';
-	import PlayIcon from '@lucide/svelte/icons/play';
+	import CalendarDotsIcon from 'phosphor-svelte/lib/CalendarDots';
+	import CalendarXIcon from 'phosphor-svelte/lib/CalendarX';
+	import CircleDashedIcon from 'phosphor-svelte/lib/CircleDashed';
+	import PauseCircleIcon from 'phosphor-svelte/lib/PauseCircle';
+	import PlayCircleIcon from 'phosphor-svelte/lib/PlayCircle';
+	import ClockIcon from 'phosphor-svelte/lib/Clock';
+	import GraduationCapIcon from 'phosphor-svelte/lib/GraduationCap';
+	import LightbulbIcon from 'phosphor-svelte/lib/Lightbulb';
+	import PushPinIcon from 'phosphor-svelte/lib/PushPin';
+	import PlayIcon from 'phosphor-svelte/lib/Play';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import type { LayoutProps } from './$types';
@@ -107,7 +107,7 @@
 			<Tooltip.Trigger>
 				{#snippet child({ props })}
 					<span {...props} class={cn(factClass, 'cursor-default')}>
-						<CalendarClockIcon class={iconClass} aria-hidden="true" />
+						<CalendarDotsIcon class={iconClass} aria-hidden="true" />
 						<span
 							>{schedule.label}{#if schedule.zone}&nbsp;· {schedule.zone}{/if}</span
 						>
@@ -120,7 +120,7 @@
 		</Tooltip.Root>
 	{:else}
 		<span class={factClass}>
-			<CalendarOffIcon class={iconClass} aria-hidden="true" />
+			<CalendarXIcon class={iconClass} aria-hidden="true" />
 			On demand
 		</span>
 	{/if}
@@ -145,7 +145,7 @@
 		<Tooltip.Trigger>
 			{#snippet child({ props })}
 				<span {...props} class={cn(factClass, 'cursor-default')}>
-					<CirclePauseIcon class={iconClass} aria-hidden="true" />
+					<PauseCircleIcon class={iconClass} aria-hidden="true" />
 					<span class={statusToneClasses.warning.label}>Paused</span>
 				</span>
 			{/snippet}
@@ -192,7 +192,7 @@
 				<Tooltip.Trigger>
 					{#snippet child({ props })}
 						<span {...props} class="inline-flex cursor-default">
-							<PinIcon class="size-3.5" aria-hidden="true" />
+							<PushPinIcon class="size-3.5" aria-hidden="true" />
 							<span class="sr-only">{graduationNote}</span>
 						</span>
 					{/snippet}
@@ -247,53 +247,51 @@
 	</Tooltip.Root>
 {/snippet}
 
-<div class="flex flex-col gap-6">
-	<PageHeader title={job.name}>
-		{#snippet meta()}
-			{@render scheduleFact()}
+{#snippet actions()}
+	{#if canPause}
+		<Button variant="outline" size="sm" disabled={pausing} onclick={togglePaused}>
 			{#if job.paused}
-				{@render pausedFact()}
-			{:else if job.cron}
-				{@render nextRunFact()}
+				<PlayCircleIcon data-icon="inline-start" />
+				Resume
+			{:else}
+				<PauseCircleIcon data-icon="inline-start" />
+				Pause
 			{/if}
-			{@render lastRunFact()}
-			{#if job.nextMode}
-				{@render modeFact(job.nextMode)}
-			{/if}
-			{#if suggestionCount > 0}
-				{@render suggestionsFact()}
-			{/if}
-			{#if !job.selfImprove}
-				{@render learningFact()}
-			{/if}
-		{/snippet}
-		{#snippet actions()}
-			{#if canPause}
-				<Button variant="outline" disabled={pausing} onclick={togglePaused}>
-					{#if job.paused}
-						<CirclePlayIcon data-icon="inline-start" />
-						Resume
-					{:else}
-						<CirclePauseIcon data-icon="inline-start" />
-						Pause
-					{/if}
-				</Button>
-			{/if}
-			<Button onclick={() => (runNowOpen = true)}>
-				<PlayIcon data-icon="inline-start" />
-				Run now
-			</Button>
-		{/snippet}
-	</PageHeader>
+		</Button>
+	{/if}
+	<Button size="sm" onclick={() => (runNowOpen = true)}>
+		<PlayIcon data-icon="inline-start" />
+		Run now
+	</Button>
+{/snippet}
 
-	<PageTabs {tabs} label="Job sections">
-		<div class="flex flex-col gap-6">
-			<!-- Moving to another job on the same tab remounts the page, so it never shows the previous job's tables or forms -->
-			{#key job.id}
-				{@render children()}
-			{/key}
-		</div>
-	</PageTabs>
-</div>
+<PageTabs {tabs} label="Job sections" {actions}>
+	<div class="flex flex-col gap-6">
+		<PageHeader title={job.name} size="compact">
+			{#snippet meta()}
+				{@render scheduleFact()}
+				{#if job.paused}
+					{@render pausedFact()}
+				{:else if job.cron}
+					{@render nextRunFact()}
+				{/if}
+				{@render lastRunFact()}
+				{#if job.nextMode}
+					{@render modeFact(job.nextMode)}
+				{/if}
+				{#if suggestionCount > 0}
+					{@render suggestionsFact()}
+				{/if}
+				{#if !job.selfImprove}
+					{@render learningFact()}
+				{/if}
+			{/snippet}
+		</PageHeader>
+		<!-- Moving to another job on the same tab remounts the page, so it never shows the previous job's tables or forms -->
+		{#key job.id}
+			{@render children()}
+		{/key}
+	</div>
+</PageTabs>
 
 <RunNowDialog bind:open={runNowOpen} {job} />

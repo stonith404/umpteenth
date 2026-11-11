@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Calendar as CalendarPrimitive } from 'bits-ui';
 	import { cn, type WithoutChildrenOrChild } from '#lib/utils/style.js';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 
 	let {
 		ref = $bindable(null),
@@ -40,7 +40,7 @@
 				aria-hidden="true"
 			>
 				{yearItems.find((item) => item.value === value)?.label || selectedYearItem.label}
-				<ChevronDownIcon class={cn('size-4', className)} />
+				<CaretDownIcon class={cn('size-4', className)} />
 			</span>
 		{/snippet}
 	</CalendarPrimitive.YearSelect>

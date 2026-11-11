@@ -58,12 +58,12 @@
 <script lang="ts">
 	import { badgeVariants } from '#lib/components/ui/badge/index.js';
 	import { cn } from '#lib/utils/style.js';
-	import BanIcon from '@lucide/svelte/icons/ban';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
-	import CircleMinusIcon from '@lucide/svelte/icons/circle-minus';
-	import CircleXIcon from '@lucide/svelte/icons/circle-x';
-	import TimerOffIcon from '@lucide/svelte/icons/timer-off';
+	import ProhibitIcon from 'phosphor-svelte/lib/Prohibit';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
+	import CircleDashedIcon from 'phosphor-svelte/lib/CircleDashed';
+	import MinusCircleIcon from 'phosphor-svelte/lib/MinusCircle';
+	import XCircleIcon from 'phosphor-svelte/lib/XCircle';
+	import HourglassHighIcon from 'phosphor-svelte/lib/HourglassHigh';
 	import type { Component } from 'svelte';
 	import { statusLabel } from './run-meta';
 
@@ -94,11 +94,11 @@
 
 	const icons: Partial<Record<RunStatus, Component>> = {
 		queued: CircleDashedIcon,
-		succeeded: CircleCheckIcon,
-		failed: CircleXIcon,
-		timed_out: TimerOffIcon,
-		cancelled: BanIcon,
-		skipped: CircleMinusIcon
+		succeeded: CheckCircleIcon,
+		failed: XCircleIcon,
+		timed_out: HourglassHighIcon,
+		cancelled: ProhibitIcon,
+		skipped: MinusCircleIcon
 	};
 	const Icon = $derived(icons[status as RunStatus]);
 </script>

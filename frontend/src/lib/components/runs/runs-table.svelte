@@ -26,9 +26,9 @@
 	import { usageFormat } from '#lib/utils/usage-util.js';
 	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
 	import { hasRole } from '#lib/utils/workspace-util.js';
-	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
-	import PlayIcon from '@lucide/svelte/icons/play';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUp';
+	import PlayIcon from 'phosphor-svelte/lib/Play';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { onMount, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -418,7 +418,7 @@
 		items={[
 			{
 				label: 'Delete',
-				icon: Trash2Icon,
+				icon: TrashIcon,
 				variant: 'destructive',
 				// A live run has a runner writing to it, so it has to be stopped first
 				disabled: isLiveStatus(run.status),
@@ -430,7 +430,7 @@
 
 {#snippet selectionActions(ids: string[])}
 	<Button variant="destructive-outline" onclick={() => confirmDeleteMany(ids)}>
-		<Trash2Icon data-icon="inline-start" />
+		<TrashIcon data-icon="inline-start" />
 		Delete
 	</Button>
 {/snippet}

@@ -27,7 +27,7 @@ test('The first visitor sets up the instance with a passkey and signs in with it
 	expect(await authenticator.credentials()).toHaveLength(1);
 
 	// The first account is an instance admin
-	await expect(page.getByRole('link', { name: 'Admin' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Admin', exact: true })).toBeVisible();
 
 	// Once someone has an account, the login page is back to signing in, and remembers the passkey
 	await signOut(page);
@@ -104,7 +104,7 @@ test('Someone with an invite link creates a passkey account and joins the worksp
 
 	// They land in the invite's workspace as a member, not as an instance admin
 	await expect(workspaceSwitcher(newcomer)).toContainText('Member');
-	await expect(newcomer.getByRole('link', { name: 'Admin' })).toBeHidden();
+	await expect(newcomer.getByRole('button', { name: 'Admin', exact: true })).toBeHidden();
 	await context.close();
 
 	// Without an invite nobody else can sign up any more

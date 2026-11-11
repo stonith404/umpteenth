@@ -6,8 +6,8 @@
 	import { getErrorMessage } from '#lib/utils/error-util.js';
 	import { formatBytes } from '#lib/utils/format-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import DownloadIcon from '@lucide/svelte/icons/download';
-	import FileIcon from '@lucide/svelte/icons/file';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimple';
+	import FileIcon from 'phosphor-svelte/lib/File';
 	import JsonView from './json-view.svelte';
 	import OutputsView from './outputs-view.svelte';
 
@@ -124,7 +124,7 @@
 									class="text-muted-foreground hover:text-foreground"
 									aria-label="Download {artifact.name}"
 								>
-									<DownloadIcon class="size-4" />
+									<DownloadSimpleIcon class="size-4" />
 								</a>
 							</li>
 						{/each}

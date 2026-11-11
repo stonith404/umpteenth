@@ -8,8 +8,8 @@
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { getErrorMessage } from '#lib/utils/error-util.js';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwise';
 
 	let { title, error }: { title: string; error: unknown } = $props();
 
@@ -27,13 +27,13 @@
 
 <!-- Shown inside the card whose data failed to load, so the rest of the settings stay usable -->
 <Alert.Root variant="destructive">
-	<CircleAlertIcon />
+	<WarningCircleIcon />
 	<Alert.Title>{title}</Alert.Title>
 	<Alert.Description>
 		<div class="flex flex-col items-start gap-2">
 			<span>{message}</span>
 			<Button variant="outline" size="xs" isLoading={retrying} onclick={retry}>
-				<RotateCwIcon data-icon="inline-start" />
+				<ArrowClockwiseIcon data-icon="inline-start" />
 				Try again
 			</Button>
 		</div>

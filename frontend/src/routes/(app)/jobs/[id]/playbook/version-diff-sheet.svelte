@@ -10,7 +10,7 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { opsOutcome, versionChanges } from '#lib/utils/playbook-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwise';
 
 	let {
 		jobId,
@@ -122,7 +122,7 @@
 		{#if detail && version !== null && version !== currentVersion}
 			<Sheet.Footer>
 				<Button variant="outline" onclick={() => version !== null && onRollback(version)}>
-					<RotateCcwIcon data-icon="inline-start" />
+					<ArrowCounterClockwiseIcon data-icon="inline-start" />
 					Roll back to version {version}
 				</Button>
 			</Sheet.Footer>

@@ -5,7 +5,7 @@
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as InputGroup from '#lib/components/ui/input-group/index.js';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 
 	// The link is only known right after creation, closing the dialog forgets it for good
 	let { url = $bindable() }: { url: string | null } = $props();
@@ -40,7 +40,7 @@
 				</InputGroup.Root>
 			</Field.Field>
 			<Alert.Root variant="warning">
-				<TriangleAlertIcon />
+				<WarningIcon />
 				<Alert.Description>
 					Copy the link now, it won't be shown again. It works once, for whoever opens it first.
 				</Alert.Description>

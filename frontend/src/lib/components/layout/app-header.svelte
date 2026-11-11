@@ -7,7 +7,9 @@
 	import { buildBreadcrumbs, buildErrorBreadcrumbs } from '#lib/utils/breadcrumb-util.js';
 	import { errorPageContent } from '#lib/utils/error-util.js';
 	import { cn } from '#lib/utils/style.js';
-	import SearchIcon from '@lucide/svelte/icons/search';
+	import { DOCS_URL } from '#lib/navigation.js';
+	import BookOpenIcon from 'phosphor-svelte/lib/BookOpen';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
 	import { commandPalette } from './command-palette.svelte';
 	import ModeSwitcher from './mode-switcher.svelte';
 	import NavigationProgress from './navigation-progress.svelte';
@@ -31,9 +33,9 @@
 	const hiddenOnMobile = (i: number) => i < breadcrumbs.length - 2;
 </script>
 
-<header class="bg-card sticky top-0 z-10 h-14.5 shrink-0 border-b">
-	<!-- The same width and gutters as the page below, so the first crumb starts at the h1 and the avatar ends at the content's right edge -->
-	<div class="mx-auto flex h-full w-full max-w-350 items-center gap-2 px-4 md:px-8 lg:px-10">
+<!-- Cloudflare's header: on the same canvas as the sidebar and the page, 58px tall to line up with the sidebar's top row, with 16px gutters -->
+<header class="bg-background sticky top-0 z-10 h-14.5 shrink-0 border-b">
+	<div class="flex h-full w-full items-center gap-2 px-4">
 		<!-- On desktop and tablets the sidebar has its own collapse toggle in its header -->
 		<Sidebar.Trigger class="-ml-1 md:hidden" />
 		<Breadcrumb.Root class="min-w-0 flex-1">
@@ -69,7 +71,19 @@
 				aria-label="Search"
 				onclick={() => (commandPalette.open = true)}
 			>
-				<SearchIcon />
+				<MagnifyingGlassIcon />
+			</Button>
+			<!-- Labelled ghost buttons like the dashboard's Ask AI and Support, which shrink to their icon on phones -->
+			<Button
+				variant="ghost"
+				size="sm"
+				href={DOCS_URL}
+				target="_blank"
+				rel="noopener"
+				class="max-sm:hidden"
+			>
+				<BookOpenIcon data-icon="inline-start" />
+				Docs
 			</Button>
 			<ModeSwitcher />
 			<UserMenu {user} />

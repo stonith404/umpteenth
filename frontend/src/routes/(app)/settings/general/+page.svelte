@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidate, refreshAll } from '$app/navigation';
 	import type { WorkspaceSettingsUpdate } from '#lib/api/types.js';
+	import TableOfContents from '#lib/components/table-of-contents.svelte';
 	import AdminOnlyNotice from '#lib/components/workspaces/admin-only-notice.svelte';
 	import SettingsService from '#lib/services/settings-service.js';
 	import WorkspaceService from '#lib/services/workspace-service.js';
@@ -20,6 +21,17 @@
 
 	const canManage = $derived(hasRole(data.user, 'admin'));
 
+	// The headings of the sections below, in order, where the workspace's own sections only exist with workspaces
+	const tocItems = $derived([
+		...(data.user.workspacesEnabled ? [{ label: 'Workspace' }] : []),
+		{ label: 'Sandbox defaults' },
+		{ label: 'Default models' },
+		{ label: 'Spend and retention' },
+		{ label: 'Usage' },
+		{ label: 'Notifications' },
+		...(data.user.workspacesEnabled ? [{ label: 'Danger zone', danger: true }] : [])
+	]);
+
 	// Each card saves only its own fields, the PATCH endpoint leaves everything else untouched
 	async function save(update: WorkspaceSettingsUpdate) {
 		await settingsService.update(update);
@@ -38,27 +50,33 @@
 	}
 </script>
 
-<div class="flex flex-col gap-6">
-	{#if !canManage}
-		<AdminOnlyNotice>Only admins of the workspace can change its settings.</AdminOnlyNotice>
-	{/if}
-	<!-- Members may look, so they get the saved values as text instead of controls they can't use -->
-	{#if data.user.workspacesEnabled}
-		{#key data.user.workspace.id}
-			<WorkspaceForm name={data.user.workspace.name} readOnly={!canManage} onSave={rename} />
-		{/key}
-	{/if}
-	<SandboxDefaultsForm settings={data.settings} readOnly={!canManage} onSave={save} />
-	<ModelsForm settings={data.settings} models={data.models} readOnly={!canManage} onSave={save} />
-	<BudgetForm settings={data.settings} readOnly={!canManage} onSave={save} />
-	<UsageForm settings={data.settings} readOnly={!canManage} onSave={saveUsage} />
-	<NotificationsForm
-		settings={data.settings}
-		secrets={data.secrets}
-		readOnly={!canManage}
-		onSave={save}
-	/>
-	{#if data.user.workspacesEnabled}
-		<DangerZone user={data.user} />
-	{/if}
+<!-- Cloudflare's settings layout: a column of sections beside a table of contents that follows the scroll -->
+<div class="grid grid-cols-1 gap-8 lg:grid-cols-toc">
+	<div class="flex min-w-0 flex-col gap-10">
+		{#if !canManage}
+			<AdminOnlyNotice>Only admins of the workspace can change its settings.</AdminOnlyNotice>
+		{/if}
+		<!-- Members may look, so they get the saved values as text instead of controls they can't use -->
+		{#if data.user.workspacesEnabled}
+			{#key data.user.workspace.id}
+				<WorkspaceForm name={data.user.workspace.name} readOnly={!canManage} onSave={rename} />
+			{/key}
+		{/if}
+		<SandboxDefaultsForm settings={data.settings} readOnly={!canManage} onSave={save} />
+		<ModelsForm settings={data.settings} models={data.models} readOnly={!canManage} onSave={save} />
+		<BudgetForm settings={data.settings} readOnly={!canManage} onSave={save} />
+		<UsageForm settings={data.settings} readOnly={!canManage} onSave={saveUsage} />
+		<NotificationsForm
+			settings={data.settings}
+			secrets={data.secrets}
+			readOnly={!canManage}
+			onSave={save}
+		/>
+		{#if data.user.workspacesEnabled}
+			<DangerZone user={data.user} />
+		{/if}
+	</div>
+	<div class="max-lg:hidden">
+		<TableOfContents items={tocItems} />
+	</div>
 </div>

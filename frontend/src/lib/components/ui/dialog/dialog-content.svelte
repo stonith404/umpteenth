@@ -6,7 +6,7 @@
 	import { cn, type WithoutChildrenOrChild } from '#lib/utils/style.js';
 	import type { ComponentProps } from 'svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import XIcon from '@lucide/svelte/icons/x';
+	import XIcon from 'phosphor-svelte/lib/X';
 
 	let {
 		ref = $bindable(null),

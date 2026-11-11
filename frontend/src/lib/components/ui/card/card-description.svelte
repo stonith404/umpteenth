@@ -9,7 +9,7 @@
 		children,
 		...restProps
 	}: WithElementRef<HTMLAttributes<HTMLParagraphElement>> & {
-		// 'label' names the figure of a tile on one line, a step larger from the sm breakpoint so it reads as the tile's heading
+		// 'label' names the figure of a tile on one line, small and medium like the labels of Cloudflare's chart cards
 		variant?: 'default' | 'label';
 	} = $props();
 </script>
@@ -19,8 +19,8 @@
 	data-slot="card-description"
 	class={cn(
 		'text-muted-foreground text-sm leading-snug',
-		// Restating the size drops leading-snug, so the label keeps the type scale's own line height that the tile's header height is built on
-		variant === 'label' && 'truncate text-sm sm:text-base',
+		// Restating the size drops leading-snug, so the label keeps the type scale's own line height
+		variant === 'label' && 'truncate text-xs font-medium',
 		className
 	)}
 	{...restProps}

@@ -18,9 +18,9 @@
 	import { passkeyAccountSchema } from '#lib/utils/passkey-util.js';
 	import { providerLoginUrl, safeRedirectPath } from '#lib/utils/redirection-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import LogInIcon from '@lucide/svelte/icons/log-in';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import KeyIcon from 'phosphor-svelte/lib/Key';
+	import SignInIcon from 'phosphor-svelte/lib/SignIn';
 	import { SvelteSet } from 'svelte/reactivity';
 	import DitherField from './dither-field.svelte';
 	import GitHubIcon from './github-icon.svelte';
@@ -105,7 +105,7 @@
 			isLoading={busy}
 			onclick={signInWithPasskey}
 		>
-			<KeyRoundIcon />
+			<KeyIcon />
 			<span class="ml-0.5 truncate">Sign in with a passkey</span>
 			{#if provider.id === lastUsed}
 				<Badge variant="outline" floating class="absolute -top-2.5 right-3 h-5">Last used</Badge>
@@ -135,7 +135,7 @@
 		{:else if provider.type === 'github'}
 			<GitHubIcon class="size-4 shrink-0" />
 		{:else}
-			<LogInIcon />
+			<SignInIcon />
 		{/if}
 		<!-- The label stands a little further from the provider's logo than the button's usual icon gap -->
 		<span class="ml-0.5 truncate">Sign in with {provider.name}</span>
@@ -177,14 +177,14 @@
 			</div>
 			{#if error}
 				<Alert.Root variant="destructive" class="text-left">
-					<CircleAlertIcon />
+					<WarningCircleIcon />
 					<Alert.Title>Sign-in failed</Alert.Title>
 					<Alert.Description>{getLoginErrorMessage(error)}</Alert.Description>
 				</Alert.Root>
 			{/if}
 			{#if data.providers.length === 0}
 				<Alert.Root variant="warning" class="text-left">
-					<CircleAlertIcon />
+					<WarningCircleIcon />
 					<Alert.Title>Sign-in is not configured</Alert.Title>
 					<!-- The option is a config key, so it is set in the code font, and the link leads to the page on sign-in providers -->
 					<Alert.Description>
@@ -214,7 +214,7 @@
 						/>
 					</Field.Group>
 					<Button type="submit" size="lg" class="w-full" isLoading={busy}>
-						<KeyRoundIcon />
+						<KeyIcon />
 						Create account with a passkey
 					</Button>
 				</form>

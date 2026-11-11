@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/page-header.svelte';
-	import PageTabs, { activePageTab } from '#lib/components/page-tabs.svelte';
+	import { activePageTab } from '#lib/components/page-tabs.svelte';
 	import { settingsTabs } from '#lib/navigation.js';
 	import type { Snippet } from 'svelte';
 
 	let { children }: { children: Snippet } = $props();
 
-	// Each tab is its own route, so tabs are linkable and load only their own data
 	const activeTab = $derived(activePageTab(settingsTabs, page.url.pathname) ?? settingsTabs[0]);
 </script>
 
@@ -16,8 +15,7 @@
 	<title>{activeTab.label} · Settings · Umpteenth</title>
 </svelte:head>
 
-<PageHeader title="Settings" description="Workspace defaults, limits and access for automation." />
+<!-- The sidebar lists the sections like Cloudflare's Manage account group, so each page is titled after its own section -->
+<PageHeader title={activeTab.label} description={activeTab.description} />
 
-<PageTabs tabs={settingsTabs} label="Settings sections">
-	{@render children()}
-</PageTabs>
+{@render children()}

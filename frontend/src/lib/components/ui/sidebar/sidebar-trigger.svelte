@@ -7,12 +7,8 @@
 		ref = $bindable(null),
 		class: className,
 		onclick,
-		visibleIn = 'always',
 		...restProps
-	}: WithElementRef<HTMLButtonAttributes, HTMLButtonElement> & {
-		// Shows the toggle only while the sidebar is expanded or only in the collapsed rail, fading it with the sidebar's motion so two toggles can crossfade in place
-		visibleIn?: 'always' | 'expanded' | 'collapsed';
-	} = $props();
+	}: WithElementRef<HTMLButtonAttributes, HTMLButtonElement> = $props();
 
 	const sidebar = useSidebar();
 
@@ -28,12 +24,6 @@
 	aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
 	class={cn(
 		'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-ring flex size-8.5 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-inset',
-		visibleIn !== 'always' &&
-			'transition-[opacity,visibility] duration-(--sidebar-duration) ease-(--sidebar-easing)',
-		visibleIn === 'expanded' &&
-			'group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0',
-		visibleIn === 'collapsed' &&
-			'invisible opacity-0 group-data-[collapsible=icon]:visible group-data-[collapsible=icon]:opacity-100',
 		className
 	)}
 	onclick={(e) => {

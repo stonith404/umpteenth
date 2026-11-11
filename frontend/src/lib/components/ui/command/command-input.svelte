@@ -2,7 +2,7 @@
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { cn } from '#lib/utils/style.js';
 	import * as InputGroup from '#lib/components/ui/input-group/index.js';
-	import SearchIcon from '@lucide/svelte/icons/search';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
 
 	let {
 		ref = $bindable(null),
@@ -28,7 +28,7 @@
 			{/snippet}
 		</CommandPrimitive.Input>
 		<InputGroup.Addon>
-			<SearchIcon class="size-4 shrink-0 opacity-50" />
+			<MagnifyingGlassIcon class="size-4 shrink-0 opacity-50" />
 		</InputGroup.Addon>
 	</InputGroup.Root>
 </div>

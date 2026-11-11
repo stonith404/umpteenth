@@ -14,10 +14,10 @@
 	import { opsOutcome, versionChanges } from '#lib/utils/playbook-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { usageFormat } from '#lib/utils/usage-util.js';
-	import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import ClockIcon from '@lucide/svelte/icons/clock';
-	import GraduationCapIcon from '@lucide/svelte/icons/graduation-cap';
+	import ArrowUpRightIcon from 'phosphor-svelte/lib/ArrowUpRight';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import ClockIcon from 'phosphor-svelte/lib/Clock';
+	import GraduationCapIcon from 'phosphor-svelte/lib/GraduationCap';
 
 	let {
 		run,
@@ -126,7 +126,7 @@
 	{:else}
 		{#if run.reflection === 'failed'}
 			<Alert.Root variant="destructive">
-				<CircleAlertIcon />
+				<WarningCircleIcon />
 				<Alert.Title>Reflection failed</Alert.Title>
 				<Alert.Description class="break-words whitespace-pre-wrap">
 					{run.reflectionError ?? 'The reflection did not finish.'}

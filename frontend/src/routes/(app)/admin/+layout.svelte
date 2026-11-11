@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/page-header.svelte';
-	import PageTabs, { activePageTab } from '#lib/components/page-tabs.svelte';
+	import { activePageTab } from '#lib/components/page-tabs.svelte';
 	import { adminTabs } from '#lib/navigation.js';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
@@ -17,11 +17,7 @@
 	<title>{activeTab.label} · Admin · Umpteenth</title>
 </svelte:head>
 
-<PageHeader
-	title="Admin"
-	description="Everyone who signed in to this instance, and every workspace."
-/>
+<!-- The sidebar lists the sections like Cloudflare's Manage account group, so each page is titled after its own section -->
+<PageHeader title={activeTab.label} description={activeTab.description} />
 
-<PageTabs {tabs} label="Admin sections">
-	{@render children()}
-</PageTabs>
+{@render children()}

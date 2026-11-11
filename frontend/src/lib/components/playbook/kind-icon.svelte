@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { PlaybookChangeKind } from '#lib/utils/playbook-util.js';
-	import BookOpenIcon from '@lucide/svelte/icons/book-open';
-	import ContainerIcon from '@lucide/svelte/icons/container';
-	import FileCodeIcon from '@lucide/svelte/icons/file-code';
-	import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
-	import ListChecksIcon from '@lucide/svelte/icons/list-checks';
-	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
-	import WrenchIcon from '@lucide/svelte/icons/wrench';
+	import BookOpenIcon from 'phosphor-svelte/lib/BookOpen';
+	import CubeIcon from 'phosphor-svelte/lib/Cube';
+	import FileCodeIcon from 'phosphor-svelte/lib/FileCode';
+	import LightbulbIcon from 'phosphor-svelte/lib/Lightbulb';
+	import ListChecksIcon from 'phosphor-svelte/lib/ListChecks';
+	import TerminalWindowIcon from 'phosphor-svelte/lib/TerminalWindow';
+	import WrenchIcon from 'phosphor-svelte/lib/Wrench';
 	import type { Component } from 'svelte';
 
 	let { kind }: { kind: PlaybookChangeKind } = $props();
@@ -14,9 +14,9 @@
 	const kindIcons: Record<PlaybookChangeKind, Component> = {
 		learning: BookOpenIcon,
 		script: FileCodeIcon,
-		dockerfile: ContainerIcon,
+		dockerfile: CubeIcon,
 		setup: WrenchIcon,
-		main: SquareTerminalIcon,
+		main: TerminalWindowIcon,
 		verify: ListChecksIcon,
 		suggestion: LightbulbIcon
 	};

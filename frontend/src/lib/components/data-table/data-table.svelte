@@ -40,8 +40,8 @@
 		type ColumnFiltersState,
 		type Updater
 	} from '@tanstack/table-core';
-	import SearchIcon from '@lucide/svelte/icons/search';
-	import XIcon from '@lucide/svelte/icons/x';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
+	import XIcon from 'phosphor-svelte/lib/X';
 	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { createSvelteTable } from './create-svelte-table.svelte';
@@ -300,11 +300,11 @@
 		}
 	});
 
-	// Short lists skip the pager, it only shows once there is a second page or the user already paged or picked a page size
-	const showPagination = $derived(
-		loaded &&
-			total > 0 &&
-			(table.getPageCount() > 1 || urlState.page > 1 || urlState.pageSize !== DEFAULT_PAGE_SIZE)
+	// Like Cloudflare's tables, every list says how many rows it shows, even when they fit on one page
+	const showPagination = $derived(loaded && total > 0);
+	// The pager itself only shows once there is a second page or the user already paged or picked a page size
+	const showPager = $derived(
+		table.getPageCount() > 1 || urlState.page > 1 || urlState.pageSize !== DEFAULT_PAGE_SIZE
 	);
 
 	// Fetch whenever the query changes
@@ -605,11 +605,9 @@
 					</div>
 				{:else}
 					{#if showSearch}
-						<InputGroup.Root
-							class="order-1 w-auto min-w-0 grow basis-36 sm:order-none sm:max-w-64 sm:basis-48"
-						>
+						<InputGroup.Root class="order-1 w-auto min-w-0 grow basis-36 sm:order-none sm:basis-64">
 							<InputGroup.Addon>
-								<SearchIcon />
+								<MagnifyingGlassIcon />
 							</InputGroup.Addon>
 							<InputGroup.Input
 								type="search"
@@ -844,6 +842,7 @@
 			<DataTablePagination
 				{table}
 				pageSizes={PAGE_SIZES}
+				controls={showPager}
 				class={cn(flush && 'px-(--table-gutter) pb-(--table-gutter)')}
 			/>
 		{/if}

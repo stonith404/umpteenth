@@ -18,7 +18,7 @@ workspaces:
   enabled: true
 ```
 
-The sidebar then shows the workspace switcher at its bottom, and admins rename a workspace in the **Workspace** card under **Settings → General**.
+The sidebar then shows the workspace switcher in its top row next to the logo, and admins rename a workspace in the **Workspace** card under **Settings → General**.
 Someone who signs in without an invite gets a workspace of their own, named after them, such as **Ada Lovelace's workspace**, while an invite takes them straight to the workspace that invited them.
 Every workspace starts without providers, so its admins add their own under [**Settings → Providers & models**](../models/).
 
@@ -68,7 +68,7 @@ Deactivate the user under [**Admin → Users**](#instance-admins) or at your sig
 
 ## Switch, leave or delete workspaces
 
-Click the workspace at the bottom of the sidebar to switch to another of your workspaces or to create one with **Create workspace**.
+Click the workspace name at the top of the sidebar to switch to another of your workspaces or to create one with **Create workspace**.
 
 Admins and members leave a workspace with **Leave workspace** under **Settings → General → Danger zone**, and leaving your last one gives you a new workspace of your own.
 The owner sees **Delete workspace** there instead, and hands the workspace over first to leave it.

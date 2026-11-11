@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
 
 test('Create, update and delete a secret without ever showing its value', async ({ page }) => {
 	await page.goto('/settings');
-	await page.getByRole('tab', { name: 'Secrets' }).click();
+	await page.getByRole('link', { name: 'Secrets', exact: true }).click();
 	await expect(page).toHaveURL('/settings/secrets');
 	await expect(page.getByText('No secrets')).toBeVisible();
 

@@ -14,10 +14,10 @@ test.beforeEach(async ({ page }) => {
 	await authUtil.authenticate(page);
 });
 
-// Opens the job's Run now dialog from its header and submits it without extra instructions or input
+// Opens the job's Run now dialog from its sub-nav strip and submits it without extra instructions or input
 async function runNow(page: Page) {
 	await page
-		.locator('[data-slot="page-header-actions"]')
+		.locator('[data-slot="page-tabs-actions"]')
 		.getByRole('button', { name: 'Run now' })
 		.click();
 	const dialog = page.getByRole('dialog', { name: 'Run now' });

@@ -25,10 +25,10 @@
 <script lang="ts">
 	import { badgeVariants } from '#lib/components/ui/badge/index.js';
 	import { cn } from '#lib/utils/style.js';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import CircleDashedIcon from '@lucide/svelte/icons/circle-dashed';
-	import CircleXIcon from '@lucide/svelte/icons/circle-x';
-	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
+	import CircleDashedIcon from 'phosphor-svelte/lib/CircleDashed';
+	import XCircleIcon from 'phosphor-svelte/lib/XCircle';
+	import CircleNotchIcon from 'phosphor-svelte/lib/CircleNotch';
 
 	let {
 		status,
@@ -52,14 +52,14 @@
 		: 'inline-flex w-fit shrink-0 items-center gap-1.5 whitespace-nowrap'}
 >
 	{#if status === 'building'}
-		<LoaderCircleIcon
+		<CircleNotchIcon
 			class={cn(iconClass, 'animate-spin motion-reduce:animate-none')}
 			aria-hidden="true"
 		/>
 	{:else if status === 'ready'}
-		<CircleCheckIcon class={iconClass} aria-hidden="true" />
+		<CheckCircleIcon class={iconClass} aria-hidden="true" />
 	{:else if status === 'failed'}
-		<CircleXIcon class={iconClass} aria-hidden="true" />
+		<XCircleIcon class={iconClass} aria-hidden="true" />
 	{:else}
 		<CircleDashedIcon class={iconClass} aria-hidden="true" />
 	{/if}

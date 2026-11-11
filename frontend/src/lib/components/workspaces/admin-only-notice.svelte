@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Alert from '#lib/components/ui/alert/index.js';
-	import LockIcon from '@lucide/svelte/icons/lock';
+	import LockIcon from 'phosphor-svelte/lib/Lock';
 
 	// Explains why a page a member can read has nothing to click
 	let { children }: { children: import('svelte').Snippet } = $props();

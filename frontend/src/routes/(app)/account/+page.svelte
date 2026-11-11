@@ -11,11 +11,11 @@
 	import UserService from '#lib/services/user-service.js';
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import KeyIcon from 'phosphor-svelte/lib/Key';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 	import { toast } from 'svelte-sonner';
 	import ProfileForm from './profile-form.svelte';
 	import RenamePasskeyDialog from './rename-passkey-dialog.svelte';
@@ -98,7 +98,7 @@
 			{#if data.passkeys.length === 0}
 				<!-- Someone who came in through a sign-in link has no way back in without one -->
 				<Alert.Root variant="warning">
-					<TriangleAlertIcon />
+					<WarningIcon />
 					<Alert.Title>Add a passkey to sign in again</Alert.Title>
 					<Alert.Description>
 						Your account has no passkey yet. Without one, you need a new sign-in link from an
@@ -121,7 +121,7 @@
 								<Table.Row>
 									<Table.Cell class="w-full max-w-0">
 										<span class="flex min-w-0 items-center gap-2">
-											<KeyRoundIcon class="text-muted-foreground size-4 shrink-0" />
+											<KeyIcon class="text-muted-foreground size-4 shrink-0" />
 											<span class="truncate font-medium" title={passkey.name}>{passkey.name}</span>
 										</span>
 									</Table.Cell>
@@ -140,10 +140,14 @@
 										<RowActions
 											name={passkey.name}
 											items={[
-												{ label: 'Rename', icon: PencilIcon, onSelect: () => (renaming = passkey) },
+												{
+													label: 'Rename',
+													icon: PencilSimpleIcon,
+													onSelect: () => (renaming = passkey)
+												},
 												data.passkeys.length > 1 && {
 													label: 'Remove',
-													icon: Trash2Icon,
+													icon: TrashIcon,
 													variant: 'destructive',
 													onSelect: () => confirmDelete(passkey)
 												}

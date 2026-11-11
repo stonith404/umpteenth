@@ -3,8 +3,8 @@
 	import * as Command from '#lib/components/ui/command/index.js';
 	import * as Popover from '#lib/components/ui/popover/index.js';
 	import { cn } from '#lib/utils/style.js';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import CheckIcon from 'phosphor-svelte/lib/Check';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 	import type { TableFilter } from './types';
 
 	let {
@@ -44,7 +44,7 @@
 							: `${selectedOptions.length} selected`}
 					</span>
 				{/if}
-				<ChevronDownIcon data-icon="inline-end" class="text-muted-foreground" />
+				<CaretDownIcon data-icon="inline-end" class="text-muted-foreground" />
 			</Button>
 		{/snippet}
 	</Popover.Trigger>

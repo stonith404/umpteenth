@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { RangeCalendar as RangeCalendarPrimitive } from 'bits-ui';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
 	import { buttonVariants, type ButtonVariant } from '#lib/components/ui/button/index.js';
 	import { cn } from '#lib/utils/style.js';
 
@@ -16,7 +16,7 @@
 </script>
 
 {#snippet Fallback()}
-	<ChevronRightIcon class={cn('cn-rtl-flip size-4', className)} />
+	<CaretRightIcon class={cn('cn-rtl-flip size-4', className)} />
 {/snippet}
 
 <RangeCalendarPrimitive.NextButton

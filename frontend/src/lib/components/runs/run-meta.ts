@@ -1,12 +1,12 @@
 import type { TableFilterOption } from '#lib/components/data-table/index.js';
-import CalendarClockIcon from '@lucide/svelte/icons/calendar-clock';
-import CodeIcon from '@lucide/svelte/icons/code';
-import CompassIcon from '@lucide/svelte/icons/compass';
-import MousePointerClickIcon from '@lucide/svelte/icons/mouse-pointer-click';
-import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
-import SparklesIcon from '@lucide/svelte/icons/sparkles';
-import WebhookIcon from '@lucide/svelte/icons/webhook';
+import CalendarDotsIcon from 'phosphor-svelte/lib/CalendarDots';
+import CodeIcon from 'phosphor-svelte/lib/Code';
+import CompassIcon from 'phosphor-svelte/lib/Compass';
+import CursorClickIcon from 'phosphor-svelte/lib/CursorClick';
+import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwise';
+import ScrollIcon from 'phosphor-svelte/lib/Scroll';
+import SparkleIcon from 'phosphor-svelte/lib/Sparkle';
+import WebhooksLogoIcon from 'phosphor-svelte/lib/WebhooksLogo';
 import type { Component } from 'svelte';
 
 // UI-only vocabulary of runs, the API types these fields as plain strings
@@ -53,8 +53,8 @@ const modeLabels: Record<RunMode, string> = {
 
 export const modeIcons: Record<RunMode, Component> = {
 	explore: CompassIcon,
-	assisted: SparklesIcon,
-	scripted: ScrollTextIcon
+	assisted: SparkleIcon,
+	scripted: ScrollIcon
 };
 
 const triggerLabels: Record<RunTrigger, string> = {
@@ -66,11 +66,11 @@ const triggerLabels: Record<RunTrigger, string> = {
 };
 
 const triggerIcons: Record<RunTrigger, Component> = {
-	manual: MousePointerClickIcon,
-	schedule: CalendarClockIcon,
-	webhook: WebhookIcon,
+	manual: CursorClickIcon,
+	schedule: CalendarDotsIcon,
+	webhook: WebhooksLogoIcon,
 	api: CodeIcon,
-	retry: RotateCcwIcon
+	retry: ArrowCounterClockwiseIcon
 };
 
 // Statuses of runs that can still change, so their durations tick and they can be cancelled

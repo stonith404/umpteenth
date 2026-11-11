@@ -48,9 +48,9 @@
 <script lang="ts">
 	import * as Card from '#lib/components/ui/card/index.js';
 	import { cn } from '#lib/utils/style.js';
-	import ArrowDownRightIcon from '@lucide/svelte/icons/arrow-down-right';
-	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-	import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';
+	import ArrowDownRightIcon from 'phosphor-svelte/lib/ArrowDownRight';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRight';
+	import ArrowUpRightIcon from 'phosphor-svelte/lib/ArrowUpRight';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -78,7 +78,7 @@
 	);
 </script>
 
-<!-- Like the summary cells of the Cloudflare dashboard: the label sits in the card's strip, the value on its white panel -->
+<!-- Like Cloudflare's chart cards: one flat card with a small label over the figure -->
 <!-- Phones fit two tiles side by side, so the gutters shrink to a small card's to leave the figures room -->
 <Card.Root size="tile" data-testid="kpi-{label.toLowerCase().replaceAll(' ', '-')}">
 	<Card.Header>
@@ -88,7 +88,7 @@
 		<div class="flex flex-1 flex-col gap-3 text-sm">
 			<!-- The change sits next to the value, the page description names the period it compares with -->
 			<div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-				<p class="numeric text-2xl leading-tight font-semibold sm:text-figure">{value}</p>
+				<p class="numeric text-2xl leading-tight font-semibold">{value}</p>
 				{#if delta}
 					<span
 						class={cn(

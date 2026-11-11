@@ -12,11 +12,11 @@
 	import { getErrorMessage } from '#lib/utils/error-util.js';
 	import { formatBytes } from '#lib/utils/format-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import DownloadIcon from '@lucide/svelte/icons/download';
-	import FileIcon from '@lucide/svelte/icons/file';
-	import FileTerminalIcon from '@lucide/svelte/icons/file-terminal';
-	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
-	import UploadIcon from '@lucide/svelte/icons/upload';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimple';
+	import FileIcon from 'phosphor-svelte/lib/File';
+	import FileCodeIcon from 'phosphor-svelte/lib/FileCode';
+	import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwise';
+	import UploadSimpleIcon from 'phosphor-svelte/lib/UploadSimple';
 
 	let {
 		skill = $bindable(null),
@@ -164,7 +164,7 @@
 					<h3 class="text-sm font-medium">Files</h3>
 					<ul class="flex flex-col overflow-hidden rounded-lg border">
 						{#each skill.files ?? [] as file (file.path)}
-							{@const Icon = file.executable ? FileTerminalIcon : FileIcon}
+							{@const Icon = file.executable ? FileCodeIcon : FileIcon}
 							<li class="border-b last:border-b-0">
 								<button
 									type="button"
@@ -193,7 +193,7 @@
 								href={skillService.fileUrl(skill.id, selectedFile.path)}
 								download
 							>
-								<DownloadIcon data-icon="inline-start" />
+								<DownloadSimpleIcon data-icon="inline-start" />
 								Download
 							</Button>
 						</div>
@@ -230,17 +230,17 @@
 			</Sheet.Body>
 			<Sheet.Footer class="flex-row justify-end">
 				<Button variant="outline" href={skillService.downloadUrl(skill.id)} download>
-					<DownloadIcon data-icon="inline-start" />
+					<DownloadSimpleIcon data-icon="inline-start" />
 					Download zip
 				</Button>
 				{#if skill.sourceUrl}
 					<Button variant="outline" isLoading={updating} onclick={() => skill && onUpdate(skill)}>
-						<RefreshCwIcon data-icon="inline-start" />
+						<ArrowsClockwiseIcon data-icon="inline-start" />
 						Update from link
 					</Button>
 				{/if}
 				<Button onclick={() => skill && onReplace(skill)}>
-					<UploadIcon data-icon="inline-start" />
+					<UploadSimpleIcon data-icon="inline-start" />
 					Replace
 				</Button>
 			</Sheet.Footer>

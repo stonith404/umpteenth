@@ -3,8 +3,8 @@
 	import CodeEditor from '#lib/components/code/code-editor.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Collapsible from '#lib/components/ui/collapsible/index.js';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import WrenchIcon from '@lucide/svelte/icons/wrench';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import WrenchIcon from 'phosphor-svelte/lib/Wrench';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	let { tools }: { tools: McpToolInfo[] } = $props();
@@ -29,7 +29,7 @@
 						{#snippet child({ props })}
 							<button {...props} class="group flex w-full items-start gap-3 px-3 py-2.5 text-left">
 								{#if hasParameters(tool.inputSchema)}
-									<ChevronRightIcon
+									<CaretRightIcon
 										class="text-muted-foreground mt-0.5 size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90"
 									/>
 								{:else}

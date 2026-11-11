@@ -20,17 +20,17 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { canLogIn, transportLabel } from '#lib/utils/mcp-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import GlobeIcon from '@lucide/svelte/icons/globe';
-	import LogInIcon from '@lucide/svelte/icons/log-in';
-	import LogOutIcon from '@lucide/svelte/icons/log-out';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import PlugZapIcon from '@lucide/svelte/icons/plug-zap';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import ServerIcon from '@lucide/svelte/icons/server';
-	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
-	import ToggleLeftIcon from '@lucide/svelte/icons/toggle-left';
-	import ToggleRightIcon from '@lucide/svelte/icons/toggle-right';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import GlobeIcon from 'phosphor-svelte/lib/Globe';
+	import SignInIcon from 'phosphor-svelte/lib/SignIn';
+	import SignOutIcon from 'phosphor-svelte/lib/SignOut';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import PlugsConnectedIcon from 'phosphor-svelte/lib/PlugsConnected';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
+	import TerminalWindowIcon from 'phosphor-svelte/lib/TerminalWindow';
+	import ToggleLeftIcon from 'phosphor-svelte/lib/ToggleLeft';
+	import ToggleRightIcon from 'phosphor-svelte/lib/ToggleRight';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
@@ -229,18 +229,22 @@
 		const needsLogin = server.auth.status === 'not_logged_in';
 		const logIn: RowAction = {
 			label: server.auth.status === 'oauth' ? 'Log in again' : 'Log in',
-			icon: LogInIcon,
+			icon: SignInIcon,
 			onSelect: () => logInTo(server)
 		};
-		const test: RowAction = { label: 'Test', icon: PlugZapIcon, onSelect: () => openTest(server) };
+		const test: RowAction = {
+			label: 'Test',
+			icon: PlugsConnectedIcon,
+			onSelect: () => openTest(server)
+		};
 		return {
 			inline: needsLogin ? logIn : test,
 			items: [
-				{ label: 'Edit', icon: PencilIcon, onSelect: () => openEdit(server) },
+				{ label: 'Edit', icon: PencilSimpleIcon, onSelect: () => openEdit(server) },
 				needsLogin ? test : canLogIn(server.auth) && logIn,
 				!!server.auth.loggedInAt && {
 					label: 'Log out',
-					icon: LogOutIcon,
+					icon: SignOutIcon,
 					onSelect: () => confirmLogout(server)
 				},
 				!wide.current && {
@@ -251,7 +255,7 @@
 				},
 				{
 					label: 'Delete',
-					icon: Trash2Icon,
+					icon: TrashIcon,
 					variant: 'destructive',
 					onSelect: () => confirmDelete(server)
 				}
@@ -307,7 +311,7 @@
 {#snippet targetCell(server: McpServer)}
 	{@const target =
 		server.transport === 'http' ? server.url : [server.command, ...(server.args ?? [])].join(' ')}
-	{@const Icon = server.transport === 'http' ? GlobeIcon : SquareTerminalIcon}
+	{@const Icon = server.transport === 'http' ? GlobeIcon : TerminalWindowIcon}
 	<span class="text-muted-foreground flex min-w-0 items-center gap-2">
 		<Icon class="size-4 shrink-0" aria-label={transportLabel(server.transport)} />
 		<span class="truncate font-mono text-xs" title={target ?? undefined}>{target}</span>
@@ -358,7 +362,6 @@
 <PageHeader
 	title="MCP servers"
 	description="Tools your jobs can use through the Model Context Protocol."
-	actions={noServers === false ? addButton : undefined}
 />
 
 <DataTable
@@ -367,6 +370,7 @@
 	{columns}
 	fetchPage={(query) => mcpService.list(query)}
 	bind:isEmpty={noServers}
+	actions={noServers === false ? addButton : undefined}
 	getRowId={(server) => server.id}
 	onRowClick={(server) => (viewing = server)}
 	defaultSort="name"
@@ -386,7 +390,7 @@
 		<Empty.Root size="sm">
 			<Empty.Header>
 				<Empty.Media variant="icon">
-					<ServerIcon />
+					<HardDrivesIcon />
 				</Empty.Media>
 				<Empty.Title>No MCP servers yet</Empty.Title>
 				<Empty.Description>

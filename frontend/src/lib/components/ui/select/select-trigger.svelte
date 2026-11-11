@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Select as SelectPrimitive } from 'bits-ui';
 	import { cn, type WithoutChild } from '#lib/utils/style.js';
-	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
+	import CaretUpDownIcon from 'phosphor-svelte/lib/CaretUpDown';
 
 	let {
 		ref = $bindable(null),
@@ -25,5 +25,5 @@
 	{...restProps}
 >
 	{@render children?.()}
-	<ChevronsUpDownIcon class="text-muted-foreground size-3.5 pointer-events-none" />
+	<CaretUpDownIcon class="text-muted-foreground size-3.5 pointer-events-none" />
 </SelectPrimitive.Trigger>

@@ -9,8 +9,8 @@
 	import SecretService from '#lib/services/secret-service.js';
 	import { envNameOf } from '#lib/utils/job-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 
 	let {
 		rows = $bindable([]),
@@ -51,9 +51,9 @@
 		<li class="bg-muted/40 flex flex-col gap-3 rounded-lg px-3 py-2.5 sm:flex-row sm:items-start">
 			<div class="flex min-w-0 flex-1 items-start gap-3">
 				{#if name}
-					<CircleCheckIcon class="text-success mt-0.5 size-4 shrink-0" />
+					<CheckCircleIcon class="text-success mt-0.5 size-4 shrink-0" />
 				{:else}
-					<TriangleAlertIcon class="text-warning-foreground mt-0.5 size-4 shrink-0" />
+					<WarningIcon class="text-warning-foreground mt-0.5 size-4 shrink-0" />
 				{/if}
 				<div class="flex min-w-0 flex-col gap-0.5">
 					<span class="font-mono text-sm font-medium break-all">{row.envName}</span>

@@ -18,27 +18,24 @@
 </script>
 
 <script lang="ts">
+	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import * as Card from '#lib/components/ui/card/index.js';
 
 	let { actions }: { actions: DangerZoneAction[] } = $props();
 
 	const id = $props.id();
 </script>
 
-<Card.Root variant="danger">
-	<Card.Header>
-		<Card.Title>Danger zone</Card.Title>
-	</Card.Header>
-	<Card.Content class="flex flex-col">
+<SettingsSection title="Danger zone">
+	<div class="flex flex-col">
 		{#each actions as action, i (action.label)}
 			<!-- The trigger moves under its text on phones, where the two don't fit side by side -->
 			<div
-				class="border-border flex flex-col items-start gap-4 not-first:mt-4 not-first:border-t not-first:pt-4 sm:flex-row sm:items-center sm:justify-between"
+				class="border-hairline flex flex-col items-start gap-4 not-first:mt-4 not-first:border-t not-first:pt-4 sm:flex-row sm:items-center sm:justify-between"
 			>
-				<div class="flex min-w-0 flex-col gap-0.5">
-					<p class="text-sm font-medium">{action.title}</p>
-					<!-- The same leading as the card descriptions, since the sentence wraps on phones -->
+				<div class="flex min-w-0 flex-col gap-1">
+					<p class="font-medium">{action.title}</p>
+					<!-- The same leading as the section descriptions, since the sentence wraps on phones -->
 					<p id="{id}-{i}" class="text-muted-foreground text-sm leading-snug">
 						{#if typeof action.description === 'string'}
 							{action.description}
@@ -61,5 +58,5 @@
 				</Button>
 			</div>
 		{/each}
-	</Card.Content>
-</Card.Root>
+	</div>
+</SettingsSection>

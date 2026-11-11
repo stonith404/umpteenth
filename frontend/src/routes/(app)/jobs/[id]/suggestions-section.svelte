@@ -9,9 +9,9 @@
 	import { LIMIT_FIELDS } from '#lib/utils/job-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { invalidateAfterNavigation } from '#lib/utils/workspace-events.js';
-	import CircleQuestionMarkIcon from '@lucide/svelte/icons/circle-question-mark';
-	import GaugeIcon from '@lucide/svelte/icons/gauge';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
+	import QuestionIcon from 'phosphor-svelte/lib/Question';
+	import GaugeIcon from 'phosphor-svelte/lib/Gauge';
+	import KeyIcon from 'phosphor-svelte/lib/Key';
 	import type { Component } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -21,8 +21,8 @@
 
 	const kinds: Record<JobSuggestion['kind'], { label: string; icon: Component }> = {
 		limits: { label: 'New limits', icon: GaugeIcon },
-		credentials: { label: 'Credentials', icon: KeyRoundIcon },
-		instruction: { label: 'Instruction', icon: CircleQuestionMarkIcon }
+		credentials: { label: 'Credentials', icon: KeyIcon },
+		instruction: { label: 'Instruction', icon: QuestionIcon }
 	};
 
 	// The suggestion whose request is running, so only its button spins and the others wait

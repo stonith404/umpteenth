@@ -18,12 +18,12 @@
 	import JobService from '#lib/services/job-service.js';
 	import { GRADUATION_OFF_NOTE, scheduleParts } from '#lib/utils/job-util.js';
 	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
-	import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
-	import CircleIcon from '@lucide/svelte/icons/circle';
-	import PinIcon from '@lucide/svelte/icons/pin';
-	import PlayIcon from '@lucide/svelte/icons/play';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import SettingsIcon from '@lucide/svelte/icons/settings';
+	import BriefcaseIcon from 'phosphor-svelte/lib/Briefcase';
+	import CircleIcon from 'phosphor-svelte/lib/Circle';
+	import PushPinIcon from 'phosphor-svelte/lib/PushPin';
+	import PlayIcon from 'phosphor-svelte/lib/Play';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import GearSixIcon from 'phosphor-svelte/lib/GearSix';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { onMount } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
@@ -233,7 +233,7 @@
 					{#snippet child({ props })}
 						<span {...spanProps(props)} class="flex items-center gap-1.5">
 							<ModeBadge mode={job.nextMode} />
-							<PinIcon class="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
+							<PushPinIcon class="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
 							<span class="sr-only">{GRADUATION_OFF_NOTE}</span>
 						</span>
 					{/snippet}
@@ -251,7 +251,7 @@
 		name={job.name}
 		items={[
 			{ label: 'Run now', icon: PlayIcon, onSelect: () => openRunNow(job) },
-			{ label: 'Settings', icon: SettingsIcon, href: `/jobs/${job.id}/settings` }
+			{ label: 'Settings', icon: GearSixIcon, href: `/jobs/${job.id}/settings` }
 		]}
 	/>
 {/snippet}
@@ -267,11 +267,7 @@
 	</Button>
 {/snippet}
 
-<PageHeader
-	title="Jobs"
-	description="Tasks Umpteenth runs for you, on a schedule or on demand."
-	actions={noJobs === false ? createButton : undefined}
-/>
+<PageHeader title="Jobs" description="Tasks Umpteenth runs for you, on a schedule or on demand." />
 
 <!-- The loading rows are as tall as the two-line rows, 56px plus the hairline under each -->
 <DataTable
@@ -280,6 +276,7 @@
 	{columns}
 	fetchPage={(query) => jobService.list(query)}
 	bind:isEmpty={noJobs}
+	actions={noJobs === false ? createButton : undefined}
 	getRowId={(job) => job.id}
 	rowHref={(job) => `/jobs/${job.id}`}
 	defaultSort="name"

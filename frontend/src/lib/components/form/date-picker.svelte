@@ -9,8 +9,8 @@
 		today,
 		type DateValue
 	} from '@internationalized/date';
-	import CalendarIcon from '@lucide/svelte/icons/calendar';
-	import XIcon from '@lucide/svelte/icons/x';
+	import CalendarIcon from 'phosphor-svelte/lib/Calendar';
+	import XIcon from 'phosphor-svelte/lib/X';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	type Props = {

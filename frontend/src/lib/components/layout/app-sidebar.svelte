@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { afterNavigate } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { User } from '#lib/api/types.js';
 	import Logo from '#lib/components/logo.svelte';
@@ -9,7 +9,9 @@
 	import RunService from '#lib/services/run-service.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { subscribeWorkspaceEvents } from '#lib/utils/workspace-events.js';
-	import SearchIcon from '@lucide/svelte/icons/search';
+	import { cn } from '#lib/utils/style.js';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
 	import { onMount } from 'svelte';
 	import { commandPalette } from './command-palette.svelte';
 	import WorkspaceSwitcher from './workspace-switcher.svelte';
@@ -17,6 +19,12 @@
 	let { user }: { user: User } = $props();
 
 	const sidebar = Sidebar.useSidebar();
+
+	// The icon rail, where groups can't open and lead to their first page instead
+	const rail = $derived(sidebar.state === 'collapsed' && !sidebar.isMobile);
+
+	// Groups the user opened or closed, the rest stay open while one of their pages is showing
+	let expanded = $state<Record<string, boolean>>({});
 
 	// A sidebar covering the page gets out of the way of any new page, also one reached from the command palette or the browser's back button
 	// Shallow navigations such as switching a tab only change the URL hash, so they leave the sidebar open
@@ -63,50 +71,103 @@
 {#snippet navMenu(items: NavItem[])}
 	<Sidebar.Menu>
 		{#each items as item (item.href)}
+			{@const active = isNavItemActive(item.href, page.url.pathname)}
 			<Sidebar.MenuItem>
-				<Sidebar.MenuButton
-					isActive={isNavItemActive(item.href, page.url.pathname)}
-					tooltipContent={item.label}
-					onclick={() => sidebar.dismiss()}
-				>
-					{#snippet child({ props })}
-						<a href={item.href} {...props}>
-							<item.icon />
-							<span>{item.label}</span>
-							{#if item.href === '/jobs' && runningJobs > 0}
-								<span
-									class="text-muted-foreground ml-auto flex items-center gap-1.5 text-xs font-normal tabular-nums"
-									aria-label={`${runningJobs} running`}
-								>
-									<!-- A still cell of the Signal mark rather than a pulse, so the sidebar stays calm while jobs run for minutes -->
-									<span class="bg-brand size-1.5" aria-hidden="true"></span>
-									{runningJobs}
-								</span>
-							{/if}
-						</a>
-					{/snippet}
-				</Sidebar.MenuButton>
+				{#if item.children}
+					{@const open = expanded[item.href] ?? active}
+					<!-- A group opens in place like Cloudflare's, while in the rail, where its pages have no room, it leads to the first of them -->
+					<Sidebar.MenuButton
+						isActive={active && rail}
+						tooltipContent={item.label}
+						aria-expanded={rail ? undefined : open}
+						onclick={() => {
+							if (rail) void goto(item.children![0].href);
+							else expanded[item.href] = !open;
+						}}
+					>
+						<item.icon />
+						<span>{item.label}</span>
+						<CaretRightIcon
+							weight="bold"
+							class={cn(
+								'ml-auto size-3! opacity-40 transition-transform duration-(--sidebar-duration) ease-(--sidebar-easing)',
+								open && 'rotate-90'
+							)}
+						/>
+					</Sidebar.MenuButton>
+					<!-- The pages slide open by growing a grid row, so the items below glide down instead of jumping -->
+					<div
+						class={cn('transition-grid-rows grid', open ? 'grid-rows-open' : 'grid-rows-closed')}
+						inert={!open}
+					>
+						<div class="min-h-0 overflow-hidden">
+							<Sidebar.MenuSub>
+								{#each item.children as child (child.href)}
+									<Sidebar.MenuSubItem>
+										<Sidebar.MenuSubButton
+											href={child.href}
+											isActive={isNavItemActive(child.href, page.url.pathname)}
+											aria-current={isNavItemActive(child.href, page.url.pathname)
+												? 'page'
+												: undefined}
+											onclick={() => sidebar.dismiss()}
+										>
+											<span>{child.label}</span>
+										</Sidebar.MenuSubButton>
+									</Sidebar.MenuSubItem>
+								{/each}
+							</Sidebar.MenuSub>
+						</div>
+					</div>
+				{:else}
+					<Sidebar.MenuButton
+						isActive={active}
+						tooltipContent={item.label}
+						onclick={() => sidebar.dismiss()}
+					>
+						{#snippet child({ props })}
+							<a href={item.href} aria-current={active ? 'page' : undefined} {...props}>
+								<item.icon />
+								<span>{item.label}</span>
+								{#if item.href === '/jobs' && runningJobs > 0}
+									<span
+										class="text-muted-foreground ml-auto flex items-center gap-1.5 text-xs font-normal tabular-nums"
+										aria-label={`${runningJobs} running`}
+									>
+										<!-- A still cell of the Signal mark rather than a pulse, so the sidebar stays calm while jobs run for minutes -->
+										<span class="bg-brand size-1.5" aria-hidden="true"></span>
+										{runningJobs}
+									</span>
+								{/if}
+							</a>
+						{/snippet}
+					</Sidebar.MenuButton>
+				{/if}
 			</Sidebar.MenuItem>
 		{/each}
 	</Sidebar.Menu>
 {/snippet}
 
 <Sidebar.Root collapsible="icon">
-	<!-- The brand block matches the header's height, so both borders form one line -->
-	<Sidebar.Header class="relative">
+	<!-- Cloudflare's top row: the logo, then the account switcher, lined up with the header's bottom border -->
+	<!-- Without workspaces there is nothing to switch, so the wordmark takes the switcher's place -->
+	<Sidebar.Header>
 		<a
 			href="/"
-			class="focus-visible:ring-ring flex items-center gap-2.5 rounded-lg outline-none focus-visible:ring-2"
+			class="focus-visible:ring-ring flex shrink-0 items-center gap-2.5 rounded-lg outline-none focus-visible:ring-2"
 			aria-label="Umpteenth home"
 		>
 			<Logo class="size-8 shrink-0" />
-			<!-- The wordmark fades while the rail clips it, instead of vanishing before the sidebar has moved -->
-			<Wordmark
-				class="h-4 shrink-0 transition-opacity duration-(--sidebar-duration) ease-(--sidebar-easing) group-data-[collapsible=icon]:opacity-0"
-			/>
+			{#if !user.workspacesEnabled}
+				<!-- The wordmark fades while the rail clips it, instead of vanishing before the sidebar has moved -->
+				<Wordmark
+					class="h-4 shrink-0 transition-opacity duration-(--sidebar-duration) ease-(--sidebar-easing) group-data-[collapsible=icon]:opacity-0"
+				/>
+			{/if}
 		</a>
-		<!-- The expanded sidebar collapses from beside the logo, while the rail has its toggle in the footer since there is no room for both up here -->
-		<Sidebar.Trigger visibleIn="expanded" class="absolute top-1/2 right-3 -translate-y-1/2" />
+		{#if user.workspacesEnabled}
+			<WorkspaceSwitcher {user} />
+		{/if}
 	</Sidebar.Header>
 	<Sidebar.Content>
 		<!-- Quick search opens the command palette like the Cloudflare dashboard's search box, and collapses into one more icon of the rail -->
@@ -121,7 +182,7 @@
 							commandPalette.open = true;
 						}}
 					>
-						<SearchIcon />
+						<MagnifyingGlassIcon />
 						<span>Quick search…</span>
 						<!-- Phones have no keyboard to press it on -->
 						{#if !sidebar.isMobile}
@@ -151,17 +212,9 @@
 			</Sidebar.Group>
 		</nav>
 	</Sidebar.Content>
-	<!-- The workspace switcher gives way to the expand toggle in the rail, crossfading in place so the footer keeps its height -->
-	<!-- Without workspaces the footer only holds the toggle, so its border shows in the rail alone -->
-	<Sidebar.Footer
-		size="fit"
-		border={user.workspacesEnabled ? 'always' : 'collapsed'}
-		class="relative"
-	>
-		{#if user.workspacesEnabled}
-			<WorkspaceSwitcher {user} />
-		{/if}
-		<Sidebar.Trigger visibleIn="collapsed" class="absolute top-1/2 left-2.75 -translate-y-1/2" />
+	<!-- Cloudflare keeps the collapse toggle alone in a footer row, in the same place whether the sidebar is open or a rail -->
+	<Sidebar.Footer>
+		<Sidebar.Trigger />
 	</Sidebar.Footer>
 	<Sidebar.Rail />
 </Sidebar.Root>

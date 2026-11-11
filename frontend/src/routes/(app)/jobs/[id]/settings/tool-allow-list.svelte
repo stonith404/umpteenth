@@ -5,9 +5,9 @@
 	import * as Command from '#lib/components/ui/command/index.js';
 	import * as Popover from '#lib/components/ui/popover/index.js';
 	import { cn } from '#lib/utils/style.js';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
-	import MinusIcon from '@lucide/svelte/icons/minus';
+	import CheckIcon from 'phosphor-svelte/lib/Check';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
+	import MinusIcon from 'phosphor-svelte/lib/Minus';
 
 	type CheckState = 'checked' | 'unchecked' | 'indeterminate';
 
@@ -132,7 +132,7 @@
 		{#snippet child({ props })}
 			<Button {...props} variant="outline" size="sm" aria-label="Tools of {serverName}: {summary}">
 				{summary}
-				<ChevronDownIcon data-icon="inline-end" />
+				<CaretDownIcon data-icon="inline-end" />
 			</Button>
 		{/snippet}
 	</Popover.Trigger>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import LightbulbIcon from '@lucide/svelte/icons/lightbulb';
+	import LightbulbIcon from 'phosphor-svelte/lib/Lightbulb';
 
 	let { author, summary }: { author: string; summary: string } = $props();
 </script>

@@ -6,7 +6,7 @@
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as InputGroup from '#lib/components/ui/input-group/index.js';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 
 	// The created token is only known right after creation, closing the dialog forgets it for good
 	let { created = $bindable() }: { created: ApiTokenCreated | null } = $props();
@@ -43,7 +43,7 @@
 				</InputGroup.Root>
 			</Field.Field>
 			<Alert.Root variant="warning">
-				<TriangleAlertIcon />
+				<WarningIcon />
 				<Alert.Description>
 					Copy the token now. For security reasons it won't be shown again.
 				</Alert.Description>

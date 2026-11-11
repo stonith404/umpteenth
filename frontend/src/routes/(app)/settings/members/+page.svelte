@@ -21,13 +21,13 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { hasRole, roleLabels } from '#lib/utils/workspace-util.js';
-	import CrownIcon from '@lucide/svelte/icons/crown';
-	import LinkIcon from '@lucide/svelte/icons/link';
-	import MailIcon from '@lucide/svelte/icons/mail';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import UserMinusIcon from '@lucide/svelte/icons/user-minus';
-	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
-	import UsersIcon from '@lucide/svelte/icons/users';
+	import CrownIcon from 'phosphor-svelte/lib/Crown';
+	import LinkIcon from 'phosphor-svelte/lib/Link';
+	import EnvelopeIcon from 'phosphor-svelte/lib/Envelope';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
+	import UserMinusIcon from 'phosphor-svelte/lib/UserMinus';
+	import UserPlusIcon from 'phosphor-svelte/lib/UserPlus';
+	import UsersIcon from 'phosphor-svelte/lib/Users';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -282,7 +282,7 @@
 		items={[
 			{
 				label: 'Revoke',
-				icon: Trash2Icon,
+				icon: TrashIcon,
 				variant: 'destructive',
 				onSelect: () => confirmRevoke(invite)
 			}
@@ -358,7 +358,7 @@
 							<Table.Cell class="w-full max-w-0">
 								<span class="flex min-w-0 items-center gap-2">
 									{#if invite.email}
-										<MailIcon class="text-muted-foreground size-4 shrink-0" />
+										<EnvelopeIcon class="text-muted-foreground size-4 shrink-0" />
 										<span class="truncate" title={invite.email}>{invite.email}</span>
 									{:else}
 										<LinkIcon class="text-muted-foreground size-4 shrink-0" />

@@ -5,10 +5,10 @@
 	import * as Field from '#lib/components/ui/field/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { cn } from '#lib/utils/style.js';
-	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
-	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import SparklesIcon from '@lucide/svelte/icons/sparkles';
+	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeft';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRight';
+	import CheckIcon from 'phosphor-svelte/lib/Check';
+	import SparkleIcon from 'phosphor-svelte/lib/Sparkle';
 	import { onMount, tick } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fly } from 'svelte/transition';
@@ -310,7 +310,7 @@
 					<Button variant="outline" onclick={oncancel}>Cancel</Button>
 				{:else if last}
 					<Button type="submit">
-						<SparklesIcon data-icon="inline-start" />
+						<SparkleIcon data-icon="inline-start" />
 						Compile
 					</Button>
 				{:else}

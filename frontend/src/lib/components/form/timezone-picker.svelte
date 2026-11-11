@@ -4,8 +4,8 @@
 	import * as Popover from '#lib/components/ui/popover/index.js';
 	import { localTimezone, timezones } from '#lib/utils/job-util.js';
 	import { cn } from '#lib/utils/style.js';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
+	import CheckIcon from 'phosphor-svelte/lib/Check';
+	import CaretUpDownIcon from 'phosphor-svelte/lib/CaretUpDown';
 
 	let {
 		value = $bindable(''),
@@ -63,7 +63,7 @@
 				class="w-full justify-between"
 			>
 				<span class={cn('truncate', !value && 'text-muted-foreground')}>{value || 'UTC'}</span>
-				<ChevronsUpDownIcon class="text-muted-foreground size-3.5" />
+				<CaretUpDownIcon class="text-muted-foreground size-3.5" />
 			</Button>
 		{/snippet}
 	</Popover.Trigger>

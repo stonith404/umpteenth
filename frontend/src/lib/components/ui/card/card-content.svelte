@@ -19,7 +19,7 @@
 	bind:this={ref}
 	data-slot="card-content"
 	class={cn(
-		'bg-card ring-border flex-1 rounded-lg p-4 shadow-xs ring-1 group-data-[size=sm]/card:p-3 max-sm:group-data-[size=tile]/card:p-3',
+		'bg-card ring-border flex-1 rounded-lg p-4 shadow-xs ring-1 group-data-[size=sm]/card:p-3 group-data-[size=tile]/card:pt-0 group-data-[size=tile]/card:shadow-none group-data-[size=tile]/card:ring-0 max-sm:group-data-[size=tile]/card:px-3 max-sm:group-data-[size=tile]/card:pb-3',
 		padding === 'none' && 'p-0',
 		padding === 'tight' && 'py-2',
 		className

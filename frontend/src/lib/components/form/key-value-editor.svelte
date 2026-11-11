@@ -18,9 +18,9 @@
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import * as InputGroup from '#lib/components/ui/input-group/index.js';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import XIcon from '@lucide/svelte/icons/x';
+	import KeyIcon from 'phosphor-svelte/lib/Key';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import XIcon from 'phosphor-svelte/lib/X';
 
 	let {
 		entries = $bindable([]),
@@ -86,7 +86,7 @@
 												aria-label="Insert a secret into {label.toLowerCase()} {i + 1}"
 												title="Insert a secret"
 											>
-												<KeyRoundIcon />
+												<KeyIcon />
 											</InputGroup.Button>
 										{/snippet}
 									</DropdownMenu.Trigger>

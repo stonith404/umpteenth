@@ -16,13 +16,13 @@
 	import AdminService from '#lib/services/admin-service.js';
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import LinkIcon from '@lucide/svelte/icons/link';
-	import ShieldIcon from '@lucide/svelte/icons/shield';
-	import ShieldOffIcon from '@lucide/svelte/icons/shield-off';
-	import UserCheckIcon from '@lucide/svelte/icons/user-check';
-	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
-	import UserXIcon from '@lucide/svelte/icons/user-x';
-	import UsersIcon from '@lucide/svelte/icons/users';
+	import LinkIcon from 'phosphor-svelte/lib/Link';
+	import ShieldIcon from 'phosphor-svelte/lib/Shield';
+	import ShieldSlashIcon from 'phosphor-svelte/lib/ShieldSlash';
+	import UserCheckIcon from 'phosphor-svelte/lib/UserCheck';
+	import UserPlusIcon from 'phosphor-svelte/lib/UserPlus';
+	import UserMinusIcon from 'phosphor-svelte/lib/UserMinus';
+	import UsersIcon from 'phosphor-svelte/lib/Users';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { toast } from 'svelte-sonner';
 	import AddUserDialog from './add-user-dialog.svelte';
@@ -194,7 +194,7 @@
 					(u.isAdmin
 						? {
 								label: 'Remove instance admin',
-								icon: ShieldOffIcon,
+								icon: ShieldSlashIcon,
 								onSelect: () => setAdmin(u, false)
 							}
 						: {
@@ -206,7 +206,7 @@
 					? { label: 'Reactivate', icon: UserCheckIcon, onSelect: () => setDeactivated(u, false) }
 					: {
 							label: 'Deactivate',
-							icon: UserXIcon,
+							icon: UserMinusIcon,
 							variant: 'destructive',
 							onSelect: () => confirmDeactivate(u)
 						}

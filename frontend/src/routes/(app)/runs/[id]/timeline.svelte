@@ -6,8 +6,8 @@
 	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
 	import RunService from '#lib/services/run-service.js';
 	import { getErrorMessage } from '#lib/utils/error-util.js';
-	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
-	import ListTreeIcon from '@lucide/svelte/icons/list-tree';
+	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDown';
+	import TreeViewIcon from 'phosphor-svelte/lib/TreeView';
 	import EventStep from './event-step.svelte';
 	import LlmStep from './llm-step.svelte';
 	import type { RunStream } from './run-stream.svelte';
@@ -166,7 +166,7 @@
 {:else if steps.length === 0 && !live}
 	<Empty.Root variant="panel">
 		<Empty.Header>
-			<Empty.Media variant="icon"><ListTreeIcon /></Empty.Media>
+			<Empty.Media variant="icon"><TreeViewIcon /></Empty.Media>
 			<Empty.Title>No events</Empty.Title>
 			<Empty.Description>
 				This run never started, or the retention policy has removed its events.

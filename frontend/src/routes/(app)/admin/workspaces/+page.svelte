@@ -16,9 +16,9 @@
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
 	import { enterWorkspace, workspaceInitial } from '#lib/utils/workspace-util.js';
-	import LayersIcon from '@lucide/svelte/icons/layers';
-	import LogInIcon from '@lucide/svelte/icons/log-in';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import StackIcon from 'phosphor-svelte/lib/Stack';
+	import SignInIcon from 'phosphor-svelte/lib/SignIn';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { toast } from 'svelte-sonner';
 
@@ -127,13 +127,13 @@
 		name={workspace.name}
 		inline={workspace.id !== data.user.workspace.id && {
 			label: 'Open',
-			icon: LogInIcon,
+			icon: SignInIcon,
 			onSelect: () => open(workspace)
 		}}
 		items={[
 			{
 				label: 'Delete',
-				icon: Trash2Icon,
+				icon: TrashIcon,
 				variant: 'destructive',
 				onSelect: () => confirmDelete(workspace)
 			}
@@ -160,7 +160,7 @@
 			<Empty.Root size="sm">
 				<Empty.Header>
 					<Empty.Media variant="icon">
-						<LayersIcon />
+						<StackIcon />
 					</Empty.Media>
 					<Empty.Title>No workspaces found</Empty.Title>
 				</Empty.Header>

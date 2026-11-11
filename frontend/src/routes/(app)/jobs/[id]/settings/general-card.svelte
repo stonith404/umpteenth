@@ -11,7 +11,7 @@
 	import JobService from '#lib/services/job-service.js';
 	import { createForm } from '#lib/utils/form-util.js';
 	import { cleanSpec } from '#lib/utils/job-util.js';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import WarningIcon from 'phosphor-svelte/lib/Warning';
 	import { z } from 'zod/v4';
 	import LoadError from './load-error.svelte';
 
@@ -86,7 +86,7 @@
 		<!-- A main script keeps doing what the old instruction said until reflection or someone changes it -->
 		{#if job.nextMode === 'scripted' && instructionChanged}
 			<Alert.Root variant="warning">
-				<TriangleAlertIcon />
+				<WarningIcon />
 				<Alert.Description>
 					{#if job.selfImprove}
 						This job runs as a script, which a new instruction doesn't change by itself. Reflection

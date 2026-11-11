@@ -1,16 +1,16 @@
-import BotIcon from '@lucide/svelte/icons/bot';
-import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
-import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-import KeySquareIcon from '@lucide/svelte/icons/key-square';
-import LayersIcon from '@lucide/svelte/icons/layers';
-import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
-import PlayIcon from '@lucide/svelte/icons/play';
-import PuzzleIcon from '@lucide/svelte/icons/puzzle';
-import ServerIcon from '@lucide/svelte/icons/server';
-import SettingsIcon from '@lucide/svelte/icons/settings';
-import ShieldIcon from '@lucide/svelte/icons/shield';
-import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
-import UsersIcon from '@lucide/svelte/icons/users';
+import RobotIcon from 'phosphor-svelte/lib/Robot';
+import BriefcaseIcon from 'phosphor-svelte/lib/Briefcase';
+import KeyIcon from 'phosphor-svelte/lib/Key';
+import PasswordIcon from 'phosphor-svelte/lib/Password';
+import StackIcon from 'phosphor-svelte/lib/Stack';
+import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
+import PlayIcon from 'phosphor-svelte/lib/Play';
+import PuzzlePieceIcon from 'phosphor-svelte/lib/PuzzlePiece';
+import HardDrivesIcon from 'phosphor-svelte/lib/HardDrives';
+import GearSixIcon from 'phosphor-svelte/lib/GearSix';
+import ShieldIcon from 'phosphor-svelte/lib/Shield';
+import SlidersHorizontalIcon from 'phosphor-svelte/lib/SlidersHorizontal';
+import UsersIcon from 'phosphor-svelte/lib/Users';
 import type { Component } from 'svelte';
 
 // The documentation site, linked from the user menu and from hints that point at the server configuration
@@ -25,6 +25,8 @@ export type NavItem = {
 	label: string;
 	href: string;
 	icon: Component;
+	// Pages the item expands to in the sidebar, like Cloudflare's Manage account group
+	children?: readonly { label: string; href: string }[];
 };
 
 export type NavGroup = {
@@ -34,7 +36,7 @@ export type NavGroup = {
 };
 
 export const navGroups: NavGroup[] = [
-	{ items: [{ label: 'Dashboard', href: '/', icon: LayoutDashboardIcon }] },
+	{ items: [{ label: 'Dashboard', href: '/', icon: SquaresFourIcon }] },
 	{
 		label: 'Automate',
 		items: [
@@ -45,26 +47,19 @@ export const navGroups: NavGroup[] = [
 	{
 		label: 'Connect',
 		items: [
-			{ label: 'MCP servers', href: '/mcp', icon: ServerIcon },
-			{ label: 'Skills', href: '/skills', icon: PuzzleIcon }
+			{ label: 'MCP servers', href: '/mcp', icon: HardDrivesIcon },
+			{ label: 'Skills', href: '/skills', icon: PuzzlePieceIcon }
 		]
 	}
 ];
 
 export const mainNav: NavItem[] = navGroups.flatMap((group) => group.items);
 
-const settingsNavItem: NavItem = { label: 'Settings', href: '/settings', icon: SettingsIcon };
-const adminNavItem: NavItem = { label: 'Admin', href: '/admin', icon: ShieldIcon };
-
-// Settings, and the instance administration for instance admins
-export function secondaryNav(user: { isAdmin: boolean }): NavItem[] {
-	return user.isAdmin ? [settingsNavItem, adminNavItem] : [settingsNavItem];
-}
-
-// `icon` and `keywords` only serve the command palette, the settings layout and PageTabs read `label` and `href`
+// `icon` and `keywords` only serve the command palette, the sidebar reads `label` and `href`, and the page header the `description`
 export const settingsTabs = [
 	{
 		label: 'General',
+		description: 'Workspace defaults, models, spend limits and notifications.',
 		href: '/settings/general',
 		icon: SlidersHorizontalIcon,
 		keywords:
@@ -72,26 +67,30 @@ export const settingsTabs = [
 	},
 	{
 		label: 'Members',
+		description: 'Everyone who can use this workspace and what they may change.',
 		href: '/settings/members',
 		icon: UsersIcon,
 		keywords: 'invite people team users roles workspace'
 	},
 	{
 		label: 'Providers & models',
+		description: 'The model providers and models that jobs run on.',
 		href: '/settings/providers',
-		icon: BotIcon,
+		icon: RobotIcon,
 		keywords: 'llm models openai anthropic api key'
 	},
 	{
 		label: 'Secrets',
+		description: 'Encrypted API keys and tokens for jobs and MCP servers.',
 		href: '/settings/secrets',
-		icon: KeyRoundIcon,
+		icon: KeyIcon,
 		keywords: 'env environment variables password credentials'
 	},
 	{
 		label: 'API tokens',
+		description: 'Tokens for the API and the MCP server, for scripts and agents like Claude Code.',
 		href: '/settings/tokens',
-		icon: KeySquareIcon,
+		icon: PasswordIcon,
 		keywords: 'api key token access cli webhook'
 	}
 ] as const;
@@ -101,6 +100,7 @@ export function adminTabs(user: { workspacesEnabled: boolean }) {
 	return [
 		{
 			label: 'Users',
+			description: 'Everyone who signed in to this instance.',
 			href: '/admin/users',
 			icon: UsersIcon,
 			keywords: 'people accounts instance admins'
@@ -109,12 +109,28 @@ export function adminTabs(user: { workspacesEnabled: boolean }) {
 			? [
 					{
 						label: 'Workspaces',
+						description: 'Every workspace on this instance.',
 						href: '/admin/workspaces',
-						icon: LayersIcon,
+						icon: StackIcon,
 						keywords: 'teams tenants instance'
 					}
 				]
 			: [])
+	];
+}
+
+// Settings, and the instance administration for instance admins, each expanding to its pages
+export function secondaryNav(user: { isAdmin: boolean; workspacesEnabled: boolean }): NavItem[] {
+	const settings: NavItem = {
+		label: 'Settings',
+		href: '/settings',
+		icon: GearSixIcon,
+		children: settingsTabs
+	};
+	if (!user.isAdmin) return [settings];
+	return [
+		settings,
+		{ label: 'Admin', href: '/admin', icon: ShieldIcon, children: adminTabs(user) }
 	];
 }
 

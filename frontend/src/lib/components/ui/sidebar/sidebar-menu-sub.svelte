@@ -15,7 +15,9 @@
 	data-slot="sidebar-menu-sub"
 	data-sidebar="menu-sub"
 	class={cn(
-		'border-sidebar-border mx-3.5 translate-x-px gap-1 border-l px-2.5 py-0.5 group-data-[collapsible=icon]:hidden flex min-w-0 flex-col',
+		// Cloudflare's nested pages: indented under the parent's icon and hanging off a 1px guide line
+		'relative flex min-w-0 flex-col gap-y-px pt-px pl-7 group-data-[collapsible=icon]:hidden',
+		'before:bg-sidebar-border before:pointer-events-none before:absolute before:inset-y-px before:left-[19px] before:w-px',
 		className
 	)}
 	{...restProps}

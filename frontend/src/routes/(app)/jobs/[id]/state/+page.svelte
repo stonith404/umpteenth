@@ -13,10 +13,10 @@
 	import JobService from '#lib/services/job-service.js';
 	import { apiErrorToast } from '#lib/utils/error-util.js';
 	import { tryCatch } from '#lib/utils/try-catch-util.js';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import DatabaseIcon from 'phosphor-svelte/lib/Database';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
+	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { toast } from 'svelte-sonner';
 	import DeleteEntryDialog from './delete-entry-dialog.svelte';
@@ -108,10 +108,10 @@
 	<RowActions
 		name={entry.key}
 		items={[
-			{ label: 'Edit', icon: PencilIcon, onSelect: () => openEdit(entry) },
+			{ label: 'Edit', icon: PencilSimpleIcon, onSelect: () => openEdit(entry) },
 			{
 				label: 'Delete',
-				icon: Trash2Icon,
+				icon: TrashIcon,
 				variant: 'destructive',
 				onSelect: () => (deleting = entry)
 			}
