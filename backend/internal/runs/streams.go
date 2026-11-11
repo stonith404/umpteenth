@@ -143,7 +143,7 @@ func (m *Module) streamRun(ctx context.Context, in *streamInput, send sse.Sender
 				if ctx.Err() != nil {
 					return false
 				}
-				if send(sse.Message{ID: int(e.Seq), Data: e}) != nil {
+				if send(sse.Message{IDString: strconv.FormatInt(e.Seq, 10), Data: e}) != nil {
 					return false
 				}
 				lastSeq = e.Seq
