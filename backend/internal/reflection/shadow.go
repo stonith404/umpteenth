@@ -14,6 +14,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
 	"github.com/stonith404/umpteenth/backend/internal/reflection/reflectiondb"
 	"github.com/stonith404/umpteenth/backend/internal/runner"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 )
 
 // compareWindow is how recent a run must be for a shadow run to compare outputs with it, since older outputs say little about what main finds today
@@ -113,6 +114,12 @@ func (m *Module) shadowSkipReason(run reflectiondb.GetRunRow, runEvents []reflec
 	}
 	if len(job.SideEffects) > 0 {
 		return fmt.Sprintf("the job has side effects (%s) that a shadow run could repeat", strings.Join(job.SideEffects, "; "))
+	}
+	// A writable host folder changes outside the sandbox, so a shadow run would repeat exactly what it must not
+	for _, m := range job.Mounts {
+		if m.Mode == sandbox.ModeReadWrite {
+			return fmt.Sprintf("the job writes to the host folder %s, which a shadow run would change twice", m.Name)
+		}
 	}
 	header, err := playbook.ParseScriptHeader(*next.Main)
 	if err == nil && header.SideEffects {

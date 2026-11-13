@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"path"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -126,6 +127,8 @@ type Config struct {
 	BrokerPort int
 	// AllowUnrestricted offers the unrestricted network, which bypasses the egress proxy
 	AllowUnrestricted bool
+	// Folders are the claims jobs may mount, each as pvc_name/subpath with the most a job may ask for
+	Folders []sandbox.Folder
 	// RequireNetworkPolicy refuses sandboxes when the test sandbox finds the NetworkPolicies unenforced
 	RequireNetworkPolicy bool
 	// CACertificates are PEM certificates build pods trust next to their image's own when they pull and push, empty for none
@@ -206,6 +209,17 @@ func newAdapter(ctx context.Context, cfg Config) (*Adapter, error) {
 	tolerations, err := parseTolerations(cfg.Tolerations)
 	if err != nil {
 		return nil, err
+	}
+
+	// A folder names a claim and a prefix inside it, since sandbox pods land on nodes where a host path means nothing
+	if err := sandbox.CheckFolders(cfg.Folders); err != nil {
+		return nil, fmt.Errorf("kubernetes sandbox adapter: %w", err)
+	}
+	for _, f := range cfg.Folders {
+		claim, _, _ := strings.Cut(f.Path, "/")
+		if !dnsLabel.MatchString(claim) || len(claim) > 253 || path.Clean(f.Path) != f.Path {
+			return nil, fmt.Errorf("kubernetes sandbox adapter: folder %q must be pvc_name or pvc_name/subpath, such as backups/db", f.Path)
+		}
 	}
 
 	// The architecture pins every pod, so the ump CLI of the bootstrap image and the images built here match the nodes that run them
@@ -311,6 +325,7 @@ func (a *Adapter) Check(ctx context.Context) (sandbox.Info, error) {
 		},
 		ImageBuilds:  a.cfg.Registry != "",
 		RuntimeError: errorText(a.networkProblem()),
+		Folders:      a.cfg.Folders,
 	}, nil
 }
 

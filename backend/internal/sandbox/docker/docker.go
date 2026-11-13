@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -104,6 +105,8 @@ type Config struct {
 	BrokerHost string
 	// AllowUnrestricted offers the unrestricted network, which bypasses the egress proxy
 	AllowUnrestricted bool
+	// Folders are the host paths jobs may mount, each with the most a job may ask for
+	Folders []sandbox.Folder
 	// Logger defaults to slog.Default()
 	Logger *slog.Logger
 }
@@ -168,6 +171,15 @@ func New(ctx context.Context, cfg Config) (*Adapter, error) {
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
+	}
+	// Folders are paths on the engine, the only shape a bind mount can name, so a pvc_name/subpath entry fails here instead of at every run
+	if err := sandbox.CheckFolders(cfg.Folders); err != nil {
+		return nil, fmt.Errorf("docker sandbox adapter: %w", err)
+	}
+	for _, f := range cfg.Folders {
+		if !strings.HasPrefix(f.Path, "/") || f.Path == "/" || path.Clean(f.Path) != f.Path {
+			return nil, fmt.Errorf("docker sandbox adapter: folder %q must be an absolute clean path such as /var/www", f.Path)
+		}
 	}
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -240,6 +252,7 @@ func (a *Adapter) Check(ctx context.Context) (sandbox.Info, error) {
 		},
 		ImageBuilds:  true,
 		RuntimeError: errorText(a.runtimeProblem()),
+		Folders:      a.cfg.Folders,
 	}, nil
 }
 

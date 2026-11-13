@@ -219,6 +219,7 @@ func (m *Module) LoadForRun(ctx context.Context, workspaceID, jobID string, play
 		AllowedDomains:       dto.AllowedDomains,
 		AllowPrivateNetwork:  job.AllowPrivateNetwork,
 		RunAsRoot:            job.RunAsRoot,
+		Mounts:               dto.Mounts,
 		SelfImprove:          job.SelfImprove,
 		Graduate:             job.Graduate,
 		InstructionChangedAt: job.InstructionChangedAt,
@@ -289,6 +290,15 @@ func domainsJSON(domains []string) string {
 	return string(raw)
 }
 
+// mountsJSON stores the job's folders, where no mounts is an empty list rather than null
+func mountsJSON(mounts []sandbox.Mount) string {
+	if mounts == nil {
+		mounts = []sandbox.Mount{}
+	}
+	raw, _ := json.Marshal(mounts)
+	return string(raw)
+}
+
 // usdToMicro converts dollars to micro-USD, rounding so that e.g. $0.29 doesn't become 289999 through float error
 func usdToMicro(usd float64) int64 {
 	return int64(math.Round(usd * 1e6))
@@ -331,36 +341,39 @@ type jobFields struct {
 	// AllowedDomains are what an allowlist job may reach, e.g. api.github.com or *.example.com
 	AllowedDomains []string `json:"allowedDomains,omitempty" maxItems:"100"`
 	// AllowPrivateNetwork lets an internet or allowlist job reach private ranges such as the LAN, which are blocked otherwise
-	AllowPrivateNetwork bool           `json:"allowPrivateNetwork,omitempty"`
-	RunAsRoot           bool           `json:"runAsRoot,omitempty"`
-	Limits              LimitOverrides `json:"limits,omitzero"`
-	SelfImprove         *bool          `json:"selfImprove,omitempty" doc:"Whether reflection after runs improves the job's playbook, true when omitted"`
-	Graduate            *bool          `json:"graduate,omitempty" doc:"Whether the job may graduate to a script that runs without the agent, true when omitted"`
-	Concurrency         string         `json:"concurrency,omitempty" enum:"skip,queue,parallel" doc:"What a trigger during an active run does, skip when omitted"`
-	Cron                *string        `json:"cron,omitempty" maxLength:"100" doc:"Five-field cron expression or a descriptor such as @daily, for a job that runs on a schedule"`
-	Timezone            *string        `json:"timezone,omitempty" maxLength:"100" doc:"IANA time zone of the schedule, UTC when omitted"`
-	Paused              bool           `json:"paused,omitempty" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
+	AllowPrivateNetwork bool `json:"allowPrivateNetwork,omitempty"`
+	RunAsRoot           bool `json:"runAsRoot,omitempty"`
+	// Mounts are host folders from sandbox.folders, which only instance admins may set
+	Mounts      []sandbox.Mount `json:"mounts,omitempty" maxItems:"8" doc:"Host folders from sandbox.folders this job may use, which only instance admins can set"`
+	Limits      LimitOverrides  `json:"limits,omitzero"`
+	SelfImprove *bool           `json:"selfImprove,omitempty" doc:"Whether reflection after runs improves the job's playbook, true when omitted"`
+	Graduate    *bool           `json:"graduate,omitempty" doc:"Whether the job may graduate to a script that runs without the agent, true when omitted"`
+	Concurrency string          `json:"concurrency,omitempty" enum:"skip,queue,parallel" doc:"What a trigger during an active run does, skip when omitted"`
+	Cron        *string         `json:"cron,omitempty" maxLength:"100" doc:"Five-field cron expression or a descriptor such as @daily, for a job that runs on a schedule"`
+	Timezone    *string         `json:"timezone,omitempty" maxLength:"100" doc:"IANA time zone of the schedule, UTC when omitted"`
+	Paused      bool            `json:"paused,omitempty" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
 }
 
 // jobPatch is a partial update: omitted fields keep their value, and an empty string clears an optional text field
 type jobPatch struct {
-	Name                *string         `json:"name,omitempty" minLength:"1" maxLength:"200"`
-	Instruction         *string         `json:"instruction,omitempty" minLength:"1" maxLength:"20000" doc:"What the agent does, which it reads on every run"`
-	Spec                *Spec           `json:"spec,omitempty"`
-	RebuildSpec         *bool           `json:"rebuildSpec,omitempty" doc:"Whether a changed instruction compiles the goal, success criteria, inputs, outputs, services and side effects again, true when omitted"`
-	ModelID             *string         `json:"modelId,omitempty"`
-	Image               *string         `json:"image,omitempty" maxLength:"500"`
-	Network             *string         `json:"network,omitempty" enum:"none,internet,allowlist,unrestricted"`
-	AllowedDomains      *[]string       `json:"allowedDomains,omitempty" maxItems:"100"`
-	AllowPrivateNetwork *bool           `json:"allowPrivateNetwork,omitempty"`
-	RunAsRoot           *bool           `json:"runAsRoot,omitempty"`
-	Limits              *LimitOverrides `json:"limits,omitempty"`
-	SelfImprove         *bool           `json:"selfImprove,omitempty"`
-	Graduate            *bool           `json:"graduate,omitempty"`
-	Concurrency         *string         `json:"concurrency,omitempty" enum:"skip,queue,parallel"`
-	Cron                *string         `json:"cron,omitempty" maxLength:"100" doc:"Five-field cron expression or a descriptor such as @daily, where an empty string stops the schedule"`
-	Timezone            *string         `json:"timezone,omitempty" maxLength:"100"`
-	Paused              *bool           `json:"paused,omitempty" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
+	Name                *string          `json:"name,omitempty" minLength:"1" maxLength:"200"`
+	Instruction         *string          `json:"instruction,omitempty" minLength:"1" maxLength:"20000" doc:"What the agent does, which it reads on every run"`
+	Spec                *Spec            `json:"spec,omitempty"`
+	RebuildSpec         *bool            `json:"rebuildSpec,omitempty" doc:"Whether a changed instruction compiles the goal, success criteria, inputs, outputs, services and side effects again, true when omitted"`
+	ModelID             *string          `json:"modelId,omitempty"`
+	Image               *string          `json:"image,omitempty" maxLength:"500"`
+	Network             *string          `json:"network,omitempty" enum:"none,internet,allowlist,unrestricted"`
+	AllowedDomains      *[]string        `json:"allowedDomains,omitempty" maxItems:"100"`
+	AllowPrivateNetwork *bool            `json:"allowPrivateNetwork,omitempty"`
+	RunAsRoot           *bool            `json:"runAsRoot,omitempty"`
+	Mounts              *[]sandbox.Mount `json:"mounts,omitempty" maxItems:"8" doc:"Host folders from sandbox.folders this job may use, which only instance admins can set"`
+	Limits              *LimitOverrides  `json:"limits,omitempty"`
+	SelfImprove         *bool            `json:"selfImprove,omitempty"`
+	Graduate            *bool            `json:"graduate,omitempty"`
+	Concurrency         *string          `json:"concurrency,omitempty" enum:"skip,queue,parallel"`
+	Cron                *string          `json:"cron,omitempty" maxLength:"100" doc:"Five-field cron expression or a descriptor such as @daily, where an empty string stops the schedule"`
+	Timezone            *string          `json:"timezone,omitempty" maxLength:"100"`
+	Paused              *bool            `json:"paused,omitempty" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
 }
 
 // fieldsOf returns a stored job's editable fields, the base that a patch is applied to
@@ -379,6 +392,7 @@ func fieldsOf(j jobsdb.Job) (jobFields, error) {
 		AllowedDomains:      d.AllowedDomains,
 		AllowPrivateNetwork: d.AllowPrivateNetwork,
 		RunAsRoot:           d.RunAsRoot,
+		Mounts:              d.Mounts,
 		Limits:              d.Limits,
 		SelfImprove:         &d.SelfImprove,
 		Graduate:            &d.Graduate,
@@ -411,6 +425,9 @@ func (p jobPatch) apply(f *jobFields) {
 	}
 	if p.AllowedDomains != nil {
 		f.AllowedDomains = *p.AllowedDomains
+	}
+	if p.Mounts != nil {
+		f.Mounts = *p.Mounts
 	}
 	if p.AllowPrivateNetwork != nil {
 		f.AllowPrivateNetwork = *p.AllowPrivateNetwork
@@ -558,6 +575,25 @@ func (m *Module) checkNetwork(ctx context.Context, network string) error {
 	return apperror.InvalidField("network", "unsupported", "the sandbox backend doesn't offer this network")
 }
 
+// checkMounts rejects a folder no configured base covers, or a mode its base doesn't allow
+// It asks the adapter for the configured folders, so a job only stores what the running backend can mount, and an unreachable adapter doesn't block saving
+func (m *Module) checkMounts(ctx context.Context, mounts []sandbox.Mount) error {
+	if len(mounts) == 0 || m.deps.SandboxInfo == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	info, err := m.deps.SandboxInfo(ctx)
+	if err != nil {
+		return nil //nolint:nilerr // an unreachable adapter doesn't block saving
+	}
+	err = sandbox.CheckMounts(info.Folders, mounts)
+	if err != nil {
+		return apperror.InvalidField("mounts", "invalid", err.Error())
+	}
+	return nil
+}
+
 // createJob stores a new job and its first playbook version when the spec proposes a Dockerfile
 func (m *Module) createJob(ctx context.Context, workspaceID string, userID *string, f jobFields) (jobsdb.Job, error) {
 	err := f.normalize()
@@ -573,6 +609,10 @@ func (m *Module) createJob(ctx context.Context, workspaceID string, userID *stri
 		return jobsdb.Job{}, err
 	}
 	err = m.checkNetwork(ctx, f.Network)
+	if err != nil {
+		return jobsdb.Job{}, err
+	}
+	err = m.checkMounts(ctx, f.Mounts)
 	if err != nil {
 		return jobsdb.Job{}, err
 	}
@@ -592,6 +632,7 @@ func (m *Module) createJob(ctx context.Context, workspaceID string, userID *stri
 		AllowPrivateNetwork: f.AllowPrivateNetwork,
 		RunAsRoot:           f.RunAsRoot,
 		Limits:              string(limits),
+		Mounts:              mountsJSON(f.Mounts),
 		SelfImprove:         f.SelfImprove == nil || *f.SelfImprove,
 		Graduate:            f.Graduate == nil || *f.Graduate,
 		Concurrency:         f.Concurrency,

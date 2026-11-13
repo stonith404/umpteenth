@@ -955,6 +955,22 @@
 				"required": ["field", "code", "message"],
 				"type": "object"
 			},
+			"Folder": {
+				"additionalProperties": false,
+				"properties": {
+					"mode": {
+						"description": "Most a job may ask for: ro for read-only, rw for read-write too",
+						"enum": ["ro", "rw"],
+						"type": "string"
+					},
+					"path": {
+						"description": "A host path with the docker adapter, or pvc_name/subpath with the kubernetes adapter",
+						"type": "string"
+					}
+				},
+				"required": ["path", "mode"],
+				"type": "object"
+			},
 			"GetOutputBody": {
 				"additionalProperties": false,
 				"properties": {
@@ -1306,6 +1322,13 @@
 					"modelId": {
 						"type": ["string", "null"]
 					},
+					"mounts": {
+						"description": "Host folders from the sandbox configuration this job may use",
+						"items": {
+							"$ref": "#/components/schemas/Mount"
+						},
+						"type": ["array", "null"]
+					},
 					"name": {
 						"type": "string"
 					},
@@ -1357,6 +1380,7 @@
 					"allowedDomains",
 					"allowPrivateNetwork",
 					"runAsRoot",
+					"mounts",
 					"limits",
 					"selfImprove",
 					"graduate",
@@ -1418,6 +1442,14 @@
 					"modelId": {
 						"description": "Model that drives the agent, the workspace's agent model when omitted",
 						"type": "string"
+					},
+					"mounts": {
+						"description": "Host folders from sandbox.folders this job may use, which only instance admins can set",
+						"items": {
+							"$ref": "#/components/schemas/Mount"
+						},
+						"maxItems": 8,
+						"type": ["array", "null"]
 					},
 					"name": {
 						"maxLength": 200,
@@ -1578,6 +1610,14 @@
 					},
 					"modelId": {
 						"type": "string"
+					},
+					"mounts": {
+						"description": "Host folders from sandbox.folders this job may use, which only instance admins can set",
+						"items": {
+							"$ref": "#/components/schemas/Mount"
+						},
+						"maxItems": 8,
+						"type": "array"
 					},
 					"name": {
 						"maxLength": 200,
@@ -2123,6 +2163,29 @@
 					"followCatalog",
 					"unlistedAt"
 				],
+				"type": "object"
+			},
+			"Mount": {
+				"additionalProperties": false,
+				"properties": {
+					"mode": {
+						"description": "ro for read-only, rw for read-write",
+						"enum": ["ro", "rw"],
+						"type": "string"
+					},
+					"name": {
+						"description": "Name of the folder inside the sandbox, mounted at /ump/folders/\u003cname\u003e",
+						"pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+						"type": "string"
+					},
+					"path": {
+						"description": "The base folder or a subfolder of it",
+						"maxLength": 1024,
+						"minLength": 1,
+						"type": "string"
+					}
+				},
+				"required": ["name", "path", "mode"],
 				"type": "object"
 			},
 			"NameBody": {
@@ -3294,6 +3357,12 @@
 					"capabilities": {
 						"$ref": "#/components/schemas/Capabilities"
 					},
+					"folders": {
+						"items": {
+							"$ref": "#/components/schemas/Folder"
+						},
+						"type": ["array", "null"]
+					},
 					"imageBuilds": {
 						"type": "boolean"
 					},
@@ -3308,7 +3377,15 @@
 						"type": "string"
 					}
 				},
-				"required": ["adapter", "version", "arch", "isolation", "capabilities", "imageBuilds"],
+				"required": [
+					"adapter",
+					"version",
+					"arch",
+					"isolation",
+					"capabilities",
+					"folders",
+					"imageBuilds"
+				],
 				"type": "object"
 			},
 			"Schedule": {
@@ -5420,7 +5497,14 @@
 													},
 													"id": {
 														"description": "The event ID.",
-														"type": "integer"
+														"oneOf": [
+															{
+																"type": "integer"
+															},
+															{
+																"type": "string"
+															}
+														]
 													},
 													"retry": {
 														"description": "The retry time in milliseconds.",
@@ -8527,7 +8611,14 @@
 													},
 													"id": {
 														"description": "The event ID.",
-														"type": "integer"
+														"oneOf": [
+															{
+																"type": "integer"
+															},
+															{
+																"type": "string"
+															}
+														]
 													},
 													"retry": {
 														"description": "The retry time in milliseconds.",
@@ -8550,7 +8641,14 @@
 													},
 													"id": {
 														"description": "The event ID.",
-														"type": "integer"
+														"oneOf": [
+															{
+																"type": "integer"
+															},
+															{
+																"type": "string"
+															}
+														]
 													},
 													"retry": {
 														"description": "The retry time in milliseconds.",
@@ -8573,7 +8671,14 @@
 													},
 													"id": {
 														"description": "The event ID.",
-														"type": "integer"
+														"oneOf": [
+															{
+																"type": "integer"
+															},
+															{
+																"type": "string"
+															}
+														]
 													},
 													"retry": {
 														"description": "The retry time in milliseconds.",
@@ -8596,7 +8701,14 @@
 													},
 													"id": {
 														"description": "The event ID.",
-														"type": "integer"
+														"oneOf": [
+															{
+																"type": "integer"
+															},
+															{
+																"type": "string"
+															}
+														]
 													},
 													"retry": {
 														"description": "The retry time in milliseconds.",

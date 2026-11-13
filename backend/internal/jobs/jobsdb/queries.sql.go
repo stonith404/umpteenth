@@ -29,8 +29,8 @@ func (q *Queries) ArchiveJob(ctx context.Context, arg ArchiveJobParams) (int64, 
 }
 
 const createJob = `-- name: CreateJob :exec
-INSERT INTO jobs (id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, concurrency, cron, timezone, paused, created_by, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20)
+INSERT INTO jobs (id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, mounts, self_improve, graduate, concurrency, cron, timezone, paused, created_by, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $21)
 `
 
 type CreateJobParams struct {
@@ -46,6 +46,7 @@ type CreateJobParams struct {
 	AllowPrivateNetwork bool
 	RunAsRoot           bool
 	Limits              string
+	Mounts              string
 	SelfImprove         bool
 	Graduate            bool
 	Concurrency         string
@@ -70,6 +71,7 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) error {
 		arg.AllowPrivateNetwork,
 		arg.RunAsRoot,
 		arg.Limits,
+		arg.Mounts,
 		arg.SelfImprove,
 		arg.Graduate,
 		arg.Concurrency,
@@ -114,7 +116,7 @@ func (q *Queries) DeleteState(ctx context.Context, arg DeleteStateParams) (int64
 }
 
 const getJob = `-- name: GetJob :one
-SELECT id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, graduated_version, playbook_version, concurrency, cron, timezone, next_run_at, webhook_token_hash, run_counter, created_by, created_at, updated_at, archived_at, instruction_changed_at, paused FROM jobs WHERE workspace_id = $1 AND id = $2 AND archived_at IS NULL
+SELECT id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, graduated_version, playbook_version, concurrency, cron, timezone, next_run_at, webhook_token_hash, run_counter, created_by, created_at, updated_at, archived_at, instruction_changed_at, paused, mounts FROM jobs WHERE workspace_id = $1 AND id = $2 AND archived_at IS NULL
 `
 
 type GetJobParams struct {
@@ -154,12 +156,13 @@ func (q *Queries) GetJob(ctx context.Context, arg GetJobParams) (Job, error) {
 		&i.ArchivedAt,
 		&i.InstructionChangedAt,
 		&i.Paused,
+		&i.Mounts,
 	)
 	return i, err
 }
 
 const getJobUnscoped = `-- name: GetJobUnscoped :one
-SELECT id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, graduated_version, playbook_version, concurrency, cron, timezone, next_run_at, webhook_token_hash, run_counter, created_by, created_at, updated_at, archived_at, instruction_changed_at, paused FROM jobs WHERE id = $1
+SELECT id, workspace_id, name, instruction, spec, model_id, image, network, allowed_domains, allow_private_network, run_as_root, limits, self_improve, graduate, graduated_version, playbook_version, concurrency, cron, timezone, next_run_at, webhook_token_hash, run_counter, created_by, created_at, updated_at, archived_at, instruction_changed_at, paused, mounts FROM jobs WHERE id = $1
 `
 
 // unscoped: used by the job actor and webhooks, which are keyed by the globally unique job ID and then act within the job's workspace
@@ -195,6 +198,7 @@ func (q *Queries) GetJobUnscoped(ctx context.Context, id string) (Job, error) {
 		&i.ArchivedAt,
 		&i.InstructionChangedAt,
 		&i.Paused,
+		&i.Mounts,
 	)
 	return i, err
 }
@@ -520,9 +524,9 @@ UPDATE jobs SET name = $1, instruction = $2, spec = $3,
   instruction_changed_at = CASE WHEN instruction <> $2 THEN $4 ELSE instruction_changed_at END,
   model_id = $5, image = $6, network = $7,
   allowed_domains = $8, allow_private_network = $9, run_as_root = $10,
-  limits = $11, self_improve = $12, graduate = $13, concurrency = $14,
-  cron = $15, timezone = $16, paused = $17, updated_at = $4
-WHERE workspace_id = $18 AND id = $19 AND archived_at IS NULL AND updated_at = $20
+  limits = $11, mounts = $12, self_improve = $13, graduate = $14, concurrency = $15,
+  cron = $16, timezone = $17, paused = $18, updated_at = $4
+WHERE workspace_id = $19 AND id = $20 AND archived_at IS NULL AND updated_at = $21
 `
 
 type UpdateJobParams struct {
@@ -537,6 +541,7 @@ type UpdateJobParams struct {
 	AllowPrivateNetwork bool
 	RunAsRoot           bool
 	Limits              string
+	Mounts              string
 	SelfImprove         bool
 	Graduate            bool
 	Concurrency         string
@@ -563,6 +568,7 @@ func (q *Queries) UpdateJob(ctx context.Context, arg UpdateJobParams) (int64, er
 		arg.AllowPrivateNetwork,
 		arg.RunAsRoot,
 		arg.Limits,
+		arg.Mounts,
 		arg.SelfImprove,
 		arg.Graduate,
 		arg.Concurrency,
