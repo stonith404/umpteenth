@@ -3,12 +3,12 @@
 
 # uv is not packaged by Debian, so it is copied from Astral's official image
 # The tag is written out instead of passed as a build arg so Dependabot can bump it
-FROM ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb225fd82d8ce6d66a81254bac85 AS uv
 
 # Node comes from the official image, since Debian's Node 20 ignores the proxy variables that route internet sandboxes through the egress proxy, which Node 24 honors with NODE_USE_ENV_PROXY
 FROM node:24-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe AS node
 
-FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 
 # Node, Python, pip and uv are included so npx and uvx stdio MCP servers work out of the box
 # The SSH client lets git reach SSH remotes, which Umpteenth routes through the egress proxy with ump connect

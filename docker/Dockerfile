@@ -19,7 +19,7 @@ COPY ./frontend ./frontend/
 RUN BUILD_OUTPUT_PATH=dist pnpm --filter umpteenth-frontend run build
 
 # Stage 2: build the ump CLI and the server
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS backend-builder
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18 AS backend-builder
 ARG BUILD_TAGS
 ARG VERSION
 ARG TARGETOS
@@ -49,7 +49,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 # Stage 3: runtime image
 # It runs as root because it talks to the Docker socket; a socket proxy is the recommended way to limit that
 # On Kubernetes, which needs no socket, the Helm chart runs it as a non-root user instead
-FROM gcr.io/distroless/static-debian13@sha256:448810357cc8e67b7208988abdba0f5ec3d3aebee0a5b13eb624979792cffc0f
+FROM gcr.io/distroless/static-debian13@sha256:1a64f46364620465ef9e9a8f5413757dfdf22695e050bbfd7303eeaf17a59383
 ARG TARGETARCH
 WORKDIR /app
 COPY --from=backend-builder /build/umpteenth /app/umpteenth
