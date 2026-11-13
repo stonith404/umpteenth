@@ -67,6 +67,16 @@ func replicaID(configured string) string {
 	return host
 }
 
+// sandboxFolders passes the configured base folders to the adapter, which validates their syntax for its own backend
+func sandboxFolders(cfg *config.Config) []sandbox.Folder {
+	entries := cfg.Sandbox.FolderList()
+	folders := make([]sandbox.Folder, 0, len(entries))
+	for _, f := range entries {
+		folders = append(folders, sandbox.Folder{Path: f.Path, Mode: sandbox.FolderMode(f.Mode)})
+	}
+	return folders
+}
+
 // initSandboxAdapter builds the adapter selected by sandbox.adapter, or returns nil for none
 // caCertificates are the PEM certificates of sandbox.ca_certificates, which Kubernetes build pods trust; the runner installs them into sandboxes itself
 func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hostID string, guard *egress.Guard, caCertificates []byte) (sandbox.Adapter, error) {
@@ -87,6 +97,7 @@ func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hos
 			BrokerPort:        cfg.Server.BrokerPort,
 			BrokerHost:        cfg.Sandbox.BrokerHost,
 			AllowUnrestricted: cfg.Sandbox.AllowUnrestrictedNetwork,
+			Folders:           sandboxFolders(cfg),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create the Docker sandbox adapter: %w", err)
@@ -121,6 +132,7 @@ func initSandboxAdapter(ctx context.Context, cfg *config.Config, instanceID, hos
 			AllowUnrestricted:    cfg.Sandbox.AllowUnrestrictedNetwork,
 			RequireNetworkPolicy: k.RequireNetworkPolicy,
 			CACertificates:       string(caCertificates),
+			Folders:              sandboxFolders(cfg),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create the Kubernetes sandbox adapter: %w", err)

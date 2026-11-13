@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/stonith404/umpteenth/backend/internal/llm"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 )
 
 func TestSystemBlocksWithoutSkillsAreUnchanged(t *testing.T) {
@@ -43,6 +44,23 @@ func TestSystemBlocksListSkillsBeforeThePlaybook(t *testing.T) {
 	require.False(t, blocks[2].CacheBreakpoint)
 	require.True(t, blocks[3].CacheBreakpoint)
 	require.Equal(t, "## What earlier runs learned\nLearned", blocks[3].Text)
+}
+
+func TestSystemBlocksStateHostFoldersInTheJobBlock(t *testing.T) {
+	blocks := SystemBlocks(PromptInput{Instruction: "Do it", Mounts: []sandbox.Mount{
+		{Name: "www", Path: "/var/www", Mode: sandbox.ModeReadWrite},
+		{Name: "audit", Path: "/srv/audit", Mode: sandbox.ModeReadOnly},
+	}})
+
+	// The list changes only with the job, so it sits in the cached job block and the static one stays shared
+	require.Equal(t, baseInstructions, blocks[0].Text)
+	require.Contains(t, blocks[0].Text, "any /ump/folders/ mounts outlive the run")
+	require.Contains(t, blocks[1].Text, "\n## Host folders\n")
+	require.Contains(t, blocks[1].Text, "- /ump/folders/www (read-write, so changes are permanent and stay after the run ends)")
+	require.Contains(t, blocks[1].Text, "- /ump/folders/audit (read-only)")
+
+	// A job without folders keeps its job block unchanged, so its cache still matches
+	require.NotContains(t, SystemBlocks(PromptInput{Instruction: "Do it"})[1].Text, "Host folders")
 }
 
 func TestSystemBlocksStateTheLimitsInTheJobBlock(t *testing.T) {

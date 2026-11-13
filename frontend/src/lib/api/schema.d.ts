@@ -1918,6 +1918,15 @@ export interface components {
 			field: string;
 			message: string;
 		};
+		Folder: {
+			/**
+			 * @description Most a job may ask for: ro for read-only, rw for read-write too
+			 * @enum {string}
+			 */
+			mode: 'ro' | 'rw';
+			/** @description A host path with the docker adapter, or pvc_name/subpath with the kubernetes adapter */
+			path: string;
+		};
 		GetOutputBody: {
 			baseDigest: string | null;
 			/** Format: int64 */
@@ -2048,6 +2057,8 @@ export interface components {
 			lastRun: components['schemas']['LastRun'];
 			limits: components['schemas']['LimitOverrides'];
 			modelId: string | null;
+			/** @description Host folders from the sandbox configuration this job may use */
+			mounts: components['schemas']['Mount'][] | null;
 			name: string;
 			/** @enum {string} */
 			network: 'none' | 'internet' | 'allowlist' | 'unrestricted';
@@ -2085,6 +2096,8 @@ export interface components {
 			limits?: components['schemas']['LimitOverrides'];
 			/** @description Model that drives the agent, the workspace's agent model when omitted */
 			modelId?: string;
+			/** @description Host folders from sandbox.folders this job may use, which only instance admins can set */
+			mounts?: components['schemas']['Mount'][] | null;
 			name: string;
 			/**
 			 * @description What the sandbox may reach, internet when omitted; allowlist limits it to allowedDomains
@@ -2143,6 +2156,8 @@ export interface components {
 			instruction?: string;
 			limits?: components['schemas']['LimitOverrides'];
 			modelId?: string;
+			/** @description Host folders from sandbox.folders this job may use, which only instance admins can set */
+			mounts?: components['schemas']['Mount'][];
 			name?: string;
 			/** @enum {string} */
 			network?: 'none' | 'internet' | 'allowlist' | 'unrestricted';
@@ -2351,6 +2366,17 @@ export interface components {
 			synced: boolean;
 			/** Format: int64 */
 			unlistedAt: number | null;
+		};
+		Mount: {
+			/**
+			 * @description ro for read-only, rw for read-write
+			 * @enum {string}
+			 */
+			mode: 'ro' | 'rw';
+			/** @description Name of the folder inside the sandbox, mounted at /ump/folders/<name> */
+			name: string;
+			/** @description The base folder or a subfolder of it */
+			path: string;
 		};
 		NameBody: {
 			name: string;
@@ -2788,6 +2814,7 @@ export interface components {
 			adapter: string;
 			arch: string;
 			capabilities: components['schemas']['Capabilities'];
+			folders: components['schemas']['Folder'][] | null;
 			imageBuilds: boolean;
 			/** @enum {string} */
 			isolation: 'container' | 'gvisor' | 'microvm';
@@ -3864,7 +3891,7 @@ export interface operations {
 						 */
 						event: 'run';
 						/** @description The event ID. */
-						id?: number;
+						id?: number | string;
 						/** @description The retry time in milliseconds. */
 						retry?: number;
 					}[];
@@ -5975,7 +6002,7 @@ export interface operations {
 								 */
 								event: 'delta';
 								/** @description The event ID. */
-								id?: number;
+								id?: number | string;
 								/** @description The retry time in milliseconds. */
 								retry?: number;
 						  }
@@ -5987,7 +6014,7 @@ export interface operations {
 								 */
 								event: 'end';
 								/** @description The event ID. */
-								id?: number;
+								id?: number | string;
 								/** @description The retry time in milliseconds. */
 								retry?: number;
 						  }
@@ -5999,7 +6026,7 @@ export interface operations {
 								 */
 								event: 'event';
 								/** @description The event ID. */
-								id?: number;
+								id?: number | string;
 								/** @description The retry time in milliseconds. */
 								retry?: number;
 						  }
@@ -6011,7 +6038,7 @@ export interface operations {
 								 */
 								event: 'status';
 								/** @description The event ID. */
-								id?: number;
+								id?: number | string;
 								/** @description The retry time in milliseconds. */
 								retry?: number;
 						  }

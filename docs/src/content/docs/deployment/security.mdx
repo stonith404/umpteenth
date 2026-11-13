@@ -45,6 +45,26 @@ Umpteenth creates each sandbox with these settings:
 | Disk | No limit, so a runaway job can fill the Docker host's disk |
 | Lifetime | The run's timeout plus 5 minutes |
 
+## Host folders
+
+A job can work on data outside its sandbox, such as a web root, audit logs or a database dump, when an operator lists the folder under `sandbox.folders` and an instance admin mounts it on the job.
+A sandbox never inherits a mount of the Umpteenth container: the folder is mounted into the run's own container or pod.
+
+Each entry is a path or a path with `:ro` or `:rw`, read-only without the suffix.
+With the `docker` adapter a path is a host path, and on Kubernetes it is `pvc_name/subpath`.
+The mode is the most a job may ask for, and a subfolder of an entry may be narrower, so `/var` may allow `rw` while `/var/www` allows `ro`.
+
+- Only **instance admins** grant a folder to a job, from the job's settings.
+  Any member who can run that job then uses it, including with run instructions, run input or a webhook token they minted, so grant only folders everyone who can run the job may work with.
+- The agent reaches the folder at `/ump/folders/<name>`, where read-only is enforced by the operating system.
+  A read-write folder lets a run delete, rewrite or leave behind anything in it, and no disk quota limits that.
+- Whatever the agent reads from a folder reaches the model provider like any other command output.
+- Umpteenth only checks that each path is inside a configured folder; it never resolves symlinks, and the engine or node resolves the path when the sandbox starts.
+  With Docker the folder must exist on the Docker engine's host and be readable, or writable for `rw`, by uid 1000, unless the job runs as root.
+  On Kubernetes the claim must exist before the run, and a `ReadWriteOnce` claim keeps concurrent runs on one node.
+- A job with a read-write folder gets no shadow run, since reflection would repeat its writes.
+  A folder the operator removes from the config stops being mounted, and the next run fails instead of running without it.
+
 ## Sandbox networks
 
 Each run gets its own Docker network, where the sandbox reaches Umpteenth's broker, the API that the `ump` CLI calls for models, MCP tools and job state.

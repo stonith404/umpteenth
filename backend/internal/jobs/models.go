@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/stonith404/umpteenth/backend/internal/jobs/jobsdb"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 )
 
 // Job concurrency policies
@@ -74,29 +75,30 @@ type LastRun struct {
 
 // JobDto is a job as returned by the API
 type JobDto struct {
-	ID                  string         `json:"id"`
-	Name                string         `json:"name"`
-	Instruction         string         `json:"instruction"`
-	Spec                Spec           `json:"spec"`
-	ModelID             *string        `json:"modelId"`
-	Image               *string        `json:"image"`
-	Network             string         `json:"network" enum:"none,internet,allowlist,unrestricted"`
-	AllowedDomains      []string       `json:"allowedDomains"`
-	AllowPrivateNetwork bool           `json:"allowPrivateNetwork"`
-	RunAsRoot           bool           `json:"runAsRoot"`
-	Limits              LimitOverrides `json:"limits"`
-	SelfImprove         bool           `json:"selfImprove"`
-	Graduate            bool           `json:"graduate" doc:"Whether the job may graduate to a main script that runs without the agent"`
-	Concurrency         string         `json:"concurrency"`
-	Cron                *string        `json:"cron"`
-	Timezone            *string        `json:"timezone"`
-	Paused              bool           `json:"paused" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
-	NextRunAt           *int64         `json:"nextRunAt"`
-	PlaybookVersion     int64          `json:"playbookVersion"`
-	HasWebhookToken     bool           `json:"hasWebhookToken"`
-	CreatedAt           int64          `json:"createdAt"`
-	UpdatedAt           int64          `json:"updatedAt"`
-	LastRun             *LastRun       `json:"lastRun"`
+	ID                  string          `json:"id"`
+	Name                string          `json:"name"`
+	Instruction         string          `json:"instruction"`
+	Spec                Spec            `json:"spec"`
+	ModelID             *string         `json:"modelId"`
+	Image               *string         `json:"image"`
+	Network             string          `json:"network" enum:"none,internet,allowlist,unrestricted"`
+	AllowedDomains      []string        `json:"allowedDomains"`
+	AllowPrivateNetwork bool            `json:"allowPrivateNetwork"`
+	RunAsRoot           bool            `json:"runAsRoot"`
+	Mounts              []sandbox.Mount `json:"mounts" doc:"Host folders from the sandbox configuration this job may use"`
+	Limits              LimitOverrides  `json:"limits"`
+	SelfImprove         bool            `json:"selfImprove"`
+	Graduate            bool            `json:"graduate" doc:"Whether the job may graduate to a main script that runs without the agent"`
+	Concurrency         string          `json:"concurrency"`
+	Cron                *string         `json:"cron"`
+	Timezone            *string         `json:"timezone"`
+	Paused              bool            `json:"paused" doc:"Whether the schedule and the webhook are paused, which leaves manual and API runs alone"`
+	NextRunAt           *int64          `json:"nextRunAt"`
+	PlaybookVersion     int64           `json:"playbookVersion"`
+	HasWebhookToken     bool            `json:"hasWebhookToken"`
+	CreatedAt           int64           `json:"createdAt"`
+	UpdatedAt           int64           `json:"updatedAt"`
+	LastRun             *LastRun        `json:"lastRun"`
 	// NextMode is the mode the next run starts in
 	NextMode         string `json:"nextMode,omitempty" enum:"explore,assisted,scripted"`
 	Demotion         string `json:"demotion,omitempty" enum:"fell_back,handed_over" doc:"Why repeated fallbacks or handovers took a graduated job back to Assisted, missing while it isn't demoted"`
@@ -132,7 +134,7 @@ func toDto(j jobsdb.Job) (JobDto, error) {
 		name string
 		raw  string
 		dst  any
-	}{{"spec", j.Spec, &d.Spec}, {"limits", j.Limits, &d.Limits}, {"allowed domains", j.AllowedDomains, &d.AllowedDomains}} {
+	}{{"spec", j.Spec, &d.Spec}, {"limits", j.Limits, &d.Limits}, {"allowed domains", j.AllowedDomains, &d.AllowedDomains}, {"mounts", j.Mounts, &d.Mounts}} {
 		err := json.Unmarshal([]byte(c.raw), c.dst)
 		if err != nil {
 			return JobDto{}, fmt.Errorf("job %s has invalid %s: %w", j.ID, c.name, err)
@@ -140,6 +142,9 @@ func toDto(j jobsdb.Job) (JobDto, error) {
 	}
 	if d.AllowedDomains == nil {
 		d.AllowedDomains = []string{}
+	}
+	if d.Mounts == nil {
+		d.Mounts = []sandbox.Mount{}
 	}
 	normalizeSpec(&d.Spec)
 	return d, nil

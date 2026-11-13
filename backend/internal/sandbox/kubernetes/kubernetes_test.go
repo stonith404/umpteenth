@@ -40,6 +40,37 @@ func testAdapter(t *testing.T, cfg Config) *Adapter {
 	return &Adapter{cfg: cfg, ns: "sandboxes", arch: "arm64", nodeSelector: selector, tolerations: tolerations}
 }
 
+func TestPodSpecMountsHostFolders(t *testing.T) {
+	a := testAdapter(t, Config{})
+	pod := a.podSpec("ump-run-4", sandbox.Spec{
+		RunID: "run-4", Image: "debian", AgentUser: sandbox.UserAgent, Network: sandbox.NetworkNone,
+		Mounts: []sandbox.Mount{
+			{Name: "www", Path: "backups/db/site", Mode: sandbox.ModeReadWrite},
+			{Name: "logs", Path: "backups/db/logs", Mode: sandbox.ModeReadOnly},
+		},
+	})
+
+	// Every mount is a volume of its own, so one claim can carry two folders under two names
+	require.Len(t, pod.Spec.Volumes, 3)
+	for i, want := range []struct{ claim, subPath, target string }{
+		{"backups", "db/site", "/ump/folders/www"},
+		{"backups", "db/logs", "/ump/folders/logs"},
+	} {
+		vol := pod.Spec.Volumes[i+1]
+		require.NotNil(t, vol.PersistentVolumeClaim)
+		assert.Equal(t, want.claim, vol.PersistentVolumeClaim.ClaimName)
+
+		m := pod.Spec.Containers[0].VolumeMounts[i+1]
+		assert.Equal(t, vol.Name, m.Name)
+		assert.Equal(t, want.target, m.MountPath)
+		assert.Equal(t, want.subPath, m.SubPath)
+	}
+	assert.False(t, pod.Spec.Containers[0].VolumeMounts[1].ReadOnly)
+	assert.True(t, pod.Spec.Containers[0].VolumeMounts[2].ReadOnly)
+	assert.False(t, pod.Spec.Volumes[1].PersistentVolumeClaim.ReadOnly)
+	assert.True(t, pod.Spec.Volumes[2].PersistentVolumeClaim.ReadOnly)
+}
+
 func TestPodSpecHardensTheSandbox(t *testing.T) {
 	a := testAdapter(t, Config{RuntimeClass: "gvisor", NodeSelector: []string{"pool=sandboxes"}})
 	pod := a.podSpec("ump-run-1", sandbox.Spec{RunID: "run-1", JobID: "job", WorkspaceID: "ws", Image: "debian", AgentUser: sandbox.UserAgent, Network: sandbox.NetworkInternet, TTL: time.Hour})

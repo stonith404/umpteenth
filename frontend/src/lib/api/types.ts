@@ -54,6 +54,9 @@ export type StatsTotals = Schemas['Totals'];
 // Jobs, playbooks and job images
 export type Job = Schemas['JobDto'];
 export type JobListItem = Schemas['JobListDto'];
+// One host folder a job mounts, and one folder the operator lets jobs mount
+export type JobMount = Schemas['Mount'];
+export type SandboxFolder = Schemas['Folder'];
 // One run of a job's history strip on the jobs list, and the shape of a job's lastRun
 export type JobRecentRun = Schemas['LastRun'];
 export type JobListQuery = QueryOf<'list-jobs'>;

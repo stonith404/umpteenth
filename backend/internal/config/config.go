@@ -182,10 +182,38 @@ type Sandbox struct {
 	// AllowUnrestrictedNetwork offers jobs the unrestricted network, which bypasses the egress proxy and reaches everything the host can
 	AllowUnrestrictedNetwork bool `yaml:"allow_unrestricted_network" default:"true"`
 	// CACertificates is a PEM file of CA certificates that sandboxes and image builds trust next to their own, e.g. of a TLS-intercepting proxy
-	CACertificates string     `yaml:"ca_certificates"`
-	Registry       Registry   `yaml:"registry"`
-	Docker         Docker     `yaml:"docker"`
-	Kubernetes     Kubernetes `yaml:"kubernetes"`
+	CACertificates string `yaml:"ca_certificates"`
+	// Folders are the base folders jobs may mount, each a path or a path with :ro or :rw, read-only without the suffix
+	// A path is a host path with the docker adapter, and pvc_name/subpath with the kubernetes adapter
+	Folders    []string   `yaml:"folders"`
+	Registry   Registry   `yaml:"registry"`
+	Docker     Docker     `yaml:"docker"`
+	Kubernetes Kubernetes `yaml:"kubernetes"`
+}
+
+// Folder is one entry of sandbox.folders, where Mode is the most a job may ask for
+type Folder struct {
+	Path string
+	Mode string
+}
+
+// FolderList parses sandbox.folders, defaulting the mode to read-only and keeping any other colon in the path
+func (s Sandbox) FolderList() []Folder {
+	folders := make([]Folder, 0, len(s.Folders))
+	for _, entry := range s.Folders {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		f := Folder{Path: entry, Mode: "ro"}
+		for _, mode := range []string{"ro", "rw"} {
+			if p, ok := strings.CutSuffix(entry, ":"+mode); ok {
+				f.Path, f.Mode = p, mode
+			}
+		}
+		folders = append(folders, f)
+	}
+	return folders
 }
 
 // Registry stores job images so replicas share builds
