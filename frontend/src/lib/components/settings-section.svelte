@@ -1,5 +1,5 @@
 <!--
-	A section of a settings page laid out like Cloudflare's: a 16px heading and its description above a 12px card
+	A section of a settings page laid out like Cloudflare's: one white card with the 16px heading and its description at the top
 	The section is named after its heading in the URL too, so a table of contents can link to it
 	Usage: <SettingsSection title="Webhook" description="…">…</SettingsSection>
 -->
@@ -27,21 +27,23 @@
 	const titleId = $derived(titleIdProp ?? ownId);
 </script>
 
-<section id={anchorId(title)} aria-labelledby={titleId} class="flex scroll-mt-20 flex-col gap-3">
+<section
+	id={anchorId(title)}
+	aria-labelledby={titleId}
+	class="bg-card ring-border flex scroll-mt-20 flex-col gap-4 rounded-lg p-6 shadow-xs ring-1"
+>
 	<header class="grid-cols-trailing-action grid items-start gap-x-4">
-		<div class="flex min-w-0 flex-col gap-1">
-			<h2 id={titleId} class="text-lg leading-snug font-medium">{title}</h2>
+		<div class="flex min-w-0 flex-col gap-2">
+			<h2 id={titleId} class="text-lg font-semibold">{title}</h2>
 			{#if typeof description === 'string'}
-				<p class="text-muted-foreground text-sm leading-snug">{description}</p>
+				<p class="text-muted-foreground text-base">{description}</p>
 			{:else if description}
-				<p class="text-muted-foreground text-sm leading-snug">{@render description()}</p>
+				<p class="text-muted-foreground text-base">{@render description()}</p>
 			{/if}
 		</div>
 		{#if actions}
 			<div class="flex items-center gap-2">{@render actions()}</div>
 		{/if}
 	</header>
-	<div class="bg-card ring-border rounded-xl p-5 shadow-xs ring-1">
-		{@render children()}
-	</div>
+	{@render children()}
 </section>

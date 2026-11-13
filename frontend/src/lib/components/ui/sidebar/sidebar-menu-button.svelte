@@ -22,9 +22,9 @@
 			variant: {
 				default: '',
 				// A boxed item like Kumo's quick search, whose box fades away when the sidebar collapses to icons
-				// It reads as a field rather than a destination, so its label is set in regular weight
+				// It reads as a field rather than a destination, so its label is set in regular weight and muted like a placeholder
 				outline:
-					'bg-card ring-sidebar-border shadow-xs ring font-normal group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:ring-transparent'
+					'bg-card ring-sidebar-border text-muted-foreground shadow-xs ring font-normal group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:ring-transparent'
 			},
 			size: {
 				default: 'min-h-8.5',

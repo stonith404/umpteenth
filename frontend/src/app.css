@@ -51,6 +51,8 @@
 	/* Kumo's fill: the neutral behind secondary badges and the edge of empty panels */
 	--fill: oklch(0.922 0 0);
 	--fill-foreground: oklch(0.269 0 0);
+	/* Kumo's inactive text, for marks that only separate, like the carets between breadcrumbs */
+	--inactive: oklch(0.87 0 0);
 	/* Run modes are categories, not outcomes, so their soft hues stay clear of the status colours and only ever tint icons and chart marks */
 	/* Icons need contrast on the page, so the fills of chart marks and legend swatches are a step lighter */
 	--mode-explore: oklch(0.56 0.12 300);
@@ -152,6 +154,7 @@
 	--warning: oklch(0.645 0.168 50);
 	--fill: oklch(0.269 0 0);
 	--fill-foreground: oklch(0.922 0 0);
+	--inactive: oklch(0.439 0 0);
 	--mode-explore: oklch(0.74 0.1 300);
 	--mode-assisted: oklch(0.76 0.07 205);
 	--mode-scripted: oklch(0.74 0.025 260);
@@ -215,6 +218,9 @@
 	--radius-2xl: var(--radius);
 	--radius-3xl: var(--radius);
 	--radius-4xl: var(--radius);
+
+	/* The dashboard's page column, which stays centered with the canvas on both sides on wide screens */
+	--container-page: 68.75rem;
 
 	/* A chart's whole height, the plot and a legend of up to two rows, which the chart cards also keep while they load or have nothing to draw */
 	/* The cost legend wraps to a second row whenever job names are long, so the height is fixed rather than following the legend and nothing jumps when the figures arrive */
@@ -304,6 +310,7 @@
 	--color-warning: var(--warning);
 	--color-fill: var(--fill);
 	--color-fill-foreground: var(--fill-foreground);
+	--color-inactive: var(--inactive);
 	--color-mode-explore: var(--mode-explore);
 	--color-mode-assisted: var(--mode-assisted);
 	--color-mode-scripted: var(--mode-scripted);
@@ -518,6 +525,72 @@
 			0 1.5rem,
 			calc(100% - 1.5rem) 100%;
 	}
+}
+
+/*
+ * Kumo's toolbar: a table's search and filters joined into one framed control and split by hairlines, like the dashboard's application list
+ * The controls inside drop their own frame and shadow but keep their focus rings, which rise above their neighbours
+ */
+@utility toolbar {
+	display: flex;
+	align-items: stretch;
+	border-radius: var(--radius-lg);
+	background-color: var(--card);
+	box-shadow:
+		0 0 0 1px var(--input),
+		0 1px 2px 0 rgb(0 0 0 / 0.05);
+
+	& [data-slot='input-group'],
+	& [data-slot='popover-trigger'] {
+		--tw-shadow: 0 0 #0000;
+		border-width: 0;
+		border-radius: 0;
+		background-color: transparent;
+	}
+
+	& [data-slot='input-group'] {
+		border-start-start-radius: inherit;
+		border-end-start-radius: inherit;
+
+		&:last-child {
+			border-radius: inherit;
+		}
+
+		&:has(:focus-visible) {
+			--tw-ring-shadow: 0 0 0 1.5px color-mix(in oklab, var(--foreground) 50%, transparent);
+			z-index: 1;
+		}
+	}
+
+	& [data-slot='popover-trigger'] {
+		position: relative;
+		border-left-width: 1px;
+		border-color: var(--input);
+
+		&:focus-visible {
+			z-index: 1;
+		}
+	}
+
+	& [data-toolbar-item]:last-child [data-slot='popover-trigger'] {
+		border-start-end-radius: var(--radius-lg);
+		border-end-end-radius: var(--radius-lg);
+	}
+}
+
+/* The page's side gutter, 16px on phones and 32px from md like the dashboard's */
+@utility px-page {
+	--page-gutter: --spacing(4);
+	padding-inline: var(--page-gutter);
+
+	@variant md {
+		--page-gutter: --spacing(8);
+	}
+}
+
+/* Runs a strip edge to edge from inside the centered page column, across the gutters, which needs the page to be a size container */
+@utility mx-page-bleed {
+	margin-inline: calc(50% - 50cqw - var(--page-gutter));
 }
 
 /* The transition of a field-like control: text, shadow and fill ease while the border snaps straight to its focus color, as on the inputs */

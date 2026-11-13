@@ -5,7 +5,6 @@
 	import * as Dialog from './index.js';
 	import { cn, type WithoutChildrenOrChild } from '#lib/utils/style.js';
 	import type { ComponentProps } from 'svelte';
-	import { Button } from '#lib/components/ui/button/index.js';
 	import XIcon from 'phosphor-svelte/lib/X';
 
 	let {
@@ -32,7 +31,7 @@
 		bind:ref
 		data-slot="dialog-content"
 		class={cn(
-			'bg-card text-card-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-border fixed top-8 left-1/2 z-50 flex max-h-[calc(100dvh-4rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 flex-col gap-6 overflow-y-auto rounded-[12px] p-6 text-base shadow-lg ring-1 duration-150 outline-none sm:top-16 sm:max-h-[calc(100dvh-8rem)] sm:max-w-md',
+			'bg-card text-card-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-border fixed top-8 left-1/2 z-50 flex max-h-[calc(100dvh-4rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 flex-col gap-6 overflow-y-auto rounded-[12px] p-6 text-base shadow-[0_20px_25px_-5px_rgb(0_0_0/0.03),0_8px_10px_-6px_rgb(0_0_0/0.03)] ring-1 duration-150 outline-none sm:top-16 sm:max-h-[calc(100dvh-8rem)] sm:max-w-md',
 			variant === 'palette' && 'top-[10vh] gap-0 p-0 sm:top-[10vh]',
 			className
 		)}
@@ -42,10 +41,14 @@
 		{#if showCloseButton}
 			<DialogPrimitive.Close data-slot="dialog-close">
 				{#snippet child({ props })}
-					<Button variant="ghost" class="absolute top-4 right-4" size="icon-sm" {...props}>
-						<XIcon />
+					<!-- Kumo's close is a bare 24px icon in the corner, in line with the 20px title, that only darkens on hover -->
+					<button
+						{...props}
+						class="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute top-6.5 right-6 inline-flex size-6 items-center justify-center rounded outline-none focus-visible:ring-2"
+					>
+						<XIcon class="size-4" />
 						<span class="sr-only">Close</span>
-					</Button>
+					</button>
 				{/snippet}
 			</DialogPrimitive.Close>
 		{/if}

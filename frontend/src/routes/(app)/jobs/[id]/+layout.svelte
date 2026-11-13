@@ -267,7 +267,7 @@
 
 <PageTabs {tabs} label="Job sections" {actions}>
 	<div class="flex flex-col gap-6">
-		<PageHeader title={job.name} size="compact">
+		<PageHeader title={job.name}>
 			{#snippet meta()}
 				{@render scheduleFact()}
 				{#if job.paused}

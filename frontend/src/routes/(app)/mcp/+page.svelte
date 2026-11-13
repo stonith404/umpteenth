@@ -362,7 +362,14 @@
 <PageHeader
 	title="MCP servers"
 	description="Tools your jobs can use through the Model Context Protocol."
-/>
+	docsPath="/guides/mcp/"
+>
+	{#snippet actions()}
+		{#if noServers === false}
+			{@render addButton()}
+		{/if}
+	{/snippet}
+</PageHeader>
 
 <DataTable
 	bind:this={dataTable}
@@ -370,7 +377,6 @@
 	{columns}
 	fetchPage={(query) => mcpService.list(query)}
 	bind:isEmpty={noServers}
-	actions={noServers === false ? addButton : undefined}
 	getRowId={(server) => server.id}
 	onRowClick={(server) => (viewing = server)}
 	defaultSort="name"

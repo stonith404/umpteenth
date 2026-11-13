@@ -174,8 +174,10 @@
 		<Sidebar.Group detached>
 			<Sidebar.Menu>
 				<Sidebar.MenuItem>
+					<!-- A little shorter than the links below, like the dashboard's search box, until it joins the rail's row of icons -->
 					<Sidebar.MenuButton
 						variant="outline"
+						class="min-h-8 group-data-[collapsible=icon]:min-h-8.5"
 						tooltipContent="Search"
 						onclick={() => {
 							sidebar.dismiss();

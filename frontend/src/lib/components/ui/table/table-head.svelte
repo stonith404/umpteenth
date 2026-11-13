@@ -16,7 +16,7 @@
 	scope="col"
 	class={cn(
 		// Every table shares one header style, so plain tables in cards and data tables read alike
-		'text-foreground h-10 px-3 text-left align-middle text-base font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0',
+		'text-foreground h-10 px-3 text-left align-middle text-base font-semibold whitespace-nowrap [&:has([role=checkbox])]:pr-0',
 		className
 	)}
 	{...restProps}

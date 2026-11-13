@@ -37,8 +37,8 @@
 	let runNowJob = $state<JobListItem | null>(null);
 	let runNowOpen = $state(false);
 
-	// A workspace without any jobs shows one call to action in the empty table, so the header doesn't repeat it
-	// The header waits until the table knows, so the button never shows only to vanish again
+	// A workspace without any jobs shows one call to action in the empty table, so the page header doesn't repeat it
+	// The page header waits until the table knows, so the button never shows only to vanish again
 	let noJobs = $state<boolean>();
 
 	// The job fills the width, the other columns get minimum widths that fit their longest values, so they don't jump as times tick or when the skeleton gives way to rows
@@ -267,7 +267,17 @@
 	</Button>
 {/snippet}
 
-<PageHeader title="Jobs" description="Tasks Umpteenth runs for you, on a schedule or on demand." />
+<PageHeader
+	title="Jobs"
+	description="Tasks Umpteenth runs for you, on a schedule or on demand."
+	docsPath="/guides/jobs/"
+>
+	{#snippet actions()}
+		{#if noJobs === false}
+			{@render createButton()}
+		{/if}
+	{/snippet}
+</PageHeader>
 
 <!-- The loading rows are as tall as the two-line rows, 56px plus the hairline under each -->
 <DataTable
@@ -276,7 +286,6 @@
 	{columns}
 	fetchPage={(query) => jobService.list(query)}
 	bind:isEmpty={noJobs}
-	actions={noJobs === false ? createButton : undefined}
 	getRowId={(job) => job.id}
 	rowHref={(job) => `/jobs/${job.id}`}
 	defaultSort="name"

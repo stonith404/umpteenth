@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import type { User } from '#lib/api/types.js';
-	import * as Avatar from '#lib/components/ui/avatar/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import UserService from '#lib/services/user-service.js';
 	import { apiErrorToast } from '#lib/utils/error-util.js';
@@ -10,22 +10,19 @@
 	import { DOCS_URL } from '#lib/navigation.js';
 	import BookOpenIcon from 'phosphor-svelte/lib/BookOpen';
 	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOut';
+	import CircleHalfIcon from 'phosphor-svelte/lib/CircleHalf';
+	import MonitorIcon from 'phosphor-svelte/lib/Monitor';
+	import MoonIcon from 'phosphor-svelte/lib/Moon';
 	import SignOutIcon from 'phosphor-svelte/lib/SignOut';
+	import SunIcon from 'phosphor-svelte/lib/Sun';
 	import UserIcon from 'phosphor-svelte/lib/User';
+	import { resetMode, setMode, userPrefersMode } from 'mode-watcher';
 
 	let { user }: { user: User } = $props();
 
 	const userService = new UserService();
 
 	const displayName = $derived(user.name || user.email || 'Signed in');
-	const initials = $derived(
-		displayName
-			.split(/[\s@.]+/)
-			.filter(Boolean)
-			.slice(0, 2)
-			.map((part) => part[0]?.toUpperCase())
-			.join('')
-	);
 
 	async function logout() {
 		const result = await tryCatch(userService.logout());
@@ -39,21 +36,12 @@
 </script>
 
 <DropdownMenu.Root>
-	<!-- The focus outline sits off the avatar's edge, like on filled buttons, since a ring on a photo is hard to see -->
+	<!-- A plain person icon like the dashboard's, which keeps the header a row of quiet ghost buttons -->
 	<DropdownMenu.Trigger aria-label="Account menu">
 		{#snippet child({ props })}
-			<button
-				type="button"
-				{...props}
-				class="focus-visible:outline-ring rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid"
-			>
-				<Avatar.Root class="size-8">
-					{#if user.picture}
-						<Avatar.Image src={user.picture} alt={displayName} referrerpolicy="no-referrer" />
-					{/if}
-					<Avatar.Fallback>{initials}</Avatar.Fallback>
-				</Avatar.Root>
-			</button>
+			<Button variant="ghost" size="icon-sm" {...props}>
+				<UserIcon />
+			</Button>
 		{/snippet}
 	</DropdownMenu.Trigger>
 	<!-- Capped, so a long email truncates instead of stretching the menu across the header -->
@@ -81,6 +69,24 @@
 					{/snippet}
 				</DropdownMenu.Item>
 			{/if}
+			<!-- The theme lives in the account menu like the dashboard's Appearance, rather than taking a header button of its own -->
+			<DropdownMenu.Sub>
+				<DropdownMenu.SubTrigger>
+					<CircleHalfIcon />
+					Appearance
+				</DropdownMenu.SubTrigger>
+				<DropdownMenu.SubContent>
+					<DropdownMenu.RadioGroup
+						value={userPrefersMode.current}
+						onValueChange={(value) =>
+							value === 'system' ? resetMode() : setMode(value as 'light')}
+					>
+						<DropdownMenu.RadioItem value="light"><SunIcon /> Light</DropdownMenu.RadioItem>
+						<DropdownMenu.RadioItem value="dark"><MoonIcon /> Dark</DropdownMenu.RadioItem>
+						<DropdownMenu.RadioItem value="system"><MonitorIcon /> System</DropdownMenu.RadioItem>
+					</DropdownMenu.RadioGroup>
+				</DropdownMenu.SubContent>
+			</DropdownMenu.Sub>
 			<DropdownMenu.Item>
 				{#snippet child({ props })}
 					<a href={DOCS_URL} target="_blank" rel="noopener" {...props}>

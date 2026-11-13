@@ -62,7 +62,7 @@
 			{@render children()}
 			<!-- A hairline sets Save apart from the fields, like the rows of a Cloudflare settings card -->
 			<div
-				class="border-hairline -mx-5 flex flex-wrap items-center justify-end gap-2 border-t px-5 pt-4"
+				class="border-hairline -mx-6 flex flex-wrap items-center justify-end gap-2 border-t px-6 pt-4"
 			>
 				{#if footer}
 					<div class="mr-auto">{@render footer()}</div>

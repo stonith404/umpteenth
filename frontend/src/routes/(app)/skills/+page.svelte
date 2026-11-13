@@ -263,7 +263,14 @@
 <PageHeader
 	title="Skills"
 	description="Instructions, scripts and resources that jobs' agents load when a task calls for them."
-/>
+	docsPath="/guides/skills/"
+>
+	{#snippet actions()}
+		{#if noSkills === false}
+			{@render addButton()}
+		{/if}
+	{/snippet}
+</PageHeader>
 
 <DataTable
 	bind:this={dataTable}
@@ -271,7 +278,6 @@
 	{columns}
 	fetchPage={fetchSkills}
 	bind:isEmpty={noSkills}
-	actions={noSkills === false ? addButton : undefined}
 	getRowId={(skill) => skill.id}
 	selectable
 	rowLabel={(skill) => skill.name}

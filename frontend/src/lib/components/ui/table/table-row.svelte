@@ -19,8 +19,8 @@
 	data-slot="table-row"
 	class={cn(
 		// No hover by default: a highlight promises the row opens something, so only clickable rows add it
-		'data-[state=selected]:bg-muted border-hairline border-b transition-colors',
-		clickable && 'hover:bg-layer cursor-pointer',
+		'data-[state=selected]:bg-muted border-fill border-b transition-colors',
+		clickable && 'hover:bg-accent cursor-pointer',
 		className
 	)}
 	{...restProps}

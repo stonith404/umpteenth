@@ -73,9 +73,9 @@
 </script>
 
 <Tabs.Root value={shown} activationMode="manual" spacing="lg">
-	<!-- The strip runs edge to edge under the header, so it cancels the page's gutters and keeps the header's own 16px -->
+	<!-- The strip runs edge to edge under the header, reaching from the centered page column out to the page's edges, and keeps the header's own 16px -->
 	<div
-		class="-mx-4 -mt-4 flex min-h-14.5 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2.5 md:-mx-8 md:-mt-8"
+		class="mx-page-bleed -mt-8 flex min-h-14.5 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2.5"
 	>
 		<!-- Six tabs outgrow a phone, so the track scrolls sideways there instead of wrapping -->
 		<div

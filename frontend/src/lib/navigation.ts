@@ -55,7 +55,7 @@ export const navGroups: NavGroup[] = [
 
 export const mainNav: NavItem[] = navGroups.flatMap((group) => group.items);
 
-// `icon` and `keywords` only serve the command palette, the sidebar reads `label` and `href`, and the page header the `description`
+// `icon` and `keywords` only serve the command palette, the sidebar reads `label` and `href`, and the page header the `description` and `docsPath`
 export const settingsTabs = [
 	{
 		label: 'General',
@@ -69,6 +69,7 @@ export const settingsTabs = [
 		label: 'Members',
 		description: 'Everyone who can use this workspace and what they may change.',
 		href: '/settings/members',
+		docsPath: '/guides/workspaces/',
 		icon: UsersIcon,
 		keywords: 'invite people team users roles workspace'
 	},
@@ -76,6 +77,7 @@ export const settingsTabs = [
 		label: 'Providers & models',
 		description: 'The model providers and models that jobs run on.',
 		href: '/settings/providers',
+		docsPath: '/guides/models/',
 		icon: RobotIcon,
 		keywords: 'llm models openai anthropic api key'
 	},
@@ -83,6 +85,7 @@ export const settingsTabs = [
 		label: 'Secrets',
 		description: 'Encrypted API keys and tokens for jobs and MCP servers.',
 		href: '/settings/secrets',
+		docsPath: '/guides/sandboxes/#secrets',
 		icon: KeyIcon,
 		keywords: 'env environment variables password credentials'
 	},
@@ -90,6 +93,7 @@ export const settingsTabs = [
 		label: 'API tokens',
 		description: 'Tokens for the API and the MCP server, for scripts and agents like Claude Code.',
 		href: '/settings/tokens',
+		docsPath: '/reference/api/',
 		icon: PasswordIcon,
 		keywords: 'api key token access cli webhook'
 	}

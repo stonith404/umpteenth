@@ -54,7 +54,7 @@
 
 <!-- Cloudflare's settings layout: a column of sections beside a table of contents that follows the scroll -->
 <div class="lg:grid-cols-toc grid grid-cols-1 gap-8">
-	<div class="flex min-w-0 flex-col gap-10">
+	<div class="flex min-w-0 flex-col gap-5">
 		<!-- Each card saves its own fields, so saving one never sends another card's edits along -->
 		<GeneralCard
 			{job}

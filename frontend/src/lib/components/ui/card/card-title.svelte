@@ -15,11 +15,15 @@
 </script>
 
 <!-- A real heading, so screen reader users can jump between a page's cards -->
+<!-- Muted like the label in the frame of a Kumo layer card, so the white panel below carries the weight -->
 <svelte:element
 	this={`h${level}`}
 	bind:this={ref}
 	data-slot="card-title"
-	class={cn('flex flex-row items-center gap-2 text-base leading-snug font-medium', className)}
+	class={cn(
+		'text-muted-foreground flex flex-row items-center gap-2 text-base leading-snug font-medium',
+		className
+	)}
 	{...restProps}
 >
 	{@render children?.()}

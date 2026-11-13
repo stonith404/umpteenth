@@ -52,7 +52,7 @@
 
 <!-- Cloudflare's settings layout: a column of sections beside a table of contents that follows the scroll -->
 <div class="grid grid-cols-1 gap-8 lg:grid-cols-toc">
-	<div class="flex min-w-0 flex-col gap-10">
+	<div class="flex min-w-0 flex-col gap-5">
 		{#if !canManage}
 			<AdminOnlyNotice>Only admins of the workspace can change its settings.</AdminOnlyNotice>
 		{/if}

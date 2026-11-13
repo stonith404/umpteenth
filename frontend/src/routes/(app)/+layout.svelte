@@ -1,5 +1,4 @@
 <script lang="ts">
-	import AppFooter from '#lib/components/layout/app-footer.svelte';
 	import AppHeader from '#lib/components/layout/app-header.svelte';
 	import AppSidebar from '#lib/components/layout/app-sidebar.svelte';
 	import CommandPalette from '#lib/components/layout/command-palette.svelte';
@@ -24,15 +23,15 @@
 	<!-- Without min-w-0 the inset grows to fit its widest unbreakable content, e.g. a long URL in a run's output, and the whole page scrolls sideways -->
 	<Sidebar.Inset class="min-w-0">
 		<AppHeader user={data.user} />
-		<!-- Pages span the whole width with 32px gutters like the dashboard's, and the footer closes the scrolling area -->
+		<!-- Pages sit in the dashboard's 1100px column, centered on the canvas with gutters of at least 16px or 32px -->
+		<!-- The page is a size container, so a strip inside the column, like a job's tabs, can still run edge to edge -->
 		<main
 			id="content"
 			tabindex="-1"
-			class="flex w-full flex-1 flex-col gap-6 p-4 outline-none md:p-8"
+			class="@container flex w-full flex-1 flex-col gap-7 px-page py-8 outline-none *:mx-auto *:w-full *:max-w-page"
 		>
 			{@render children()}
 		</main>
-		<AppFooter />
 	</Sidebar.Inset>
 </Sidebar.Provider>
 

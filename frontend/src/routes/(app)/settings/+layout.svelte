@@ -16,6 +16,10 @@
 </svelte:head>
 
 <!-- The sidebar lists the sections like Cloudflare's Manage account group, so each page is titled after its own section -->
-<PageHeader title={activeTab.label} description={activeTab.description} />
+<PageHeader
+	title={activeTab.label}
+	description={activeTab.description}
+	docsPath={'docsPath' in activeTab ? activeTab.docsPath : undefined}
+/>
 
 {@render children()}

@@ -7,6 +7,10 @@
 	<title>Runs · Umpteenth</title>
 </svelte:head>
 
-<PageHeader title="Runs" description="Every execution of every job, with its full timeline." />
+<PageHeader
+	title="Runs"
+	description="Every execution of every job, with its full timeline."
+	docsPath="/guides/runs/"
+/>
 
 <RunsTable />

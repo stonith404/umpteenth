@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { User } from '#lib/api/types.js';
 	import * as Breadcrumb from '#lib/components/ui/breadcrumb/index.js';
@@ -7,11 +8,11 @@
 	import { buildBreadcrumbs, buildErrorBreadcrumbs } from '#lib/utils/breadcrumb-util.js';
 	import { errorPageContent } from '#lib/utils/error-util.js';
 	import { cn } from '#lib/utils/style.js';
-	import { DOCS_URL } from '#lib/navigation.js';
+	import { DOCS_URL, mainNav, secondaryNav } from '#lib/navigation.js';
 	import BookOpenIcon from 'phosphor-svelte/lib/BookOpen';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlass';
+	import { onMount } from 'svelte';
 	import { commandPalette } from './command-palette.svelte';
-	import ModeSwitcher from './mode-switcher.svelte';
 	import NavigationProgress from './navigation-progress.svelte';
 	import UserMenu from './user-menu.svelte';
 
@@ -31,6 +32,33 @@
 	// Phones show only the parent and the current page, since the page's h1 carries the full name anyway
 	// Unlike Kumo there is no leading ellipsis, because in a header shared with three buttons its width is what the current page needs
 	const hiddenOnMobile = (i: number) => i < breadcrumbs.length - 2;
+
+	// The first crumb links to a section of the sidebar and carries its icon, like the product a dashboard trail starts at
+	const sectionIcon = $derived(
+		[...mainNav, ...secondaryNav(user)].find((item) => item.href === breadcrumbs[0]?.href)?.icon
+	);
+
+	// A page at the top of a section names itself in its h1, so its one-crumb trail only fades in once the h1 has scrolled under the header
+	// It starts out hidden, since a page opens at its top with the h1 in view, and the observer's first report corrects that right away when it doesn't
+	let titleInView = $state(true);
+	const trailHidden = $derived(breadcrumbs.length === 1 && titleInView);
+
+	// Each page brings its own h1, so the observer moves to the new one after every navigation
+	let observer: IntersectionObserver | undefined;
+	function watchTitle() {
+		observer?.disconnect();
+		const title = document.querySelector('main h1');
+		// A page without an h1 has nothing else naming it, so its trail stays in view
+		titleInView = !!title;
+		if (!title) return;
+		observer = new IntersectionObserver(([entry]) => (titleInView = entry.isIntersecting), {
+			rootMargin: '-58px 0px 0px 0px'
+		});
+		observer.observe(title);
+	}
+
+	afterNavigate(watchTitle);
+	onMount(() => () => observer?.disconnect());
 </script>
 
 <!-- Cloudflare's header: on the same canvas as the sidebar and the page, 58px tall to line up with the sidebar's top row, with 16px gutters -->
@@ -38,7 +66,7 @@
 	<div class="flex h-full w-full items-center gap-2 px-4">
 		<!-- On desktop and tablets the sidebar has its own collapse toggle in its header -->
 		<Sidebar.Trigger class="-ml-1 md:hidden" />
-		<Breadcrumb.Root class="min-w-0 flex-1">
+		<Breadcrumb.Root class="min-w-0 flex-1" concealed={trailHidden}>
 			<Breadcrumb.List>
 				{#each breadcrumbs as crumb, i (i)}
 					<!-- A separator goes with the crumb before it, so on phones the trail starts at the parent without a leading separator -->
@@ -52,7 +80,13 @@
 							class={cn('shrink-0 max-sm:max-w-9/20', hiddenOnMobile(i) && 'max-sm:hidden')}
 						>
 							<Breadcrumb.Link href={crumb.href} title={crumb.label} class="sm:max-w-64">
-								{crumb.label}
+								<span class="flex min-w-0 items-center gap-1.5">
+									{#if i === 0 && sectionIcon}
+										{@const Icon = sectionIcon}
+										<Icon class="size-4 shrink-0" aria-hidden="true" />
+									{/if}
+									<span class="truncate">{crumb.label}</span>
+								</span>
 							</Breadcrumb.Link>
 						</Breadcrumb.Item>
 					{:else}
@@ -85,7 +119,6 @@
 				<BookOpenIcon data-icon="inline-start" />
 				Docs
 			</Button>
-			<ModeSwitcher />
 			<UserMenu {user} />
 		</div>
 	</div>

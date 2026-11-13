@@ -604,66 +604,73 @@
 						{/if}
 					</div>
 				{:else}
-					{#if showSearch}
-						<InputGroup.Root class="order-1 w-auto min-w-0 grow basis-36 sm:order-none sm:basis-64">
-							<InputGroup.Addon>
-								<MagnifyingGlassIcon />
-							</InputGroup.Addon>
-							<InputGroup.Input
-								type="search"
-								class="[&::-webkit-search-cancel-button]:hidden"
-								placeholder={searchPlaceholder}
-								aria-label={searchPlaceholder}
-								value={searchInput}
-								oninput={(e) => onSearchInput(e.currentTarget.value)}
-								onkeydown={(e) => e.key === 'Escape' && clearSearch()}
-							/>
-							{#if searchInput}
-								<InputGroup.Addon align="inline-end">
-									<InputGroup.Button size="icon-xs" aria-label="Clear search" onclick={clearSearch}>
-										<XIcon />
-									</InputGroup.Button>
-								</InputGroup.Addon>
-							{/if}
-						</InputGroup.Root>
-					{/if}
-					{#if showFilters}
-						<!-- From sm up this row and its scroller dissolve into the toolbar, so filters wrap one by one instead of dropping below the search as a block -->
-						<div class="order-3 flex min-w-0 items-center gap-2 sm:order-none sm:contents">
-							<!-- The padding keeps the focus rings clear of the scroller's clipping edge -->
-							<div
-								class="-m-0.5 flex min-w-0 items-center gap-2 overflow-x-auto p-0.5 scrollbar-none *:shrink-0 max-sm:scroll-fade-x sm:contents [&::-webkit-scrollbar]:hidden"
-							>
-								{#each filters as filter, i (filter.key)}
-									{#if i < filters.length - 1}
-										{@render filterControl(filter)}
-									{:else}
-										<!-- The last filter and Reset wrap as one, so Reset never lands on a row of its own -->
-										<div class="flex items-center gap-2">
-											{@render filterControl(filter)}
-											{#if showReset}
-												<Button variant="ghost" class="hidden sm:inline-flex" onclick={resetView}>
-													Reset
-													<XIcon data-icon="inline-end" />
-												</Button>
-											{/if}
-										</div>
-									{/if}
-								{/each}
-							</div>
-							<!-- On phones Reset shrinks to its icon and stays outside the scroller, so it fits beside a short filter and stays in view however far the filters scroll -->
-							{#if showReset}
-								<Button
-									variant="ghost"
-									size="icon"
-									class="sm:hidden"
-									aria-label="Reset"
-									onclick={resetView}
+					<!-- From sm up the search and the filters join into one toolbar, while on phones the wrapper dissolves so they can take rows of their own -->
+					{#if showSearch || showFilters}
+						<div class="contents sm:toolbar sm:min-w-0 sm:grow">
+							{#if showSearch}
+								<InputGroup.Root
+									class="order-1 w-auto min-w-0 grow basis-36 sm:order-none sm:basis-40"
 								>
-									<XIcon />
-								</Button>
+									<InputGroup.Addon>
+										<MagnifyingGlassIcon />
+									</InputGroup.Addon>
+									<InputGroup.Input
+										type="search"
+										class="[&::-webkit-search-cancel-button]:hidden"
+										placeholder={searchPlaceholder}
+										aria-label={searchPlaceholder}
+										value={searchInput}
+										oninput={(e) => onSearchInput(e.currentTarget.value)}
+										onkeydown={(e) => e.key === 'Escape' && clearSearch()}
+									/>
+									{#if searchInput}
+										<InputGroup.Addon align="inline-end">
+											<InputGroup.Button
+												size="icon-xs"
+												aria-label="Clear search"
+												onclick={clearSearch}
+											>
+												<XIcon />
+											</InputGroup.Button>
+										</InputGroup.Addon>
+									{/if}
+								</InputGroup.Root>
+							{/if}
+							{#if showFilters}
+								<!-- From sm up this row and its scroller dissolve into the toolbar, so each filter becomes one of its segments -->
+								<div class="order-3 flex min-w-0 items-center gap-2 sm:order-none sm:contents">
+									<!-- The padding keeps the focus rings clear of the scroller's clipping edge -->
+									<div
+										class="-m-0.5 flex min-w-0 items-center gap-2 overflow-x-auto p-0.5 scrollbar-none max-sm:scroll-fade-x sm:contents [&::-webkit-scrollbar]:hidden"
+									>
+										{#each filters as filter (filter.key)}
+											<div data-toolbar-item class="contents">
+												{@render filterControl(filter)}
+											</div>
+										{/each}
+									</div>
+									<!-- On phones Reset shrinks to its icon and stays outside the scroller, so it fits beside a short filter and stays in view however far the filters scroll -->
+									{#if showReset}
+										<Button
+											variant="ghost"
+											size="icon"
+											class="sm:hidden"
+											aria-label="Reset"
+											onclick={resetView}
+										>
+											<XIcon />
+										</Button>
+									{/if}
+								</div>
 							{/if}
 						</div>
+					{/if}
+					<!-- Reset clears the toolbar, so from sm up it sits right after it rather than inside it -->
+					{#if showReset}
+						<Button variant="ghost" class="hidden sm:inline-flex" onclick={resetView}>
+							Reset
+							<XIcon data-icon="inline-end" />
+						</Button>
 					{/if}
 					{#if actions}
 						<!-- Hidden until the snippet renders an element, since a snippet that renders nothing still leaves whitespace that would take a gap -->

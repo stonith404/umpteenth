@@ -16,7 +16,7 @@
 	data-slot="breadcrumb-separator"
 	role="presentation"
 	aria-hidden="true"
-	class={cn('flex shrink-0 items-center [&>svg]:size-3.5', className)}
+	class={cn('text-inactive flex shrink-0 items-center [&>svg]:size-3.5', className)}
 	{...restProps}
 >
 	{#if children}
