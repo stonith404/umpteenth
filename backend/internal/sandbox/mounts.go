@@ -57,7 +57,7 @@ func CheckMounts(folders []Folder, mounts []Mount) error {
 
 		// A cleaned path is the only form that matches a folder by prefix, so .. and doubled slashes are refused rather than resolved
 		if m.Path == "" || m.Path == "/" || path.Clean(m.Path) != m.Path {
-			return fmt.Errorf("mount %q path %q must be a clean path without . or ..", m.Name, m.Path)
+			return fmt.Errorf("mount %q path %q must be a clean path (without . or ..)", m.Name, m.Path)
 		}
 		if paths[m.Path] {
 			return fmt.Errorf("more than one mount uses %q", m.Path)
