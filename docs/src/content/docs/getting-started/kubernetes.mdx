@@ -140,6 +140,40 @@ Two things differ from Docker:
 For stronger isolation, install gVisor or Kata Containers on your nodes and set `sandbox.runtimeClass` to its RuntimeClass, such as `gvisor`.
 Use `sandbox.nodeSelector` and `sandbox.tolerations` to keep sandboxes on nodes of their own.
 
+### Host folders
+
+A job that works on data outside its sandbox mounts a PersistentVolumeClaim, which you create in the sandbox namespace beforehand:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  namespace: umpteenth-sandboxes
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 100Gi
+```
+
+Then list the folders jobs may mount, where each entry names the claim and an optional prefix inside it:
+
+```yaml
+config:
+  sandbox:
+    folders:
+      - backups/db:rw
+      - backups/logs:ro
+```
+
+An instance admin mounts a part of one on a job, and the agent reaches it at `/ump/folders/<name>`.
+A claim that doesn't exist fails the pod with `CreateContainerConfigError`, which the run reports.
+A subfolder that doesn't exist in the claim yet is created empty and owned by root, so set its owner to uid 1000 before a job writes there.
+`ReadWriteOnce` claims keep concurrent runs on one node, so use `ReadWriteMany` while runs of different jobs may use the same folder at the same time.
+Umpteenth doesn't set `fsGroup`, since that would change the ownership of everything in the volume, so the folder has to be writable by uid 1000 unless the job runs as root.
+
 ### Network policies
 
 The chart installs NetworkPolicies that let sandbox pods reach the broker port (8081) of the Umpteenth pods and nothing else, and no pod can connect to a sandbox.

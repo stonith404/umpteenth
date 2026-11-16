@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 
 	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 	"github.com/stonith404/umpteenth/backend/internal/sandbox/umpbin"
@@ -37,6 +38,10 @@ func (a *Adapter) Create(ctx context.Context, spec sandbox.Spec) (sandbox.Sandbo
 	}
 	if !slices.Contains(a.networks(), spec.Network) {
 		return nil, fmt.Errorf("%w: network policy %q", sandbox.ErrUnsupported, spec.Network)
+	}
+	// A folder the operator removed or narrowed must not stay mounted just because the job still names it
+	if err := sandbox.CheckMounts(a.cfg.Folders, spec.Mounts); err != nil {
+		return nil, err
 	}
 	if spec.RunID == "" {
 		spec.RunID = randomID(8)
@@ -268,6 +273,15 @@ func (a *Adapter) containerConfig(spec sandbox.Spec, runNet string) (*container.
 		Memory:        memory,
 		MemorySwap:    memory,
 		PidsLimit:     &pids,
+	}
+	// Mounts rather than Binds, since the engine creates a missing bind source directory but fails on a missing mount source
+	for _, m := range spec.Mounts {
+		hostCfg.Mounts = append(hostCfg.Mounts, mount.Mount{
+			Type:     mount.TypeBind,
+			Source:   m.Path,
+			Target:   sandbox.MountDir + "/" + m.Name,
+			ReadOnly: m.Mode == sandbox.ModeReadOnly,
+		})
 	}
 	// Root keeps the engine's default capabilities because it is an explicit opt-in for package installs
 	if spec.AgentUser != sandbox.UserRoot {

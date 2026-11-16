@@ -897,6 +897,9 @@ func TestShadowRunsOnlyWhenTheyCantRepeatAnything(t *testing.T) {
 		passed  string
 	}{
 		{name: "side effects", job: func(j *runner.JobConfig) { j.SideEffects = []string{"Posts to Slack"} }, skipped: "The job has side effects (Posts to Slack)"},
+		{name: "writable host folder", job: func(j *runner.JobConfig) {
+			j.Mounts = []sandbox.Mount{{Name: "www", Path: "/var/www", Mode: sandbox.ModeReadWrite}}
+		}, skipped: "writes to the host folder www"},
 		{name: "state", prepare: func(t *testing.T, db *database.DB, runID string) {
 			testutil.Exec(t, db, `INSERT INTO run_events (run_id, seq, ts, type, payload) VALUES ($1, 1, 1, 'broker.call', '{"endpoint":"PUT /v1/state/last_video","ok":true}')`, runID)
 		}, skipped: "changed the job's state"},

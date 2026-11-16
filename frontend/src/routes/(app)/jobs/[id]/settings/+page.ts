@@ -29,6 +29,8 @@ export const load: PageLoad = async ({ params, fetch, depends }) => {
 
 	// The network picker offers the unrestricted network only where the sandbox backend does
 	const networks = system.data?.sandbox?.capabilities.networks ?? [];
+	// The mount editor offers only the folders the operator configured
+	const folders = system.data?.sandbox?.folders ?? [];
 	return {
 		jobServers,
 		jobSkills,
@@ -38,6 +40,7 @@ export const load: PageLoad = async ({ params, fetch, depends }) => {
 		secrets,
 		models,
 		settings,
-		networks
+		networks,
+		folders
 	};
 };

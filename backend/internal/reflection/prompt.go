@@ -12,6 +12,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/playbook"
 	"github.com/stonith404/umpteenth/backend/internal/reflection/reflectiondb"
 	"github.com/stonith404/umpteenth/backend/internal/runner"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 )
 
 // systemPrompt tells the reflection model what a playbook is and how to improve it
@@ -117,7 +118,9 @@ type input struct {
 	Outputs         []string
 	// SideEffects are what the job changes outside the sandbox, which main must still do under the instruction's conditions
 	SideEffects []string
-	BaseImage   string
+	// Mounts are the host folders of the run, which scripts write to under MountDir instead of /workspace
+	Mounts    []sandbox.Mount
+	BaseImage string
 	// ImageBuilds tells whether the sandbox adapter can build job images, without which the Dockerfile can't take software
 	ImageBuilds bool
 	// Limits are the job's effective limits and SecretNames the environment variables of its secrets, which only the owner can change
@@ -186,6 +189,9 @@ func (in input) userMessage() string {
 	}
 	for _, s := range in.SideEffects {
 		fmt.Fprintf(&b, "- side effect: %s\n", s)
+	}
+	for _, m := range in.Mounts {
+		fmt.Fprintf(&b, "- host folder: %s/%s (%s), outside the sandbox and outside /workspace\n", sandbox.MountDir, m.Name, m.Mode)
 	}
 	fmt.Fprintf(&b, "Base image: %s\n", in.BaseImage)
 	l := in.Limits

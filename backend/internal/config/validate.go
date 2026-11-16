@@ -61,6 +61,10 @@ func (c *Config) Validate() error {
 
 	switch c.Sandbox.Adapter {
 	case SandboxAdapterDocker, SandboxAdapterNone:
+		// Folders only mean something to an adapter that mounts them
+		if c.Sandbox.Adapter == SandboxAdapterNone && len(c.Sandbox.Folders) > 0 {
+			return fmt.Errorf("%s needs a sandbox adapter", describe("sandbox.folders"))
+		}
 	case SandboxAdapterKubernetes:
 		// Sandbox pods reach the broker of the replica executing their run by its pod address, which only the deployment knows
 		if c.Sandbox.BrokerHost == "" {

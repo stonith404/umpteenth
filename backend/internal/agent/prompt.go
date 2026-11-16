@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stonith404/umpteenth/backend/internal/llm"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 )
 
 // OwnerNotesHeading starts the part of a run's summary the job's owner has to act on, which reflection also looks for
@@ -18,7 +19,7 @@ const OwnerNotesHeading = "### For the owner"
 const baseInstructions = `You are Umpteenth, an autonomous agent that performs one run of a job inside a disposable Linux sandbox.
 
 ## Environment
-- /workspace is your working directory. Only the job's state and the files you put in /ump/outputs/, which become run artifacts, outlive the run.
+- /workspace is your working directory. Only the job's state, the files you put in /ump/outputs/, which become run artifacts, and any /ump/folders/ mounts outlive the run.
 - /ump/input.json holds the trigger payload and run input.
 - For a missing Python package, run your script with ` + "`uv run --with <package> python3 script.py`" + `; for Node packages, run npm install in /workspace.
 - Scripts can call MCP tools, the LLM, job state and outputs through the ump CLI (` + "`ump --help`" + `).
@@ -64,6 +65,8 @@ type PromptInput struct {
 	Limits PromptLimits
 	// RunAsRoot is set when the agent's commands run as root, so it can install system packages
 	RunAsRoot bool
+	// Mounts are the host folders the run may use, mounted under MountDir
+	Mounts []sandbox.Mount
 }
 
 // PromptLimits are the run's effective limits as the prompt states them, where a zero value leaves that limit out
@@ -110,6 +113,18 @@ func SystemBlocks(in PromptInput) []llm.Block {
 	}
 	// Limits and the sandbox user change only when someone edits the job or the workspace defaults, so they stay in the job's cached block
 	job.WriteString(limitsSection(in.Limits, in.RunAsRoot))
+
+	// Host folders change only when an instance admin edits the job, so the list belongs in the same cached block
+	if len(in.Mounts) > 0 {
+		job.WriteString("\n## Host folders\nThese are on the host machine, not in the sandbox:\n")
+		for _, m := range in.Mounts {
+			access := "read-only"
+			if m.Mode == sandbox.ModeReadWrite {
+				access = "read-write, so changes are permanent and stay after the run ends"
+			}
+			fmt.Fprintf(&job, "- %s/%s (%s)\n", sandbox.MountDir, m.Name, access)
+		}
+	}
 
 	blocks := []llm.Block{
 		{Text: baseInstructions, CacheBreakpoint: true},
