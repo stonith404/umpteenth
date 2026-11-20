@@ -8,7 +8,7 @@ ARG VERSION=dev
 
 # Stage 1: build the frontend
 # The build stages run on the build machine's platform and cross-compile, so multi-arch images need no emulation
-FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS frontend-builder
 RUN corepack enable
 WORKDIR /build
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -19,7 +19,7 @@ COPY ./frontend ./frontend/
 RUN BUILD_OUTPUT_PATH=dist pnpm --filter umpteenth-frontend run build
 
 # Stage 2: build the ump CLI and the server
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18 AS backend-builder
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS backend-builder
 ARG BUILD_TAGS
 ARG VERSION
 ARG TARGETOS
