@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,6 +60,10 @@ func (a *Adapter) create(ctx context.Context, spec sandbox.Spec) (sandbox.Sandbo
 	}
 	if !slices.Contains(a.networks(), spec.Network) {
 		return nil, fmt.Errorf("%w: network policy %q", sandbox.ErrUnsupported, spec.Network)
+	}
+	// A folder the operator removed or narrowed must not stay mounted just because the job still names it
+	if err := sandbox.CheckMounts(a.cfg.Folders, spec.Mounts); err != nil {
+		return nil, err
 	}
 	if spec.RunID == "" {
 		spec.RunID = randomID(8)
@@ -275,6 +280,19 @@ func (a *Adapter) podSpec(name string, spec sandbox.Spec) *corev1.Pod {
 		}
 	}
 
+	// Each mount is a volume of its own, so one claim can appear under two names while subPath picks the folder
+	volumes := []corev1.Volume{{Name: "ump", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: new(resource.MustParse("64Mi"))}}}}
+	volumeMounts := []corev1.VolumeMount{{Name: "ump", MountPath: bootstrapDir, ReadOnly: true}}
+	for i, m := range spec.Mounts {
+		name := "folder-" + strconv.Itoa(i)
+		claim, subPath, _ := strings.Cut(m.Path, "/")
+		readOnly := m.Mode == sandbox.ModeReadOnly
+		volumes = append(volumes, corev1.Volume{Name: name, VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim, ReadOnly: readOnly},
+		}})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: name, MountPath: sandbox.MountDir + "/" + m.Name, SubPath: subPath, ReadOnly: readOnly})
+	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: a.ns, Labels: labels, Annotations: annotations},
 		Spec: corev1.PodSpec{
@@ -313,9 +331,9 @@ func (a *Adapter) podSpec(name string, spec sandbox.Spec) *corev1.Pod {
 				EnvFrom:         []corev1.EnvFromSource{{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: name + envSecretSuffix}}}},
 				Resources:       corev1.ResourceRequirements{Requests: limits, Limits: limits},
 				SecurityContext: securityContext,
-				VolumeMounts:    []corev1.VolumeMount{{Name: "ump", MountPath: bootstrapDir, ReadOnly: true}},
+				VolumeMounts:    volumeMounts,
 			}},
-			Volumes: []corev1.Volume{{Name: "ump", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: new(resource.MustParse("64Mi"))}}}},
+			Volumes: volumes,
 		},
 	}
 	if a.cfg.RuntimeClass != "" {

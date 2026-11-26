@@ -226,6 +226,7 @@ func (r *Runner) execute(ctx context.Context, run Run, rec *events.Recorder) Fin
 		Network:     job.Network,
 		Env:         job.Env,
 		AgentUser:   agentUser,
+		Mounts:      job.Mounts,
 		Broker:      sandbox.BrokerAccess{Token: brokerToken},
 		TTL:         time.Duration(job.Limits.TimeoutSeconds)*time.Second + 5*time.Minute,
 	})
@@ -387,6 +388,7 @@ func (r *Runner) runAgent(ctx context.Context, s *session, resume string) Final 
 			Playbook:        s.job.PlaybookRendered,
 			Limits:          promptLimits(s.job.Limits),
 			RunAsRoot:       s.job.RunAsRoot,
+			Mounts:          s.job.Mounts,
 		}),
 		Tools: s.tools,
 		Budget: agent.Budget{MaxTurns: s.job.Limits.MaxTurns, MaxCost: s.job.Limits.MaxCost, Deadline: s.deadline, ExtraCost: func() int64 {

@@ -51,6 +51,7 @@ An empty limit field uses the workspace's value under **Settings → General →
 | **Allowed domains** | Empty | Appears for **Allowed domains only**. One host name per line, 1 to 100 of them, with `*.example.com` for every name below `example.com`, and no scheme, port, path or IP address. |
 | **Allow private network** | Off | Appears for **Internet access** and **Allowed domains only**. Lets the job reach the LAN and the Docker host, while cloud metadata stays blocked. |
 | **Run as root** | Off | Runs the sandbox's commands and scripts as root, so the agent can install system packages |
+| **Host folders** | None | Folders outside the sandbox an instance admin granted, each mounted at `/ump/folders/<name>` read-only or read-write. Only instance admins change them ([Sandboxes](../../guides/sandboxes/#host-folders)) |
 | **Timeout** | 900 seconds | 30 to 86,400 seconds for the whole run, including a wait for the job's image |
 | **Max turns** | 60 | 1 to 1,000 model calls of the agent |
 | **Max cost per run** | 2 USD | `0` turns the limit off |

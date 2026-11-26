@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/mount"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -246,6 +247,25 @@ func TestIsMissingDependency(t *testing.T) {
 	assert.True(t, isMissingDependency(errors.New("failed to set up container networking: network ump-unrestricted not found")))
 	assert.True(t, isMissingDependency(errors.New("Error response from daemon: No such container: umpteenth-relay-x")))
 	assert.False(t, isMissingDependency(errors.New("conflict: name already in use")))
+}
+
+func TestContainerConfigMountsHostFolders(t *testing.T) {
+	a := &Adapter{cfg: Config{InstanceID: "test", HostID: "host"}}
+	_, hostCfg := a.containerConfig(sandbox.Spec{
+		RunID: "run", Image: "example", AgentUser: sandbox.UserAgent, Network: sandbox.NetworkInternet,
+		Mounts: []sandbox.Mount{
+			{Name: "www", Path: "/var/www", Mode: sandbox.ModeReadWrite},
+			{Name: "audit", Path: "/srv/audit", Mode: sandbox.ModeReadOnly},
+		},
+	}, "run-network")
+
+	require.Len(t, hostCfg.Mounts, 2)
+	assert.Equal(t, mount.TypeBind, hostCfg.Mounts[0].Type)
+	assert.Equal(t, "/var/www", hostCfg.Mounts[0].Source)
+	assert.Equal(t, "/ump/folders/www", hostCfg.Mounts[0].Target)
+	assert.False(t, hostCfg.Mounts[0].ReadOnly)
+	assert.Equal(t, "/ump/folders/audit", hostCfg.Mounts[1].Target)
+	assert.True(t, hostCfg.Mounts[1].ReadOnly)
 }
 
 func TestContainerConfigDisablesInheritedHealthcheck(t *testing.T) {

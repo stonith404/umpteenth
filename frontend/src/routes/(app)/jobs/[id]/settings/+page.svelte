@@ -10,6 +10,7 @@
 	import TrashIcon from 'phosphor-svelte/lib/Trash';
 	import { toast } from 'svelte-sonner';
 	import GeneralCard from './general-card.svelte';
+	import HostFoldersCard from './host-folders-card.svelte';
 	import LearningCard from './learning-card.svelte';
 	import LoadError from './load-error.svelte';
 	import McpServersCard from './mcp-servers-card.svelte';
@@ -68,6 +69,7 @@
 		{/key}
 		<ScheduleCard {job} />
 		<SandboxCard {job} settings={data.settings} networks={data.networks} />
+		<HostFoldersCard {job} folders={data.folders} isAdmin={data.user.isAdmin} />
 		<LearningCard {job} />
 
 		<!-- Without the job's own attachments the card can't be edited safely, since saving would replace them -->
@@ -140,6 +142,7 @@
 				{ label: 'Spec' },
 				{ label: 'Schedule' },
 				{ label: 'Sandbox' },
+				{ label: 'Host folders' },
 				{ label: 'Learning' },
 				{ label: 'MCP servers' },
 				{ label: 'Skills' },

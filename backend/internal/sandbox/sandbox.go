@@ -91,7 +91,9 @@ type Spec struct {
 	Env map[string]string
 	// AgentUser is UserAgent by default, or UserRoot when the job opts in
 	AgentUser User
-	Broker    BrokerAccess
+	// Mounts are the job's host folders, which the adapter checks against its configured folders before mounting
+	Mounts []Mount
+	Broker BrokerAccess
 	// TTL is a hard upper bound, enforced by the backend where possible
 	TTL time.Duration
 	// CACertificates sets the variables of CAEnv, since the core installs extra CA certificates with TrustCACertificates before anything runs
@@ -184,6 +186,8 @@ type Info struct {
 	Arch      string       `json:"arch"`
 	Isolation Isolation    `json:"isolation" enum:"container,gvisor,microvm"`
 	Caps      Capabilities `json:"capabilities"`
+	// Folders are the configured base folders jobs may mount, each with the most it may ask for
+	Folders []Folder `json:"folders"`
 	// ImageBuilds reports whether the adapter implements ImageBuilder
 	ImageBuilds bool `json:"imageBuilds"`
 	// RuntimeError is why sandboxes can't start under the configured runtime, found by a test sandbox when the adapter was prepared

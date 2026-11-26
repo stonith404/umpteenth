@@ -94,6 +94,7 @@ func (r *Runner) Shadow(ctx context.Context, run Run, job JobConfig) (ShadowResu
 		Network:     job.Network,
 		Env:         job.Env,
 		AgentUser:   agentUser,
+		Mounts:      job.Mounts,
 		Broker:      sandbox.BrokerAccess{Token: token},
 		TTL:         timeout + 10*time.Minute,
 	})

@@ -20,6 +20,7 @@ func TestPatchKeepsOmittedFieldsAndClearsEmptyOnes(t *testing.T) {
 		Image:          new("alpine"),
 		Network:        "none",
 		AllowedDomains: "[]",
+		Mounts:         "[]",
 		Limits:         `{"maxTurns":5}`,
 		SelfImprove:    false,
 		Concurrency:    ConcurrencyQueue,

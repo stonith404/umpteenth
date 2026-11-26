@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/stonith404/umpteenth/backend/internal/apperror"
@@ -17,6 +18,7 @@ import (
 	"github.com/stonith404/umpteenth/backend/internal/principal"
 	"github.com/stonith404/umpteenth/backend/internal/runner"
 	"github.com/stonith404/umpteenth/backend/internal/runs"
+	"github.com/stonith404/umpteenth/backend/internal/sandbox"
 	"github.com/stonith404/umpteenth/backend/internal/utils/crypto"
 )
 
@@ -111,7 +113,24 @@ type createInput struct {
 	Body jobFields
 }
 
+// checkMountPermission keeps host folders with the instance admins, since a mount reaches data outside every sandbox
+// Members' patches leave mounts out, so they keep editing jobs that an instance admin gave folders to
+func checkMountPermission(ctx context.Context, mounts []sandbox.Mount) error {
+	if len(mounts) == 0 {
+		return nil
+	}
+	p, _ := principal.From(ctx)
+	if !p.InstanceAdmin {
+		return apperror.Forbidden("Only instance admins can grant host folders")
+	}
+	return nil
+}
+
 func (m *Module) create(ctx context.Context, in *createInput) (*jobOutput, error) {
+	err := checkMountPermission(ctx, in.Body.Mounts)
+	if err != nil {
+		return nil, err
+	}
 	job, err := m.createJob(ctx, principal.WorkspaceID(ctx), principal.UserIDPtr(ctx), in.Body)
 	if err != nil {
 		return nil, err
@@ -166,6 +185,14 @@ const maxUpdateAttempts = 3
 func (m *Module) update(ctx context.Context, in *updateInput) (*jobOutput, error) {
 	wid := principal.WorkspaceID(ctx)
 
+	// A patch that leaves mounts out keeps the stored ones, so members still edit a job that has host folders
+	if in.Body.Mounts != nil {
+		err := checkMountPermission(ctx, *in.Body.Mounts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Compiling takes a while, so it happens once before the attempts rather than in each of them
 	patch, err := m.withRebuiltSpec(ctx, wid, in.ID, in.Body)
 	if err != nil {
@@ -208,6 +235,7 @@ func (m *Module) applyPatch(ctx context.Context, wid, jobID string, edit func(*j
 	if err != nil {
 		return false, err
 	}
+	mountsBefore := slices.Clone(f.Mounts)
 	edit(&f)
 	err = f.normalize()
 	if err != nil {
@@ -233,6 +261,13 @@ func (m *Module) applyPatch(ctx context.Context, wid, jobID string, edit func(*j
 			return false, err
 		}
 	}
+	// Only changed mounts are checked, so a job whose folder the operator removed can still be edited
+	if !slices.Equal(mountsBefore, f.Mounts) {
+		err = m.checkMounts(ctx, f.Mounts)
+		if err != nil {
+			return false, err
+		}
+	}
 
 	spec, _ := json.Marshal(f.Spec)
 	limits, _ := json.Marshal(f.Limits)
@@ -249,6 +284,7 @@ func (m *Module) applyPatch(ctx context.Context, wid, jobID string, edit func(*j
 		AllowPrivateNetwork: f.AllowPrivateNetwork,
 		RunAsRoot:           f.RunAsRoot,
 		Limits:              string(limits),
+		Mounts:              mountsJSON(f.Mounts),
 		SelfImprove:         *f.SelfImprove,
 		Graduate:            *f.Graduate,
 		Concurrency:         f.Concurrency,

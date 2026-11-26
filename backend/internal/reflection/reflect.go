@@ -327,6 +327,7 @@ func (m *Module) buildInput(ctx context.Context, run reflectiondb.GetRunRow, run
 		Inputs:          job.Inputs,
 		Outputs:         job.Outputs,
 		SideEffects:     job.SideEffects,
+		Mounts:          job.Mounts,
 		BaseImage:       job.BaseImage,
 		ImageBuilds:     m.deps.Images != nil,
 		Limits:          job.Limits,

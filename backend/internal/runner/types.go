@@ -108,6 +108,8 @@ type JobConfig struct {
 	AllowedDomains      []string
 	AllowPrivateNetwork bool
 	RunAsRoot           bool
+	// Mounts are the host folders from the sandbox configuration, checked against it again when the sandbox is created
+	Mounts []sandbox.Mount
 	// SelfImprove turns on reflection after every run
 	SelfImprove bool
 	// Graduate lets reflection turn the job into a main script that runs without the agent
